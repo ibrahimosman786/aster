@@ -1,4 +1,4 @@
-"""The Terminal-Bench campaign uses real Reef commits, without paid runs."""
+"""The Terminal-Bench campaign uses real Aster commits, without paid runs."""
 
 from __future__ import annotations
 
@@ -13,10 +13,10 @@ from pathlib import Path
 import pytest
 from tests.support.git_lfs import fake_git_lfs
 
-from reef.execution.sandbox.process import SandboxExecutor
-from reef.harness import TaskResult
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tree import HarnessTree
+from aster.execution.sandbox.process import SandboxExecutor
+from aster.harness import TaskResult
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tree import HarnessTree
 
 __all__ = ["fake_git_lfs"]
 
@@ -33,15 +33,15 @@ def purge_modules():
 def driver(monkeypatch, tmp_path):
     monkeypatch.syspath_prepend(str(EXAMPLE))
     for key, value in {
-        "REEF_WORK": str(tmp_path),
-        "REEF_MODEL": "openai/target",
-        "REEF_UPSTREAM_URL": "http://127.0.0.1:9",
-        "REEF_UPSTREAM_API_KEY": "target-test-key",
-        "REEF_PROPOSER_URL": "http://127.0.0.1:9",
-        "REEF_PROPOSER_MODEL": "proposer",
-        "REEF_PROPOSER_API_KEY": "proposer-test-key",
-        "REEF_META_HARNESS_WORKERS": "1",
-        "REEF_TERMINUS_ENVIRONMENT": "e2b",
+        "ASTER_WORK": str(tmp_path),
+        "ASTER_MODEL": "openai/target",
+        "ASTER_UPSTREAM_URL": "http://127.0.0.1:9",
+        "ASTER_UPSTREAM_API_KEY": "target-test-key",
+        "ASTER_PROPOSER_URL": "http://127.0.0.1:9",
+        "ASTER_PROPOSER_MODEL": "proposer",
+        "ASTER_PROPOSER_API_KEY": "proposer-test-key",
+        "ASTER_META_HARNESS_WORKERS": "1",
+        "ASTER_TERMINUS_ENVIRONMENT": "e2b",
         "E2B_API_KEY": "e2b-test-key",
     }.items():
         monkeypatch.setenv(key, value)
@@ -116,7 +116,7 @@ def test_configuration_fills_the_tasks_and_isolates_campaigns(driver, monkeypatc
     assert short["evolution"]["evaluation"]["repeats"] == 1
     original = driver.campaign_id(short)
     assert original != driver.campaign_id(full)
-    monkeypatch.setenv("REEF_MODEL", "another-model")
+    monkeypatch.setenv("ASTER_MODEL", "another-model")
     assert original != driver.campaign_id(short)
 
 
@@ -146,7 +146,7 @@ def campaign(driver, monkeypatch, tmp_path, fake_git_lfs):
         assert kwargs["timeout"] == 9000
         return task_run(task, int("# improved" in files.get("terminus/context/agent.py", "")))
 
-    monkeypatch.setattr("reef.evaluation.harness.runner.run_task", launch)
+    monkeypatch.setattr("aster.evaluation.harness.runner.run_task", launch)
     config = driver.configuration(("task",), 1)
     recipe = driver.load_recipe(config, tmp_path)
     chat = Proposals(HarnessTree.read(driver.SEED))

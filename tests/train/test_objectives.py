@@ -11,26 +11,26 @@ from tests.support._trajectories import policy_trajectory
 from recipes.sao.slime import SaoObjective
 from recipes.tttd.objective import adaptive_entropic_advantages
 from recipes.tttd.slime import TttdObjective
-from reef.train.algos.schedule import StepScheduling
-from reef.train.algos.signals import TrainingSignal
-from reef.train.slime_backend.objectives import (
+from aster.train.algos.schedule import StepScheduling
+from aster.train.algos.signals import TrainingSignal
+from aster.train.slime_backend.objectives import (
     SlimeObjective,
     add_slime_objective,
     register_slime_objective,
     resolve_slime_objective,
     unregister_slime_objective,
 )
-from reef.train.slime_backend.parameters import SlimeJobParameters
-from reef.train.slime_backend.reef_adapters.preparation import prepare_slime_job
-from reef.train.tinker_backend.losses import resolve_tinker_loss
-from reef.train.tinker_backend.objectives import (
+from aster.train.slime_backend.parameters import SlimeJobParameters
+from aster.train.slime_backend.aster_adapters.preparation import prepare_slime_job
+from aster.train.tinker_backend.losses import resolve_tinker_loss
+from aster.train.tinker_backend.objectives import (
     TinkerObjective,
     register_tinker_objective,
     resolve_tinker_objective,
     unregister_tinker_objective,
 )
-from reef.train.tinker_backend.preparation import prepare_tinker_job
-from reef.train.types import JobData
+from aster.train.tinker_backend.preparation import prepare_tinker_job
+from aster.train.types import JobData
 
 
 class ExampleObjective(SlimeObjective):
@@ -58,7 +58,7 @@ class TinkerExampleObjective(TinkerObjective):
 
 @pytest.fixture
 def no_slime_objectives(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("reef.train.slime_backend.objectives.SLIME_OBJECTIVES", {})
+    monkeypatch.setattr("aster.train.slime_backend.objectives.SLIME_OBJECTIVES", {})
 
 
 def test_objective_resolution_accepts_names_classes_and_instances(no_slime_objectives):
@@ -214,8 +214,8 @@ def test_method_objectives_resolve_without_importing_training_backends():
             "from recipes.tttd import TTTDRecipe\n"
             "from recipes.sao import SAORecipe\n"
             "from recipes.openclawrl import OpenClawRLRecipe\n"
-            "from reef.train.algos.schedule import StepScheduling\n"
-            "from reef.train.slime_backend.objectives import resolve_slime_objective\n"
+            "from aster.train.algos.schedule import StepScheduling\n"
+            "from aster.train.slime_backend.objectives import resolve_slime_objective\n"
             "for recipe in (TTTDRecipe, SAORecipe, OpenClawRLRecipe):\n"
             "    objective = resolve_slime_objective(recipe.default_parameters()['trajectory']['objective'])\n"
             "    objective.validate_scheduling(StepScheduling())\n"

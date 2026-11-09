@@ -6,10 +6,10 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Self
 
-from reef.core.chat_rendering import normalize_messages_for_template
-from reef.core.config import config_option
-from reef.pipeline_context import PipelineContext
-from reef.record2sample.distill import DistillSamples, DistillSettings
+from aster.core.chat_rendering import normalize_messages_for_template
+from aster.core.config import config_option
+from aster.pipeline_context import PipelineContext
+from aster.record2sample.distill import DistillSamples, DistillSettings
 
 #: The reference implementation's demonstration block (idanshen/Self-Distillation, ``main.py``).
 DEFAULT_CONTEXT_TEMPLATE = (

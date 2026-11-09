@@ -3,12 +3,12 @@ Aster CLI: serve
 
 ``aster serve`` reads a deployment config and starts every
 process the config declares, in dependency order. (The wheel also installs
-``reef-native``, the loop runner that the ``native`` adapter launches per
-rollout; nothing calls it by hand.)
+``aster-native``, the loop runner the ``native`` adapter launches per
+rollout. Nothing calls it by hand.)
 
 .. code:: bash
 
-   export REEF_TOKEN="$(openssl rand -hex 16)"
+   export ASTER_TOKEN="$(openssl rand -hex 16)"
    aster serve -c recipes/basic/external-provider.yaml
 
 The config binds every address, so Aster starts only with a token.
@@ -40,30 +40,30 @@ to forced cleanup of the managed service processes.
        the command list
 
    ``-V, --version``
-       the installed reef version. Takes no command: ``reef --version``.
+       the installed Aster version. Takes no command: ``aster --version``.
 
 Check artifacts before an upgrade
 ---------------------------------
 
 .. code-block:: bash
 
-   reef check-artifacts -c path/to/stack.yaml
+   aster check-artifacts -c path/to/stack.yaml
 
 The command checks that each scenario's commit history resolves to stored
 files. It prints each problem, and it exits with status 1 when it finds one and
 0 when it finds none. See the `upgrade steps
-<../user-guide/operate.rst#upgrade-from-a-reef-that-wrote-older-formats>`__.
+<../user-guide/operate.rst#upgrade-from-a-aster-that-wrote-older-formats>`__.
 
 Selecting the model
 -------------------
 
 Select a file with ``-c``. Without it, Aster uses CLI inference settings and
-does not discover ``$REEF_CONFIG`` or ``reef.yaml``. Configuration values use
+does not load a config file on its own. Configuration values use
 their full public namespaces as shown above.
 
 The optional ``--model`` shorthand remains supported: ``ollama/`` fills
 ``http://127.0.0.1:11434`` and a placeholder key; ``openai/`` fills
-``https://api.openai.com`` and reads ``REEF_UPSTREAM_API_KEY``. Other prefixes
+``https://api.openai.com`` and reads ``ASTER_UPSTREAM_API_KEY``. Other prefixes
 and bare values are model IDs and need an upstream URL.
 An explicit ``--inference.upstream-url`` or ``--inference.upstream-api-key`` override wins over
 the prefix.
@@ -90,14 +90,14 @@ component objects support leaf overrides, validated by their owning component.
      --training.config.checkpoint_dir /tmp/ckpt
 
 Use public namespaces to move a stack's state without editing its config.
-Bare and ``reef.*`` aliases remain accepted:
+Bare and ``aster.*`` aliases remain accepted:
 
 .. code:: bash
 
    aster serve -c recipes/basic/external-provider.yaml \
-     --storage.agent-record-dir .reef/agent-record \
-     --storage.artifact-work-dir .reef/artifact-work \
-     --storage.artifact-cache-dir .reef/artifact-cache
+     --storage.agent-record-dir .aster/agent-record \
+     --storage.artifact-work-dir .aster/artifact-work \
+     --storage.artifact-cache-dir .aster/artifact-cache
 
 Running one service
 -------------------
@@ -108,9 +108,9 @@ store:
 
 .. code:: bash
 
-   aster serve -c deploy.yaml --component control --reef.port 8901
-   aster serve -c deploy.yaml --component inference --reef.port 8902
-   aster serve -c deploy.yaml --component samples --reef.port 8903
+   aster serve -c deploy.yaml --component control --aster.port 8901
+   aster serve -c deploy.yaml --component inference --aster.port 8902
+   aster serve -c deploy.yaml --component samples --aster.port 8903
 
 A service that only takes work from a queue (``samples``, ``training`` and
 ``evaluation``) answers ``/healthz`` and nothing else. The ``data`` service
@@ -119,6 +119,6 @@ answers the data routes and the scenario reads.
 Where it writes
 ---------------
 
-Each service gets a log and a PID file under ``reef.run-dir``, which defaults
-to ``.reef/run``. Aster writes its own state, including records, commit histories,
+Each service gets a log and a PID file under ``aster.run-dir``, which defaults
+to ``.aster/run``. Aster writes its own state, including records, commit histories,
 and the Git-backed snapshot chain, to the ``storage.*`` paths in the config.

@@ -14,20 +14,20 @@ from contextlib import contextmanager
 import pytest
 from aiohttp import web
 
-from reef.artifact import Artifact
-from reef.core.errors import ReefError, RuntimeConfigError
-from reef.core.weight_layout import ADAPTER_DIR, ArtifactFormat, WeightFiles
-from reef.inference.deployment import InferenceConnection, InferenceService
-from reef.inference.interfaces import InferenceBackend
-from reef.inference.registry import RuntimeRegistry, runtime_factory_for
-from reef.inference.remote import server as server_module
-from reef.inference.remote.config import CONTROL_PROTOCOL, RemoteInferenceSettings
-from reef.inference.remote.runtime import RemoteServingRuntimeFactory
-from reef.inference.remote.server import RemoteInferenceServer
-from reef.inference.remote.service import RemoteControl, RemoteInferenceBackend, RemoteInferenceService
-from reef.inference.residency import adapter_name
-from reef.inference.serving import AdapterServingRuntime, FullWeightServingRuntime
-from reef.inference.sglang.chat import SGLangInferenceHandler
+from aster.artifact import Artifact
+from aster.core.errors import AsterError, RuntimeConfigError
+from aster.core.weight_layout import ADAPTER_DIR, ArtifactFormat, WeightFiles
+from aster.inference.deployment import InferenceConnection, InferenceService
+from aster.inference.interfaces import InferenceBackend
+from aster.inference.registry import RuntimeRegistry, runtime_factory_for
+from aster.inference.remote import server as server_module
+from aster.inference.remote.config import CONTROL_PROTOCOL, RemoteInferenceSettings
+from aster.inference.remote.runtime import RemoteServingRuntimeFactory
+from aster.inference.remote.server import RemoteInferenceServer
+from aster.inference.remote.service import RemoteControl, RemoteInferenceBackend, RemoteInferenceService
+from aster.inference.residency import adapter_name
+from aster.inference.serving import AdapterServingRuntime, FullWeightServingRuntime
+from aster.inference.sglang.chat import SGLangInferenceHandler
 
 CONTROL_TOKEN = "control-secret"
 ADAPTER = ArtifactFormat("adapter", 16, ("all",))
@@ -423,7 +423,7 @@ def started_engines(event) -> tuple:
     )
 
 
-TOKENS = {"REEF_REMOTE_CONTROL_TOKEN": CONTROL_TOKEN, "REEF_REMOTE_INFERENCE_TOKEN": INFERENCE_TOKEN}
+TOKENS = {"ASTER_REMOTE_CONTROL_TOKEN": CONTROL_TOKEN, "ASTER_REMOTE_INFERENCE_TOKEN": INFERENCE_TOKEN}
 
 
 def saved_adapter(path):
@@ -436,8 +436,8 @@ def saved_adapter(path):
     ("values", "environ", "match"),
     [
         ({"engine": "my.engines:create"}, TOKENS, "explicit inference handler factory"),
-        ({}, {"REEF_REMOTE_CONTROL_TOKEN": CONTROL_TOKEN}, "REEF_REMOTE_INFERENCE_TOKEN"),
-        ({}, {"REEF_REMOTE_INFERENCE_TOKEN": INFERENCE_TOKEN}, "REEF_REMOTE_CONTROL_TOKEN"),
+        ({}, {"ASTER_REMOTE_CONTROL_TOKEN": CONTROL_TOKEN}, "ASTER_REMOTE_INFERENCE_TOKEN"),
+        ({}, {"ASTER_REMOTE_INFERENCE_TOKEN": INFERENCE_TOKEN}, "ASTER_REMOTE_CONTROL_TOKEN"),
         ({"engine": " "}, TOKENS, "runtime.engine must be a non-empty string"),
         ({"artifact_format": {"layout": "shards"}}, TOKENS, "layout must be 'full' or 'adapter'"),
         ({"num_gpus": 0}, TOKENS, "runtime.num_gpus must be a positive integer"),
@@ -522,9 +522,9 @@ def test_a_runtime_whose_handler_fails_starts_no_engine(component, tmp_path):
     class BrokenHandler(SGLangInferenceHandler):
         @classmethod
         def from_config(cls, upstream_url, **config):
-            raise ReefError("handler refused its configuration")
+            raise AsterError("handler refused its configuration")
 
-    with pytest.raises(ReefError, match="handler refused"):
+    with pytest.raises(AsterError, match="handler refused"):
         RuntimeRegistry().build(
             serving_config(url, inference_handler_factory=BrokenHandler), model_path="Qwen/Qwen3-8B", environ=TOKENS
         )

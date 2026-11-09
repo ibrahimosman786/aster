@@ -12,13 +12,13 @@ import pytest
 from sqlalchemy import inspect
 from sqlalchemy.exc import OperationalError
 
-from reef.artifact import SnapshotRef
-from reef.core import AgentRecord, RequestType
-from reef.core.errors import ReefError
-from reef.storage.commits import CommitRecord
-from reef.storage.record_items import record_item
-from reef.storage.scenario import ScenarioSettings
-from reef.storage.sqlite import OLD_RECORD_TABLES, SQLiteScenarioDatabase, SQLiteScenarioStorage
+from aster.artifact import SnapshotRef
+from aster.core import AgentRecord, RequestType
+from aster.core.errors import AsterError
+from aster.storage.commits import CommitRecord
+from aster.storage.record_items import record_item
+from aster.storage.scenario import ScenarioSettings
+from aster.storage.sqlite import OLD_RECORD_TABLES, SQLiteScenarioDatabase, SQLiteScenarioStorage
 
 
 def report(record_id: str, scenario: str = "math") -> AgentRecord:
@@ -166,7 +166,7 @@ def test_a_switch_that_never_lands_names_the_database_and_the_wait(tmp_path, mon
         real = store._connection
         try:
             store._connection = SwitchReplies(reply)
-            with pytest.raises(ReefError, match=f"could not switch .* to WAL within .*journal mode is {reported}"):
+            with pytest.raises(AsterError, match=f"could not switch .* to WAL within .*journal mode is {reported}"):
                 store._enable_wal()
         finally:
             store._connection = real

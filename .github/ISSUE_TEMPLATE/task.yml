@@ -1,5 +1,5 @@
 name: Maintainer task
-description: Track scoped project work created or approved by a Reef maintainer
+description: Track scoped project work created or approved by an Aster maintainer
 title: "[Task] "
 labels: ["type: task", "status: needs-triage"]
 body:
@@ -15,7 +15,7 @@ body:
     attributes:
       label: Maintainer coordination
       options:
-        - label: I am a Reef maintainer or a maintainer asked me to create this task.
+        - label: I am an Aster maintainer or a maintainer asked me to create this task.
           required: true
 
   - type: dropdown

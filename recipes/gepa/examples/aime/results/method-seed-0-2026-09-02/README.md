@@ -1,4 +1,4 @@
-# Reef GEPA method, seed 0 (2026-09-02)
+# Aster GEPA method, seed 0 (2026-09-02)
 
 The method under `recipes/gepa/` run through this example at seed 0, against
 the official quickstart record in

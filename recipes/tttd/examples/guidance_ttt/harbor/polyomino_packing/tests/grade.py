@@ -1,7 +1,7 @@
 """The verifier: re-submit the trial's candidate to task judge and record it.
 
 The agent's own search already scored thousands of candidates through the same
-judge, but those scores reached Reef as training reports. This runs once, in
+judge, but those scores reached Aster as training reports. This runs once, in
 the task environment, on whatever ``/workspace/solution.cpp`` the trial left
 behind, and writes the trusted trial reward:
 
@@ -29,7 +29,7 @@ DEADLINE_S = 1200.0
 
 
 def submit(judge_url: str, problem_id: str, code: str) -> str:
-    boundary = f"reef-guidance-{uuid.uuid4().hex}"
+    boundary = f"aster-guidance-{uuid.uuid4().hex}"
     parts = [
         f'--{boundary}\r\nContent-Disposition: form-data; name="pid"\r\n\r\n{problem_id}\r\n'.encode(),
         f'--{boundary}\r\nContent-Disposition: form-data; name="lang"\r\n\r\ncpp\r\n'.encode(),

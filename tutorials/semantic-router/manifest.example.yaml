@@ -2,7 +2,7 @@ schema_version: 2
 automatic_model: auto
 deployment:
   # Local image used for the real-inference test; see README.md to build it on another host.
-  semantic_router_image: reef-direct-sr@sha256:090b81606403497c9b3cd48eb576ad1f4406024ee0f242cb714ba8fe3962dfe1
+  semantic_router_image: aster-direct-sr@sha256:090b81606403497c9b3cd48eb576ad1f4406024ee0f242cb714ba8fe3962dfe1
 targets:
   code-student:
     provider_model: code-student
@@ -30,12 +30,12 @@ scenarios:
     targets: [code-student, code-teacher]
     rules:
       - name: teacher_requested
-        keywords: [reef_teacher_required]
+        keywords: [aster_teacher_required]
         target: code-teacher
   math-opd:
     default_target: math-student
     targets: [math-student, math-teacher]
     rules:
       - name: teacher_requested
-        keywords: [reef_teacher_required]
+        keywords: [aster_teacher_required]
         target: math-teacher

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Serve + run. Setup (once): see README. State and logs go to ./work.
-# ./run.sh runs on pi (configs/serve.yaml); ./run.sh native runs on reef's
-# native harness (configs/serve-native.yaml) through a resident reef-native
+# ./run.sh runs on pi (configs/serve.yaml); ./run.sh native runs on Aster's
+# native harness (configs/serve-native.yaml) through a resident aster-native
 # serve process.
 set -e
 cd "$(dirname "$0")"
@@ -15,28 +15,28 @@ case "$MODE" in
 esac
 if [ "$MODE" = native ]; then
     SERVE=configs/serve-native.yaml
-    # The native loop is reef's own; this launcher stands in for the
-    # reef-native console script an installed reef would put on PATH.
-    printf '#!/bin/sh\nexport PYTHONPATH=%s\nexec %s -m reef.harness.runners.native "$@"\n' \
-        "$(cd ../.. && pwd)" "$(command -v python3)" > work/bin/reef-native
-    chmod +x work/bin/reef-native
+    # The native loop ships with Aster. This launcher stands in for the
+    # aster-native console script an install puts on PATH.
+    printf '#!/bin/sh\nexport PYTHONPATH=%s\nexec %s -m aster.harness.runners.native "$@"\n' \
+        "$(cd ../.. && pwd)" "$(command -v python3)" > work/bin/aster-native
+    chmod +x work/bin/aster-native
     export PATH="$PWD/work/bin:$PATH"
 fi
 
 # Copy the serve file's recipe sections where the recipe registry reads
 # them, and drop the task list beside them for run.py.
-export REEF_RECIPE_CONFIG_DIR="$PWD/work/recipes"
+export ASTER_RECIPE_CONFIG_DIR="$PWD/work/recipes"
 python3 harness/materialize_recipe.py "$SERVE"
 
-# Start Reef, stop it again when this script exits. The -c path is absolute:
-# reef resolves a relative config path against its own repo root.
-PYTHONPATH=../.. python3 -m reef serve -c "$PWD/$SERVE" > work/reef.log 2>&1 &
+# Start Aster, stop it again when this script exits. The -c path is absolute:
+# aster resolves a relative config path against its own repo root.
+PYTHONPATH=../.. python3 -m aster serve -c "$PWD/$SERVE" > work/aster.log 2>&1 &
 SERVE_PID=$!
 trap 'kill "$SERVE_PID" 2>/dev/null' EXIT
 
-# Wait until Reef answers; a dead orchestrator fails fast with its log.
+# Wait until Aster answers; a dead orchestrator fails fast with its log.
 while ! curl -sf http://127.0.0.1:8900/healthz > /dev/null; do
-    kill -0 "$SERVE_PID" 2>/dev/null || { cat work/reef.log >&2; exit 1; }
+    kill -0 "$SERVE_PID" 2>/dev/null || { cat work/aster.log >&2; exit 1; }
     sleep 1
 done
 
@@ -50,13 +50,13 @@ fi
 # head while run.py sends the tasks to it as turns. Each turn returns its
 # receipts, which run.py reports its score against.
 python3 run.py pull
-reef-native serve --tree work/tree --scenario harness-evolve-demo --follow head --poll-interval 5 \
+aster-native serve --tree work/tree --scenario harness-evolve-demo --follow head --poll-interval 5 \
     > work/serve.log 2>&1 &
 NATIVE_PID=$!
 trap 'kill "$NATIVE_PID" "$SERVE_PID" 2>/dev/null' EXIT
 
 # Wait until the process answers on its socket; a process that died fails fast with its log.
-while ! reef-native status --tree work/tree > /dev/null 2>&1; do
+while ! aster-native status --tree work/tree > /dev/null 2>&1; do
     kill -0 "$NATIVE_PID" 2>/dev/null || { cat work/serve.log >&2; exit 1; }
     sleep 1
 done

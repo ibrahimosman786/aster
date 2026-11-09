@@ -1,19 +1,19 @@
-# The Reef training stack of one stage (Reef, Ray, Slime/Megatron, SGLang) in
-# the reef image. run.py starts one per stage with the stage's starting
+# The Aster training stack of one stage (Aster, Ray, Slime/Megatron, SGLang) in
+# the aster image. run.py starts one per stage with the stage's starting
 # weights and step count, the stream's GPUs and host port, named by the
 # stream; run.sh supplies image, paths and the token. Each stack keeps its
 # own network namespace (Ray, the engines and their ports stay inside),
-# publishing only Reef's port, so two streams' stacks coexist on one host.
+# publishing only Aster's port, so two streams' stacks coexist on one host.
 services:
-  reef:
-    image: ${REEF_IMAGE}
-    container_name: reef-sdft-skills-${STACK}
-    command: reef serve -c /workspace/Reef/recipes/sdft/examples/skill_stream/serve.yaml
+  aster:
+    image: ${ASTER_IMAGE}
+    container_name: aster-sdft-skills-${STACK}
+    command: aster serve -c /workspace/Aster/recipes/sdft/examples/skill_stream/serve.yaml
     ipc: host
     shm_size: 32gb
     ports:
-      # The task containers reach Reef through host.docker.internal on this port.
-      - "${REEF_HOST_PORT}:28902"
+      # The task containers reach Aster through host.docker.internal on this port.
+      - "${ASTER_HOST_PORT}:28902"
     deploy:
       resources:
         reservations:
@@ -21,26 +21,26 @@ services:
             - driver: nvidia
               # Eight GPUs: four for the actor ranks, four for the rollout engines.
               device_ids:
-                - "${REEF_GPU_0}"
-                - "${REEF_GPU_1}"
-                - "${REEF_GPU_2}"
-                - "${REEF_GPU_3}"
-                - "${REEF_GPU_4}"
-                - "${REEF_GPU_5}"
-                - "${REEF_GPU_6}"
-                - "${REEF_GPU_7}"
+                - "${ASTER_GPU_0}"
+                - "${ASTER_GPU_1}"
+                - "${ASTER_GPU_2}"
+                - "${ASTER_GPU_3}"
+                - "${ASTER_GPU_4}"
+                - "${ASTER_GPU_5}"
+                - "${ASTER_GPU_6}"
+                - "${ASTER_GPU_7}"
               capabilities: [gpu]
     volumes:
       - ${MODEL_DIR}:/root/models
-      - ${RUN_DIR}:/var/lib/reef
+      - ${RUN_DIR}:/var/lib/aster
       # The whole experiment: a stage starts from the previous stage's export.
       - ${EXPERIMENT_DIR}:/var/lib/experiment
-      - ${REEF_ROOT}:/workspace/Reef
+      - ${ASTER_ROOT}:/workspace/Aster
     environment:
-      REEF_TOKEN: ${REEF_TOKEN}
+      ASTER_TOKEN: ${ASTER_TOKEN}
       SDFT_MODEL_PATH: ${SDFT_MODEL_PATH}
       SDFT_LR_DECAY_ITERS: ${SDFT_LR_DECAY_ITERS}
-      PYTHONPATH: /workspace/Reef:/root/Megatron-LM
+      PYTHONPATH: /workspace/Aster:/root/Megatron-LM
       PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
       WANDB_API_KEY: ${WANDB_API_KEY:-}
     healthcheck:

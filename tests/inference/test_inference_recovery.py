@@ -2,7 +2,7 @@
 
 import pytest
 
-from reef.inference.recovery import InferenceControl, InferenceEngineGroup, InferenceMonitor
+from aster.inference.recovery import InferenceControl, InferenceEngineGroup, InferenceMonitor
 
 
 class MemoryEngines(InferenceEngineGroup):

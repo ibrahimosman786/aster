@@ -18,37 +18,37 @@ from tests.support.job_data import job_data_ref
 from tests.support.serving import wait_for_serving
 
 from recipes.tttd.tinker import TttdTinkerLoss
-from reef.artifact.artifact import Artifact
-from reef.artifact.files import DirectoryFiles
-from reef.cli import main
-from reef.core.errors import RuntimeConfigError, UpstreamStatusError
-from reef.core.evaluation import PolicyModel
-from reef.core.job_data import JobData, TrajectorySample
-from reef.inference.tinker import TinkerInferenceRuntime
-from reef.service.deploy import orchestrator
-from reef.service.deploy.orchestrator import resolve_deployment_config
-from reef.service.deploy.training import local_model_required
-from reef.storage.sql_coordination import memory_coordination
-from reef.tinker.checkpoint import MANIFEST
-from reef.tinker.sampling import SampleResult, TinkerSampler
-from reef.train.algos.schedule import StepScheduling
-from reef.train.algos.signals import TrainingSignal
-from reef.train.component import TrainingJob, job_id_for
-from reef.train.jobs import JobLoopState
-from reef.train.learning_rate import LearningRateSchedule, LearningRateScheduleState
-from reef.train.local_jobs import CHECKPOINTS_FILE, RESULT_FILE
-from reef.train.tinker_backend.checkpoint import TinkerCheckpoint
-from reef.train.tinker_backend.client import TinkerClient
-from reef.train.tinker_backend.component import TinkerJobParameters, TinkerTrainingComponent
-from reef.train.tinker_backend.config import TinkerConfig
-from reef.train.tinker_backend.launch import TinkerDeployment, component_factory
-from reef.train.tinker_backend.losses import ImportanceSamplingLoss, TokenRow, resolve_tinker_loss
-from reef.train.tinker_backend.objectives import (
+from aster.artifact.artifact import Artifact
+from aster.artifact.files import DirectoryFiles
+from aster.cli import main
+from aster.core.errors import RuntimeConfigError, UpstreamStatusError
+from aster.core.evaluation import PolicyModel
+from aster.core.job_data import JobData, TrajectorySample
+from aster.inference.tinker import TinkerInferenceRuntime
+from aster.service.deploy import orchestrator
+from aster.service.deploy.orchestrator import resolve_deployment_config
+from aster.service.deploy.training import local_model_required
+from aster.storage.sql_coordination import memory_coordination
+from aster.tinker.checkpoint import MANIFEST
+from aster.tinker.sampling import SampleResult, TinkerSampler
+from aster.train.algos.schedule import StepScheduling
+from aster.train.algos.signals import TrainingSignal
+from aster.train.component import TrainingJob, job_id_for
+from aster.train.jobs import JobLoopState
+from aster.train.learning_rate import LearningRateSchedule, LearningRateScheduleState
+from aster.train.local_jobs import CHECKPOINTS_FILE, RESULT_FILE
+from aster.train.tinker_backend.checkpoint import TinkerCheckpoint
+from aster.train.tinker_backend.client import TinkerClient
+from aster.train.tinker_backend.component import TinkerJobParameters, TinkerTrainingComponent
+from aster.train.tinker_backend.config import TinkerConfig
+from aster.train.tinker_backend.launch import TinkerDeployment, component_factory
+from aster.train.tinker_backend.losses import ImportanceSamplingLoss, TokenRow, resolve_tinker_loss
+from aster.train.tinker_backend.objectives import (
     TinkerObjective,
     register_tinker_objective,
     unregister_tinker_objective,
 )
-from reef.train.tinker_backend.preparation import prepare_tinker_job
+from aster.train.tinker_backend.preparation import prepare_tinker_job
 
 MODEL = "Qwen/Qwen3-8B"
 
@@ -183,7 +183,7 @@ def item(version="v", group="g", token=20):
             "agent": {"name": "test"},
             "steps": [{"step_id": 1}],
             "extra": {
-                "reef": {
+                "aster": {
                     "training": {
                         "tokens": [10, 11, token, 21],
                         "loss_mask": [1, 0],
@@ -732,17 +732,17 @@ def test_deployment_preserves_remote_model_and_discovers_without_sdk(tmp_path, m
     }
     config, _ = resolve_deployment_config(raw, None, tmp_path / "serve.yaml")
     assert not local_model_required(config)
-    assert config["reef"]["model_path"] == MODEL
-    assert [service["name"] for service in config["services"]] == ["reef"]
+    assert config["aster"]["model_path"] == MODEL
+    assert [service["name"] for service in config["services"]] == ["aster"]
     assert not TinkerDeployment.requires_local_model
     result = subprocess.run(
         [
             sys.executable,
             "-c",
             (
-                "import sys; import reef.train.tinker_backend.launch; import recipes.tttd; "
+                "import sys; import aster.train.tinker_backend.launch; import recipes.tttd; "
                 "assert 'tinker' not in sys.modules; assert 'torch' not in sys.modules; "
-                "assert 'reef.train.tinker_backend.losses' not in sys.modules"
+                "assert 'aster.train.tinker_backend.losses' not in sys.modules"
             ),
         ],
         capture_output=True,
@@ -756,7 +756,7 @@ def test_serve_skips_the_model_download_for_a_hosted_backend(tmp_path, monkeypat
     path.write_text(
         yaml.safe_dump(
             {
-                "reef": {"run-dir": str(tmp_path / "stack")},
+                "aster": {"run-dir": str(tmp_path / "stack")},
                 "recipe": {"implementation": "recipes.tttd.recipe:TTTDRecipe"},
                 "inference": {"model-path": MODEL},
                 "training": {"backend": "tinker", "options": {"state-dir": str(tmp_path / "state")}},
@@ -786,9 +786,9 @@ def test_serve_skips_the_model_download_for_a_hosted_backend(tmp_path, monkeypat
     with pytest.raises(SystemExit) as result:
         main(["serve", "-c", str(path)])
     assert result.value.code == 0
-    assert started[0]["reef"]["model_path"] == MODEL
-    assert local_model_required({"reef": {"recipe": "recipes.tttd.recipe:TTTDRecipe", "training_backend": "slime"}})
-    assert local_model_required({"reef": {}})
+    assert started[0]["aster"]["model_path"] == MODEL
+    assert local_model_required({"aster": {"recipe": "recipes.tttd.recipe:TTTDRecipe", "training_backend": "slime"}})
+    assert local_model_required({"aster": {}})
 
 
 @pytest.mark.parametrize(
@@ -834,12 +834,12 @@ def test_scenario_commits_recovers_activates_and_trains_from_remote_checkpoint(t
     from tests.support._threshold_processor import ThresholdJobData, ThresholdSamples
     from tests.support.runtime_stubs import job_sized_stages
 
-    from reef.artifact import InMemoryRepositoryBackend
-    from reef.core import AgentRecord, RequestType
-    from reef.dispatcher import Dispatcher
-    from reef.recipe.base import WeightTrainingRecipe
-    from reef.storage.sqlite import SQLiteScenarioStorage
-    from reef.train.pipeline import PipelineSpec
+    from aster.artifact import InMemoryRepositoryBackend
+    from aster.core import AgentRecord, RequestType
+    from aster.dispatcher import Dispatcher
+    from aster.recipe.base import WeightTrainingRecipe
+    from aster.storage.sqlite import SQLiteScenarioStorage
+    from aster.train.pipeline import PipelineSpec
 
     @dataclass(frozen=True)
     class PolicyRecipe(WeightTrainingRecipe):
@@ -951,11 +951,11 @@ def test_documented_smoke_runs_through_http_and_ttdd_recipe(tmp_path, monkeypatc
     from aiohttp.test_utils import TestClient, TestServer
 
     from recipes.tttd.recipe import TTTDRecipe
-    from reef.artifact import InMemoryRepositoryBackend
-    from reef.dispatcher import Dispatcher
-    from reef.service.app import create_app
-    from reef.storage.sqlite import SQLiteScenarioStorage
-    from reef.train.pipeline import PipelineConfig
+    from aster.artifact import InMemoryRepositoryBackend
+    from aster.dispatcher import Dispatcher
+    from aster.service.app import create_app
+    from aster.storage.sqlite import SQLiteScenarioStorage
+    from aster.train.pipeline import PipelineConfig
 
     initial = tmp_path / "initial"
     initial.mkdir()
@@ -981,7 +981,7 @@ def test_documented_smoke_runs_through_http_and_ttdd_recipe(tmp_path, monkeypatc
         coordination=memory_coordination(),
     )
     script = Path(__file__).resolve().parents[2] / "tutorials" / "tinker" / "smoke.py"
-    monkeypatch.setenv("REEF_TOKEN", "test-token")
+    monkeypatch.setenv("ASTER_TOKEN", "test-token")
 
     async def run():
         async with TestClient(TestServer(create_app(dispatcher, tokens="test-token"))) as client:
@@ -1010,7 +1010,7 @@ def sft_item(name: str) -> TrajectorySample:
             "schema_version": "ATIF-v1.6",
             "agent": {"name": name},
             "steps": [{"step_id": 1}],
-            "extra": {"reef": {"training": {"tokens": [10, 11, 12, 30, 31], "loss_mask": [1, 1]}}},
+            "extra": {"aster": {"training": {"tokens": [10, 11, 12, 30, 31], "loss_mask": [1, 1]}}},
         }
     )
 
@@ -1050,7 +1050,7 @@ def recorded_trajectory(answer: str, group: str = "g") -> TrajectorySample:
     """A trajectory as serving records it: steps and a reward, no tokens."""
     steps = [{"step_id": 1, "source": "user", "message": "q"}, {"step_id": 2, "source": "agent", "message": answer}]
     return TrajectorySample(
-        {"schema_version": "ATIF-v1.7", "agent": {"name": "a"}, "steps": steps, "extra": {"reef": {"reward": 1.0}}},
+        {"schema_version": "ATIF-v1.7", "agent": {"name": "a"}, "steps": steps, "extra": {"aster": {"reward": 1.0}}},
         group_id=group,
     )
 

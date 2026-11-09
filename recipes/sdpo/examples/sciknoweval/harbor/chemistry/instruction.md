@@ -1,6 +1,6 @@
-# Learn SciKnowEval Chemistry through Reef
+# Learn SciKnowEval Chemistry through Aster
 
-This task trains the model Reef serves with the `sdpo` recipe
+This task trains the model Aster serves with the `sdpo` recipe
 (arXiv:2601.20802) on the Chemistry split of SciKnowEval, the generalization
 sweep of the reference implementation
 ([lasgroup/SDPO](https://github.com/lasgroup/SDPO) at `7c457fc1b1f6`). A prompt
@@ -9,8 +9,8 @@ four-option chemistry question; an answer is correct when the letter between
 its last `<answer>` tags matches the dataset's.
 
 The harness runs `python /opt/chemistry/stage.py` in this container. For each
-step the runner samples 32 questions 8 times each through the Reef service at
-`$REEF_SERVICE_URL`, reports every rollout against its receipt with its
+step the runner samples 32 questions 8 times each through the Aster service at
+`$ASTER_SERVICE_URL`, reports every rollout against its receipt with its
 coordinates in the grid and its score, and waits for the step's training
 snapshot before sampling the next grid. The recipe holds the step until the grid
 is complete, then each rollout's teacher rereads the question with a successful

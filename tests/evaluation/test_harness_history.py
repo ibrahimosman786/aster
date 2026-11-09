@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from reef.core.evaluation import RolloutScore
-from reef.evaluation.harness import DecisionRecord, FailureObservation, History, RunRecord
-from reef.evaluation.harness.history import RUNS_FILE
-from reef.harness.tree import HarnessTree
+from aster.core.evaluation import RolloutScore
+from aster.evaluation.harness import DecisionRecord, FailureObservation, History, RunRecord
+from aster.evaluation.harness.history import RUNS_FILE
+from aster.harness.tree import HarnessTree
 
 TREE = HarnessTree({"rules.md": "Answer briefly.\n"})
 

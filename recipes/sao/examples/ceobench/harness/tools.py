@@ -40,7 +40,7 @@ from .values import JsonValue
 #: Where the script lands in the container, and the interpreter it runs with:
 #: the pinned checkout's, so the agent's ``python`` is the one the benchmark's
 #: executor puts first on ``PATH``.
-SCRIPT_PATH = "/tmp/reef-ceobench-tools.py"
+SCRIPT_PATH = "/tmp/aster-ceobench-tools.py"
 CHECKOUT_PYTHON = "/opt/ceobench/.venv/bin/python"
 DEFAULT_BASH_TIMEOUT_S = 1200
 #: A tool call may run as long as the bash limit, plus the exec's own overhead.

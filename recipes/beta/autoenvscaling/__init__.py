@@ -9,7 +9,7 @@ tasks and trains on them.
 
 - ``sources``: the sources file (session records and their repositories) and the session renderer.
 - ``author``: the author contract and its two implementations: the agent, pi in a cloud sandbox (E2B or Modal) behind a
-  gateway that records its model calls on Reef, and the one-reply prompt Designer.
+  gateway that records its model calls on Aster, and the one-reply prompt Designer.
 - ``claude_author``: Claude Code as the agent, in the same sandbox, signed in with its owner's OAuth token; it calls
   Anthropic itself and checks its task with the ``task_check`` command.
 - ``checks``: the task checks: Harbor's oracle and nop agents, the contamination check, the test review, and the

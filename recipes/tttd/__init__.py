@@ -1,6 +1,6 @@
 """TTT-Discover (arXiv:2601.16175): one method, one package.
 
-Everything Reef-side that decides what TTT-Discover trains lives here:
+Everything Aster-side that decides what TTT-Discover trains lives here:
 
 - ``recipe`` — the TTT-Discover recipe class, its default job parameters, and
   its default pipeline stages.
@@ -21,7 +21,7 @@ Everything Reef-side that decides what TTT-Discover trains lives here:
 from recipes.tttd.processor import TTTDJobData, TTTDSamples, TTTDSettings
 from recipes.tttd.recipe import TTTDRecipe
 from recipes.tttd.report import TTTDGroupedRolloutReport
-from reef.train.algos.registry import register_loss_family_ref, register_objective_ref
+from aster.train.algos.registry import register_loss_family_ref, register_objective_ref
 
 register_objective_ref("tttd", "recipes.tttd.slime:TttdObjective")
 register_objective_ref("tttd", "recipes.tttd.tinker:TttdTinkerObjective", backend="tinker")

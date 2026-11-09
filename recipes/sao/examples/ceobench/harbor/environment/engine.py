@@ -240,7 +240,7 @@ def main() -> None:
     start.add_argument("--seed", type=int, required=True)
     start.add_argument("--days", type=int, required=True)
     start.add_argument("--cash", type=float, default=1_000_000.0)
-    start.add_argument("--model", default="reef")
+    start.add_argument("--model", default="aster")
     start.add_argument("--reasoning-effort", default="none")
     start.add_argument("--tool-user", default=None)
     start.set_defaults(run=cmd_start)

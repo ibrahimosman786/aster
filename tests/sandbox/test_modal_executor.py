@@ -14,12 +14,12 @@ from typing import Any
 
 import pytest
 
-import reef.execution.sandbox.modal as modal_sandbox
-import reef.execution.sandbox.remote as remote
-from reef.execution.sandbox.config import build_executor, remote_executor
-from reef.execution.sandbox.modal import ModalExecutor, ModalSession
-from reef.execution.sandbox.process import ProgramLaunchError, ProgramTimeout, SandboxProgram, SandboxUnavailable
-from reef.execution.sandbox.remote import REMOTE_BASE, TUNNEL_PORT_BASE, deployment_owner
+import aster.execution.sandbox.modal as modal_sandbox
+import aster.execution.sandbox.remote as remote
+from aster.execution.sandbox.config import build_executor, remote_executor
+from aster.execution.sandbox.modal import ModalExecutor, ModalSession
+from aster.execution.sandbox.process import ProgramLaunchError, ProgramTimeout, SandboxProgram, SandboxUnavailable
+from aster.execution.sandbox.remote import REMOTE_BASE, TUNNEL_PORT_BASE, deployment_owner
 
 
 class Program(SandboxProgram):
@@ -31,7 +31,7 @@ class Program(SandboxProgram):
         self.version = "1.0.0"
 
     def host_binary(self) -> str:
-        raise AssertionError("a remote sandbox never installs the program on the Reef host")
+        raise AssertionError("a remote sandbox never installs the program on the Aster host")
 
     def host_install_dir(self) -> Path | None:
         return None
@@ -83,10 +83,10 @@ class Sandbox:
 @pytest.mark.unit
 def test_the_settings_take_the_modal_options_and_refuse_the_local_sandboxs() -> None:
     executor = ModalExecutor.from_config(
-        {"modal_app": "reef-x", "modal_cpu": 2, "modal_memory_mb": 4096, "forward_ports": [8900, 8900, 8901]},
+        {"modal_app": "aster-x", "modal_cpu": 2, "modal_memory_mb": 4096, "forward_ports": [8900, 8900, 8901]},
         {},
     )
-    assert (executor.app_name, executor.cpu, executor.memory_mb) == ("reef-x", 2.0, 4096)
+    assert (executor.app_name, executor.cpu, executor.memory_mb) == ("aster-x", 2.0, 4096)
     assert executor.forward_ports == (8900, 8901)
     for section, message in [
         ({"egress_hosts": ["api.example"]}, "does not implement sandbox.egress_hosts"),
@@ -103,8 +103,8 @@ def test_the_settings_take_the_modal_options_and_refuse_the_local_sandboxs() -> 
 @pytest.mark.unit
 def test_the_factory_builds_each_provider_from_its_own_options(monkeypatch) -> None:
     monkeypatch.setattr(ModalExecutor, "preflight", lambda self: None)
-    built = build_executor({"executor": "modal", "sandbox": {"modal_app": "reef-y"}})
-    assert isinstance(built, ModalExecutor) and built.app_name == "reef-y"
+    built = build_executor({"executor": "modal", "sandbox": {"modal_app": "aster-y"}})
+    assert isinstance(built, ModalExecutor) and built.app_name == "aster-y"
     # A caller's own settings beside the provider's options are not the provider's to read.
     chosen = remote_executor(
         "modal", {"timeout_s": 5, "modal_image": "img"}, {}, timeout_s=90, owner_anchor=Path("/x")
@@ -186,8 +186,8 @@ def test_a_session_starts_a_tagged_sandbox_with_a_tunnel_for_each_forwarded_port
         options["image"].steps[0] == modal_sandbox.NODE_IMAGE and "npm install -g pi@1.0.0" in options["image"].steps
     )
     assert started == [("https://tunnel-21080.modal.test", 8900), ("https://tunnel-21081.modal.test", 8901)]
-    assert "/root/reef-relay.py" in sandbox.filesystem.files
-    relays = [args[-1] for args, _ in sandbox.commands if "reef-relay.py --port" in args[-1]]
+    assert "/root/aster-relay.py" in sandbox.filesystem.files
+    relays = [args[-1] for args, _ in sandbox.commands if "aster-relay.py --port" in args[-1]]
     assert len(relays) == 2 and "--tunnel-port 21081" in relays[1]
     session.close()
     assert sandbox.terminated
@@ -206,8 +206,8 @@ class TaggedSandbox(Sandbox):
 
 @pytest.mark.unit
 def test_a_restart_stops_only_the_sandboxes_its_deployment_left(monkeypatch) -> None:
-    mine, theirs = TaggedSandbox({"reef": "sandbox", "reef_owner": "team"}), TaggedSandbox(
-        {"reef": "sandbox", "reef_owner": "other"}
+    mine, theirs = TaggedSandbox({"aster": "sandbox", "aster_owner": "team"}), TaggedSandbox(
+        {"aster": "sandbox", "aster_owner": "other"}
     )
     fake_modal(monkeypatch, [mine, theirs])
     assert ModalExecutor(owner="team").reap() == 1
@@ -276,7 +276,7 @@ def test_a_root_is_copied_in_and_back_through_the_sandboxs_files(tmp_path) -> No
             for path in list(self.filesystem.files):
                 if not (self.base / path.lstrip("/")).exists():
                     del self.filesystem.files[path]
-            for archive in (self.base / "tmp").glob("reef-pull-*.tgz"):
+            for archive in (self.base / "tmp").glob("aster-pull-*.tgz"):
                 self.filesystem.files[f"/tmp/{archive.name}"] = archive.read_bytes()
             return Process()
 

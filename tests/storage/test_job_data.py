@@ -5,8 +5,8 @@ import json
 import pytest
 from tests.support._trajectories import policy_trajectory
 
-from reef.core.job_data import JobData, TaskSample
-from reef.storage.job_data import JOB_FILE, job_data_key, read_job_data, write_job_data
+from aster.core.job_data import JobData, TaskSample
+from aster.storage.job_data import JOB_FILE, job_data_key, read_job_data, write_job_data
 
 
 def task_dir(root, name, text="exit 0"):

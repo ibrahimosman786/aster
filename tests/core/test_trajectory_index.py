@@ -8,11 +8,11 @@ from dataclasses import replace
 import pytest
 from tests.support.conversations import conversation, turn
 
-from reef.core.records_types import AgentRecord, RequestType
-from reef.core.trajectory_index import CallKey, TrajectoryIndex, call_key, sha256_text, trajectory_calls
-from reef.storage.record_items import record_item
-from reef.storage.sql_data import SQLiteDataStore
-from reef.storage.tasks import LocalTaskFileStore
+from aster.core.records_types import AgentRecord, RequestType
+from aster.core.trajectory_index import CallKey, TrajectoryIndex, call_key, sha256_text, trajectory_calls
+from aster.storage.record_items import record_item
+from aster.storage.sql_data import SQLiteDataStore
+from aster.storage.tasks import LocalTaskFileStore
 
 SYSTEM = {"role": "system", "content": "be brief"}
 USER = {"role": "user", "content": "海 🐟"}

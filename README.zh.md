@@ -1,29 +1,343 @@
-# Aster Infrastructure
+<div align="center">
 
-A locally branded distribution for agent inference, feedback, harness evolution,
-and model training.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/aster-logo-dark.svg">
+  <img src="docs/assets/aster-logo-light.svg" alt="Aster" width="220">
+</picture>
 
-## Start
+<h3>面向持续自我进化 Agent 的基础设施</h3>
 
-Use the local `.env` file for your DeepSeek API key. On a fresh checkout,
-create it with `(umask 077; cp -n .env.example .env)`. Edit
-`ASTER_UPSTREAM_API_KEY` locally. Git ignores `.env`, and the checked-in
-`.env.example` contains only placeholders and public settings.
+[![CI](https://github.com/ibrahimosman786/aster/actions/workflows/ci.yml/badge.svg)](https://github.com/ibrahimosman786/aster/actions/workflows/ci.yml)
+[![PyPI package: aster-infra](https://img.shields.io/pypi/v/aster-infra?label=PyPI%3A%20aster-infra&logo=pypi&logoColor=white)](https://pypi.org/project/aster-infra/)
+[![Python](https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 
-From this directory, run `./aster demo` to use the included pi example.
-It uses the provider URL and model from `.env` and writes
-`tutorials/evolve-your-harness/work/replay.html` on completion.
-The demo makes paid model calls. It needs Node.js, npm, and Git LFS.
-`./aster demo native` selects the native agent instead.
+<a href="https://github.com/ibrahimosman786/aster" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/github/stars/ibrahimosman786/aster?style=social" alt="Aster stars"></a>
 
-Run `./aster serve` for the persistent harness service at
-`http://127.0.0.1:8901`. Route agent tasks through it and send scored
-feedback to trigger evolution. Environment variables set in the shell
-take precedence over values in `.env`.
+[English](README.md) | 中文
 
-`aster serve -c recipes/basic/local-sglang.yaml` starts the bundled
-inference config. Its health route is `http://127.0.0.1:8900/healthz`.
+<div align="left">
 
-## License
+Aster 是首个面向持续自我进化 Agent 的开源基础设施。它连接 Agent 推理、反馈、学习与
+版本化交付。你可以用它配合 Slime 和 SGLang 训练模型权重，也可以改进 Agent 的
+harness，包括提示词、规则和技能。
 
-Aster is open source under the Apache-2.0 license. See LICENSE.
+
+</div>
+
+**🚀 [快速上手](docs/getting-started/quickstart.rst) |
+🗺️ [路线图](https://github.com/ibrahimosman786/aster/issues) |
+🗓️ [Office Hours](https://github.com/ibrahimosman786/aster/issues) |
+📣 [发布文章](https://x.com/ao_qu18465/status/2094867930081337730) |
+💬 [加入 Discord](https://discord.gg/5y8e5f937k) |
+📱 [加入微信群](docs/community/wechat.md)**
+
+</div>
+
+
+## 📰 最新动态
+
+- **2026-11：** 我们正在将 Aster 重构为 control plane + workers 架构。重构完成前，`main` 上的部分 recipe 和示例可能会失败。如果遇到失败的 recipe，请[提交 issue](https://github.com/ibrahimosman786/aster/issues)。
+- **2026-11：** scenario 可以把流量分给它正在 serve 的多个 artifact [#1227](https://github.com/ibrahimosman786/aster/issues)，也可以通过 [Semantic Router](https://github.com/vllm-project/semantic-router) 分流 [#859](https://github.com/ibrahimosman786/aster/issues)。新的 `python` harness adapter 可以进化一个 Python 程序 [#1242](https://github.com/ibrahimosman786/aster/issues)。
+- **2026-10：** Tinker 作为训练组件运行 [#901](https://github.com/ibrahimosman786/aster/issues)。episode 和 agent 可以在 Modal Sandbox 中运行 [#942](https://github.com/ibrahimosman786/aster/issues)。artifact 仓库可以放在 Hugging Face 上 [#1003](https://github.com/ibrahimosman786/aster/issues)。新增 recipe：[OPD](docs/user-guide/recipes/opd.rst) [#683](https://github.com/ibrahimosman786/aster/issues)。
+- **2026-09：** [`aster-infra` v0.1.0](https://github.com/ibrahimosman786/aster/issues) 发布到 PyPI。新增 recipe：[GEPA](docs/user-guide/recipes/gepa.rst)、[SDFT](docs/user-guide/recipes/sdft.rst)、[SDPO](docs/user-guide/recipes/sdpo.rst) 和 [Meta-Harness](recipes/meta_harness/README.md)。Aster 在 `/v1/responses` 提供 OpenAI Responses API [#528](https://github.com/ibrahimosman786/aster/issues)。
+- **2026-08：** Aster 开源。阅读[发布文章](https://x.com/ao_qu18465/status/2094867930081337730)。
+
+## 🎯 何时使用 Aster
+
+如果你希望 Agent 通过与你的日常交互不断学习、持续进化，就适合使用 Aster。
+
+| 你的目标 | 学习路径 | 所需条件 |
+|---|---|---|
+| 持续获得更贴合自身需求的强大模型 | 模型权重训练 | 可训练模型、受支持的 GPU 栈，以及 recipe 可利用的反馈 |
+| 让 harness 自我进化 | Harness 优化 | 模型端点、有代表性的任务和评估器；无需本地训练 GPU |
+| 进行科学发现 | 测试时训练 | 执行环境、正确性检查器和可度量的目标 |
+
+
+## 🧩 Aster 在技术栈中的位置
+
+| 能力 | 推理引擎（vLLM、SGLang…） | RL 训练框架（Slime、veRL、AReaL…） | **Aster** |
+|---|:---:|:---:|:---:|
+| 承接线上流量 | ✅ | ❌ | ✅ |
+| 训练权重 | ❌ | ✅ | ✅ |
+| 版本管理 | ❌ | ❌ | ✅ |
+| 更新期间持续服务 | ❌ | ❌ | ✅ |
+| 可进化权重以外的部分（技能、harness） | ❌ | ❌ | ✅ |
+
+
+## 🔄 工作原理
+
+<div align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/loop-animation-dark.svg">
+  <img src="docs/assets/loop-animation-light.svg" alt="Aster 响应请求、记录反馈、产出更新，并将通过的更新提交至版本历史。" width="76%">
+</picture>
+</div>
+
+Aster 的每个学习周期分为四步，下表同时列出各步骤对应的模块。
+
+| 步骤 | 说明 | 对应模块 |
+|---|---|---|
+| **1&nbsp;·&nbsp;Serve** | 响应 Agent 请求，记录每次交互。 | [`service/`](aster/service) — Agent 请求与交互记录<br>[`inference/`](aster/inference) — 推理与 artifact 更新 |
+| **2&nbsp;·&nbsp;Observe** | 将反馈匹配到已记录的交互。 | [`storage/records.py`](aster/storage/records.py) — 已存储的交互与反馈<br>[`record2sample/`](aster/record2sample) — 反馈匹配、条件判定与样本生成 |
+| **3&nbsp;·&nbsp;Grow** | 从符合条件的记录中产出一次更新。 | [`recipe/`](aster/recipe) — recipe 接入<br>[`train/`](aster/train) — 训练管线、训练任务数据（job data）与训练任务 |
+| **4&nbsp;·&nbsp;Commit** | 应用配置的选择策略并发布通过的更新。 | [`evaluation/`](aster/evaluation) — 候选评估<br>[`artifact/`](aster/artifact) — 版本历史与 release 组件 |
+
+
+## 📦 安装
+
+> 💡 **注意**
+>
+> Aster 的 artifact 和 checkpoint 功能依赖系统的 `git-lfs` 包。Aster 会在本地为自身的
+> artifact 仓库初始化 Git LFS。
+
+推荐使用 [uv](https://docs.astral.sh/uv/) 管理依赖，下文命令均基于 uv。
+
+### 通过 PyPI 安装
+
+```bash
+uv venv && source .venv/bin/activate
+uv pip install aster-infra
+python3 -c "import aster; print(aster.__version__)"
+```
+
+### 通过源码安装
+
+```bash
+git lfs install
+git clone https://github.com/ibrahimosman786/aster.git
+cd aster
+uv venv && source .venv/bin/activate
+uv pip install -e .
+python3 -c "import aster; print(aster.__version__)"
+```
+
+开发或运行下文的训练示例时，请使用源码安装。
+
+
+## 🔧 使用 Aster
+
+Aster 支持两类学习载体：模型**权重**和 Agent 的 **harness**。每个部署使用的 recipe
+决定其 scenario 更新哪一种载体。
+
+作为最小示例，将 Aster 启动为纯推理服务：
+
+```bash
+uv run aster serve --inference.model-path Qwen/Qwen2.5-1.5B-Instruct
+```
+
+### 模型权重训练部署
+
+#### 启动部署
+
+下面的示例启动 SAO（arXiv:2607.07508）示例部署。请在 Aster 源码目录下运行，并确保
+运行环境满足[进化你的模型](docs/user-guide/evolve-your-model.rst)中的 GPU 要求。
+
+```bash
+uv pip install -e ".[slime]" && uv pip install --no-deps --group runtime
+
+export MODEL_PATH="Qwen/Qwen2.5-1.5B-Instruct"
+export ASTER_TOKEN="aster-local"
+
+aster serve -c recipes/sao/examples/imo_answerbench/serve.yaml \
+  --inference.model-path "$MODEL_PATH" \
+  --aster.port "8900"
+
+curl -f http://127.0.0.1:8900/healthz          # ready to serve
+```
+
+#### 发送推理请求并上报反馈
+
+将推理请求发送至 Aster，并为每个响应上报分数。SAO recipe 使用每条符合条件的带分
+rollout 执行一次训练。
+
+Aster 的推理端点兼容 OpenAI 和 Anthropic：`/v1/chat/completions`、`/v1/responses` 与 `/v1/messages`
+直接接收相应模型提供商的请求体。请求需包含 `x-aster-scenario` 请求头；新的名称会使用
+部署配置的 recipe 创建 scenario。请求本身不选择 recipe。
+
+响应体使用模型提供商的 OpenAI 兼容格式。Aster 会添加 `x-aster-agent-record-id` 响应头，
+其值是后续报告用来标识本次交互的**回执**。报告可以包含数值 `score`、文本或结构化
+`feedback`，以及它所评估的回执。下面的示例同时上报分数和简短说明。
+
+```python
+import os
+import httpx
+
+aster = httpx.Client(
+    base_url="http://127.0.0.1:8900",
+    headers={"Authorization": f"Bearer {os.environ['ASTER_TOKEN']}", "x-aster-scenario": "hello-aster"},
+    timeout=300,
+)
+
+# Send a provider-compatible inference request
+response = aster.post(
+    "/v1/chat/completions",
+    json={
+        "model": os.environ["MODEL_PATH"],
+        "messages": [{"role": "user", "content": "Return exactly: aster is ready"}],
+    },
+)
+
+response.raise_for_status()
+receipt = response.headers["x-aster-agent-record-id"]
+answer = response.json()["choices"][0]["message"]["content"]
+
+# Sending report about the inference
+matched = answer.strip() == "aster is ready"
+
+aster.post(
+    "/aster/report",
+    json={"score": float(matched), "feedback": "matched" if matched else "wrong answer", "references": [receipt]},
+).raise_for_status()
+```
+
+部分 recipe 需要的不止一个分数，`feedback` 用于承载更丰富的信号，可以是纯文本或
+结构化对象。端点会校验**上报 schema**（[`aster/core/reports/`](aster/core/reports)）。
+
+
+#### 观察学习与进化
+
+反馈积累到一定数量后，Aster 会向训练组件提交一个训练任务。任务保存的检查点通过评估后，推理运行时会将其作为新版本加载。
+后续推理请求直接使用当前版本，无需重启 Aster。
+
+### Harness 进化部署
+
+用模型 API（而非 GPU），根据打分反馈进化编码 agent 的 skills 和 rules。
+
+Harness 部署服务的是 `aster.recipe.harness:HarnessEvolutionRecipe`。该 recipe 把 agent 的 harness 保存为一个文本文件 tree。每一步，method 根据该步的 trace 修改这个 tree 的副本，评估用候选版本让真实的 agent 运行任务，胜出的候选版本发布为任何客户端都能拉取的 release。[Harness 进化教程](tutorials/evolve-your-harness/README.md)在 pi 上运行最小的完整循环。它需要一个 OpenAI 兼容端点，以及供 pi 使用的 Node.js 和 npm。在 Aster checkout 和已激活的 Python 环境中：
+
+```bash
+cd tutorials/evolve-your-harness
+./run.sh
+```
+
+`configs/serve.yaml` 指定端点（`inference.upstream-url`，不带 `/v1` 后缀）和模型（`inference.upstream-model`）。把它们改成你自己的 provider；端点需要密钥时设置 `ASTER_UPSTREAM_API_KEY`。`run.sh` 在 `127.0.0.1:8900` 启动 Aster，经由它发送任务、上报每个分数，并拉取已发布的 tree。每次运行都会写出 `work/replay.html`，其中包含 release 链和每个步骤修改的文件。
+
+`GET /aster/harness` 提供已发布的 tree，按部署的 adapter 渲染。这些文件不含端点、密钥或模型：客户端把它们写到 agent 读取的位置，并把 agent 的模型绑定到这个 Aster（见 [Use a published tree](docs/user-guide/evolve-your-harness.rst)）。请把 tree 放在 agent 工作的项目之外：会话可以写入其项目中的文件，tree 若在项目内，就可能改变下一个会话运行的内容。[Evolve agent prompts, rules, and skills](docs/user-guide/evolve-your-harness.rst) 说明了该循环及其配置。
+
+## 📚 Recipes 与示例
+
+根据工作负载的**任务类型**和希望**进化的对象**（模型权重或 Agent 的 harness）来选择
+recipe。进化权重的 recipe 需要 GPU 训练栈，而 harness recipe 只需要一个模型端点。下表中每个
+recipe 链接到其指南，每个已测 benchmark 链接到其结果页，[Recipe 目录](docs/user-guide/recipes.rst)
+还列出了每个 recipe 的代码和示例。[SFT](docs/user-guide/recipes/sft.rst)
+随 `aster-infra` 内置提供，在 demonstration 或导入的样例上训练，适用于所有任务类型。
+其他实现位于本仓库的 `recipes/` cookbook 中，通过带点号的类路径指定，不随 Aster wheel 发布。
+
+| 任务类型 | 任务形状 | 进化模型 | 进化 harness | 标准 benchmark |
+|---|---|---|---|---|
+| 开放式发现 | 对一个有可度量目标、没有已知答案的难题反复尝试 | [TTT-Discover](docs/user-guide/recipes/tttd.rst)、[Guidance-TTT](recipes/tttd/examples/guidance_ttt/README.md) | 暂无 | 已测：[TriMul](recipes/tttd/examples/guidance_ttt/results/README.md)、[圆填充](recipes/tttd/examples/tttd/README.md#formal-8x64-results)、[Erdős 最小重叠](recipes/tttd/examples/tttd/README.md#formal-8x64-results)。 |
+| 有已知答案的离线任务 | 来自固定集合的独立任务，每个都有参考答案 | [SAO](docs/user-guide/recipes/sao.rst)、[SDFT](docs/user-guide/recipes/sdft.rst)、[SDPO](docs/user-guide/recipes/sdpo.rst)、[OPD](docs/user-guide/recipes/opd.rst) | [GEPA](docs/user-guide/recipes/gepa.rst)、[Meta-Harness](recipes/meta_harness/README.md) | 已测：[IMOAnswerBench](recipes/sao/examples/imo_answerbench/README.md#results)、[AIME 2024](recipes/opd/examples/math/README.md#results)、[AIME 2025](recipes/gepa/examples/aime/README.md#the-validation-contract)、[SciKnowEval](recipes/sdpo/examples/sciknoweval/README.md#results)、[ToolAlpaca](recipes/sdft/examples/skill_stream/README.md#results)、[Terminal-Bench](recipes/meta_harness/examples/terminal_bench/README.md#results)。 |
+| 从使用中在线学习 | 与用户的会话，交互本身就是信号 | [OpenClaw-RL](docs/user-guide/recipes/openclawrl.rst) | [ACE](recipes/ace/README.md)、[ReasoningBank](recipes/reasoning_bank/README.md) | 已测：[GSM8K 与模拟学生用户](recipes/openclawrl/examples/openclawrl/README.md#results)。 |
+
+[`recipes/basic/`](recipes/basic/) 是只记录、不学习的起始栈，不在目录之内。如果想快速了解
+反馈、候选修改和发布流程，可以从[编程 harness 教程](tutorials/evolve-your-harness/README.md)开始。
+每个结果页面都会说明任务、评估设置、测量结果和局限性。
+
+
+## 📐 架构
+
+<div align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/architecture-dark.svg">
+  <img src="docs/assets/architecture-light.svg" alt="Aster 架构：Harness 请求经 Scenario 转发到推理服务；通过 receipt 关联的反馈进入记录与 recipe 训练，候选产物经评估和选择后发布新版本。候选被拒绝时，继续使用当前版本。" width="1200">
+</picture>
+</div>
+
+## 📖 进一步了解
+
+[文档](docs/getting-started/intro.rst)按以下顺序组织：
+
+- [快速上手](docs/getting-started/quickstart.rst)：安装 Aster，接入客户端，查看版本历史
+- [HTTP API](docs/reference/http-api.rst)：使用 HTTP API 并上报反馈
+- [编写 recipe](docs/developer-guide/write-a-recipe.rst)：配置 Aster 如何处理数据、产出更新
+- [进化你的 harness](docs/user-guide/evolve-your-harness.rst)：不训练权重，改进 harness
+- [进化你的模型](docs/user-guide/evolve-your-model.rst)：配置并运维训练部署
+- [Recipes](docs/user-guide/recipes.rst)：按任务类型整理的 cookbook recipe 目录，含各自的代码、文档、示例和结果
+- [核心循环](docs/getting-started/core-loop.rst)：Aster 的核心循环
+- [术语表](docs/reference/glossary.rst)：文档所用术语的解释
+
+## 🤝 社区与贡献
+
+你是否也在研究持续自我进化的 Agent？
+
+- 加入 [Discord](https://discord.gg/5y8e5f937k)，分享 recipe、交流实现细节、讨论新功能。
+- [加入微信群](docs/community/wechat.md)：群已满，扫码添加小助手拉你进群。
+- 在 [GitHub Discussions](https://github.com/ibrahimosman786/aster/issues) 提问、分享想法、与社区交流。
+- 参与开发请从[贡献指南](CONTRIBUTING.md)开始。
+- 设计方案请通过 [RFC issue](https://github.com/ibrahimosman786/aster/issues) 提出。
+- 发现疑似漏洞请按[安全策略](SECURITY.md)私下反馈。
+
+如果 Aster 对你有帮助，欢迎点个 Star ⭐，让更多人发现并参与进来。
+
+
+## 📚 引用
+
+如果你在研究中使用 Aster，请引用：
+
+```bibtex
+@misc{aster2026,
+  title  = {Aster: Infrastructure for Continually Self-Improving Agents},
+  author = {{Aster Contributors}},
+  year   = {2026},
+  url    = {https://github.com/ibrahimosman786/aster}
+}
+```
+
+引用元数据也可在 [CITATION.cff](CITATION.cff) 中获取。
+
+
+## 👥 团队
+
+Aster 汇聚了一群探索 Agent 如何从经验中学习、持续进化的人。以下成员共同将这一想法
+变成可用的基础设施。
+
+这份名单并未列尽所有团队成员，以下按姓氏字母顺序排列：
+
+[Wenhao Chai](https://github.com/wenhaochai),
+[Shuangrui Ding](https://github.com/Mark12Ding),
+[Shiyi Zoe Du](https://github.com/zoedsy),
+[Hao He](https://github.com/hehaodele),
+[Haoze He](https://github.com/HectorHHZ),
+[Chonghe Jiang](https://github.com/Chonghe-Jiang),
+[Nan Jiang](https://github.com/nanjiangwill),
+[Xuan Jiang](https://github.com/Xuan-1998),
+[Xiaochen Li](https://github.com/SeuperHakkerJa),
+[Paul Liang](https://github.com/pliang279),
+[Bo Liu](https://github.com/Benjamin-eecs),
+[Boyuan Long](https://github.com/BoyuanLong),
+[Qiuyang Mang](https://github.com/joyemang33),
+[Zhenting Qi](https://github.com/zhentingqi),
+[Ao Qu](https://github.com/quao627),
+[Mingruo Qu](https://github.com/workhardforcoding),
+[Yihong Tang](https://github.com/YihongT),
+[Zhaokai Wang](https://github.com/wzk1015),
+[Xuezhi Yan](https://github.com/yanxz),
+[Hanfei Yu](https://github.com/hanfeiyu),
+[Haofei Yu](https://github.com/lwaekfjlk),
+[Simon Yu](https://github.com/simonucl),
+[Han Zheng](https://github.com/MikeZheng777),
+[Kaichen Zhou](https://github.com/kaichen-z),
+[Zijian Zhou](https://github.com/BobbyZhouZijian),
+[Jiacheng Zhu](https://github.com/Jiacheng-Zhu-AIML),
+[Dingyi Zhuang](https://github.com/ZhuangDingyi),
+[Xinkai Zou](https://github.com/jayzou3773).
+
+
+## ⭐ Star History
+
+<a href="https://star-history.com/#ibrahimosman786/aster&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=ibrahimosman786/aster&type=date&legend=top-left&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=ibrahimosman786/aster&type=date&legend=top-left" />
+    <img alt="Aster Star 增长历史图" src="https://api.star-history.com/chart?repos=ibrahimosman786/aster&type=date&legend=top-left" />
+  </picture>
+</a>
+
+
+## 🙏 致谢
+
+以下项目支撑了 Aster 的关键部分，在此感谢：
+
+- [SGLang](https://github.com/sgl-project/sglang) — 高性能推理
+- [slime](https://github.com/THUDM/slime) — 模型权重训练

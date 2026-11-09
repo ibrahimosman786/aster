@@ -3,7 +3,7 @@
 This run used the bundled TTT-Discover harness and the Erdős minimum-overlap
 judge in this repository. The result below covers the first 25 committed search
 and training steps. Each step generated eight groups of 64 programs with
-Qwen3-8B. Reef trained a rank-32 LoRA adapter after receiving the complete grid
+Qwen3-8B. Aster trained a rank-32 LoRA adapter after receiving the complete grid
 and served the updated adapter during the next step.
 
 ## Result
@@ -47,7 +47,7 @@ checkpoint, and PUCT archive.
 ## Run records
 
 W&B stored the training metrics under run
-[`f0b3542e6f07f20ad681bd3643182196`](https://wandb.ai/weianxie-massachusetts-institute-of-technology/reef/runs/f0b3542e6f07f20ad681bd3643182196).
+[`f0b3542e6f07f20ad681bd3643182196`](https://wandb.ai/weianxie-massachusetts-institute-of-technology/aster/runs/f0b3542e6f07f20ad681bd3643182196).
 The stored state contains one search trajectory, so this result does not
 estimate variance across seeds.
 

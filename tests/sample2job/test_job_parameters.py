@@ -6,11 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from reef.core.job_data import JobData, TaskSample, TrajectorySample
-from reef.core.plugins import PluginConfigError
-from reef.core.training_request import TrainingRequest
-from reef.pipeline_context import PipelineContext
-from reef.sample2job import DistillJobData
+from aster.core.job_data import JobData, TaskSample, TrajectorySample
+from aster.core.plugins import PluginConfigError
+from aster.core.training_request import TrainingRequest
+from aster.pipeline_context import PipelineContext
+from aster.sample2job import DistillJobData
 
 TRAJECTORY = TrajectorySample({"schema_version": "ATIF-v1.4", "agent": {"name": "fixture"}, "steps": [{"step_id": 1}]})
 TASK = TaskSample(Path("task-a"))

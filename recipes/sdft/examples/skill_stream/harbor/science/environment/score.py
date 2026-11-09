@@ -3,8 +3,8 @@
 A submission is ``{"task": <this stage's task>, "step": n}``; the score it
 earns is the accuracy on this task's test split, and both accuracies ride
 along as ``data`` so the trace rows carry the whole picture of the stream
-at that step. The judge reaches the Reef service the stage trains through
-(``REEF_SERVICE_URL``/``REEF_TOKEN``/``REEF_SCENARIO`` in its environment)
+at that step. The judge reaches the Aster service the stage trains through
+(``ASTER_SERVICE_URL``/``ASTER_TOKEN``/``ASTER_SCENARIO`` in its environment)
 and decodes greedily, the reference's evaluation setting.
 """
 

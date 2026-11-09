@@ -14,7 +14,7 @@ import pytest
 from tests.support.runtime_stubs import StubInferenceRuntime
 from tests.support.serving import wait_for_serving
 
-from reef.artifact import (
+from aster.artifact import (
     Artifact,
     ArtifactNotFound,
     ArtifactPublicationError,
@@ -22,23 +22,23 @@ from reef.artifact import (
     InMemoryRepositoryBackend,
     Repository,
 )
-from reef.artifact.artifact import ArtifactValidator, SnapshotRef
-from reef.artifact.components import AcceptAnyArtifact, ComponentSpec, ScenarioComponents, TextFileTree
-from reef.artifact.composite import compose_snapshot
-from reef.core.activation import ActivationRule
-from reef.core.components import COMPONENTS_METADATA_KEY, ComponentEntry, SnapshotComponents, snapshot_components
-from reef.core.errors import ReefError
-from reef.dispatcher import Dispatcher
-from reef.evaluation.activation import AlwaysActivate
-from reef.observability import NullExperimentTracker
-from reef.recipe.base import Recipe
-from reef.scenario.binding import activate_snapshot
-from reef.scenario.factory import ScenarioFactory
-from reef.service.request_service import RequestService
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.sqlite import SQLiteScenarioStorage
-from reef.train import ComponentTrainer
-from reef.train.types import TrainingCommit
+from aster.artifact.artifact import ArtifactValidator, SnapshotRef
+from aster.artifact.components import AcceptAnyArtifact, ComponentSpec, ScenarioComponents, TextFileTree
+from aster.artifact.composite import compose_snapshot
+from aster.core.activation import ActivationRule
+from aster.core.components import COMPONENTS_METADATA_KEY, ComponentEntry, SnapshotComponents, snapshot_components
+from aster.core.errors import AsterError
+from aster.dispatcher import Dispatcher
+from aster.evaluation.activation import AlwaysActivate
+from aster.observability import NullExperimentTracker
+from aster.recipe.base import Recipe
+from aster.scenario.binding import activate_snapshot
+from aster.scenario.factory import ScenarioFactory
+from aster.service.request_service import RequestService
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.sqlite import SQLiteScenarioStorage
+from aster.train import ComponentTrainer
+from aster.train.types import TrainingCommit
 
 WEIGHTS = "weights"
 HARNESS = "harness"
@@ -292,7 +292,7 @@ def test_multi_component_scenario_commits_one_component_and_carries_the_rest(tmp
         assert set(runtime.activated_ids[1:]) == {trained.artifact_id}
         # The record names the harness trainer, but the tree did not change: no new harness head.
         service = RequestService(dispatcher)
-        headers = {"x-reef-scenario": "agent"}
+        headers = {"x-aster-scenario": "agent"}
         assert service.harness_manifest(headers)["artifact_id"] == after_harness.component(HARNESS).artifact_id
         assert [row["artifact_id"] for row in service.harness_artifacts(headers)["artifacts"]] == [
             base.component(HARNESS).artifact_id,
@@ -304,7 +304,7 @@ def test_multi_component_scenario_commits_one_component_and_carries_the_rest(tmp
         assert components.read_files(scenario.repository.materialize(scenario.current_snapshot())) == {
             "AGENTS.md": "x"
         }
-        with pytest.raises(ReefError, match="serves no component"):
+        with pytest.raises(AsterError, match="serves no component"):
             scenario.commit(TrainingCommit(state={}, artifact=evolved, component="config"))
 
         # Activating the harness-only step's harness binds it to the weights served now: no weights reload.
@@ -518,7 +518,7 @@ def test_concurrent_first_readers_share_one_selection_view(tmp_path: Path, monke
         second_started.set()
         return recovered.resolve(reference)
 
-    monkeypatch.setattr("reef.artifact.repository.compose_snapshot", compose_once)
+    monkeypatch.setattr("aster.artifact.repository.compose_snapshot", compose_once)
     with ThreadPoolExecutor(max_workers=2) as readers:
         first = readers.submit(recovered.resolve, reference)
         try:
@@ -542,7 +542,7 @@ def test_restoring_a_selection_does_not_readmit_unchanged_component_artifacts(tm
 
         def validate(self, artifact: Artifact) -> None:
             if artifact.materialize().local_path.joinpath("adapter_config.json").read_text() == "{}":
-                raise ReefError("default weights are not a trained candidate")
+                raise AsterError("default weights are not a trained candidate")
 
     class RestoreRecipe(_TwoComponentRecipe):
         """A harness trainer whose unchanged default weights do not pass training admission."""
@@ -708,11 +708,11 @@ def test_an_activation_refused_by_validation_changes_nothing(tmp_path: Path, mon
         before = {path for path in staged_root.rglob("*") if path.is_dir()}
 
         def refuse(self: ArtifactValidator, artifact: Artifact) -> None:
-            raise ReefError("refused by the validator")
+            raise AsterError("refused by the validator")
 
         # An activation runs the snapshot's own check, as its publication did.
         monkeypatch.setattr(AcceptAnyArtifact, "validate", refuse)
-        with pytest.raises(ReefError, match="refused by the validator"):
+        with pytest.raises(AsterError, match="refused by the validator"):
             scenario.activate(held.artifact_id, HARNESS)
         assert {path for path in staged_root.rglob("*") if path.is_dir()} == before
         assert scenario.scenario_step == 1

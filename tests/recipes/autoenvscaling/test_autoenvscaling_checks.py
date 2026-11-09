@@ -23,7 +23,7 @@ from tests.recipes.autoenvscaling.autoenvscaling_stubs import (
     autoenvscaling,
     fenced,
     generating_config,
-    serving_reef,
+    serving_aster,
     stand_in_e2b_package,
 )
 from tests.support.task_service_stubs import DOCUMENT, StandInGenerator, task_for
@@ -31,10 +31,10 @@ from tests.support.task_service_stubs import DOCUMENT, StandInGenerator, task_fo
 from recipes.beta.autoenvscaling import AutoEnvScalingGenerator, checks
 from recipes.beta.autoenvscaling import generator as generator_module
 from recipes.beta.autoenvscaling.author import REVIEW_TEXT
-from reef.core.plugins import PluginConfigError
-from reef.core.tasks import HarborTask
-from reef.recipe.generated_tasks.generator import RejectedTask, RolledOutTask
-from reef.record2sample.generator import GeneratorError, WrittenTask
+from aster.core.plugins import PluginConfigError
+from aster.core.tasks import HarborTask
+from aster.recipe.generated_tasks.generator import RejectedTask, RolledOutTask
+from aster.record2sample.generator import GeneratorError, WrittenTask
 
 
 @pytest.fixture(autouse=True)
@@ -48,12 +48,12 @@ FINDING = {
     "requirement": "the report says 'OpenID Connect Discovery gives all three fields defaults'",
     "reason": "the instruction asks for a report and gives none of its wording",
 }
-CLOSED_REEF = "http://127.0.0.1:9"
+CLOSED_ASTER = "http://127.0.0.1:9"
 
 
-def reviewer(reef_url: str, *, is_refusing: bool = True) -> checks.ReviewCheck:
+def reviewer(aster_url: str, *, is_refusing: bool = True) -> checks.ReviewCheck:
     return checks.ReviewCheck(
-        reef_url=reef_url,
+        aster_url=aster_url,
         token="token",
         scenario="autoenvscaling",
         model="reviewer",
@@ -62,7 +62,7 @@ def reviewer(reef_url: str, *, is_refusing: bool = True) -> checks.ReviewCheck:
     )
 
 
-def reef_url(server: ThreadingHTTPServer) -> str:
+def aster_url(server: ThreadingHTTPServer) -> str:
     return f"http://127.0.0.1:{server.server_address[1]}"
 
 
@@ -86,21 +86,21 @@ def closed_with(generator: AutoEnvScalingGenerator, task: HarborTask, errors: tu
 
 @pytest.mark.parametrize("is_refusing", [True, False])
 def test_the_review_lists_unstated_requirements_and_refuses_or_measures(tmp_path: Path, is_refusing: bool) -> None:
-    reef, calls = serving_reef(json.dumps({"findings": [FINDING]}))
+    aster, calls = serving_aster(json.dumps({"findings": [FINDING]}))
     service = StandInGenerator(tmp_path / "tasks")
     try:
-        check = reviewer(reef_url(reef), is_refusing=is_refusing)
+        check = reviewer(aster_url(aster), is_refusing=is_refusing)
         generator = autoenvscaling(tmp_path, StandInAuthor(), service, count=1, task_checks=(check,))
         task, errors = validated(generator)
     finally:
-        reef.shutdown()
-        reef.server_close()
+        aster.shutdown()
+        aster.server_close()
     # A refusing review also runs in the agent's own check, before validate reviews the task again.
     assert len(calls) == (2 if is_refusing else 1)
     call = calls[-1]
     assert call["model"] == "reviewer" and call["messages"][0]["content"] == checks.REVIEW_SYSTEM_PROMPT
-    assert call["headers"]["x-reef-scenario"] == "autoenvscaling"
-    assert call["headers"]["x-reef-tag-role"] == "test-review" and call["headers"]["x-reef-tag-task"] == NAMES[0]
+    assert call["headers"]["x-aster-scenario"] == "autoenvscaling"
+    assert call["headers"]["x-aster-tag-role"] == "test-review" and call["headers"]["x-aster-tag-task"] == NAMES[0]
     prompt = call["messages"][1]["content"]
     assert "[BEGIN instruction.md" in prompt and task.instruction.strip() in prompt
     assert "[BEGIN tests/test.sh" in prompt and "[BEGIN solution/solve.sh" in prompt
@@ -134,16 +134,16 @@ def test_the_review_lists_unstated_requirements_and_refuses_or_measures(tmp_path
 def test_a_review_reply_that_is_not_the_json_asked_for_means_the_review_could_not_run(
     tmp_path: Path, reply: str, message: str
 ) -> None:
-    reef, _ = serving_reef(reply)
+    aster, _ = serving_aster(reply)
     service = StandInGenerator(tmp_path / "tasks")
     try:
         generator = autoenvscaling(
-            tmp_path, StandInAuthor(), service, count=1, task_checks=(reviewer(reef_url(reef)),)
+            tmp_path, StandInAuthor(), service, count=1, task_checks=(reviewer(aster_url(aster)),)
         )
         task, errors = validated(generator)
     finally:
-        reef.shutdown()
-        reef.server_close()
+        aster.shutdown()
+        aster.server_close()
     assert len(errors) == 1 and errors[0].startswith("the review check could not run: ") and message in errors[0]
     document = closed_with(generator, task, errors)
     [proposal] = document["proposals"]
@@ -155,7 +155,7 @@ def test_a_review_reply_that_is_not_the_json_asked_for_means_the_review_could_no
 def test_a_review_that_cannot_reach_its_model_could_not_run_and_only_measures_in_measure_mode(tmp_path: Path) -> None:
     service = StandInGenerator(tmp_path / "tasks")
     generator = autoenvscaling(
-        tmp_path, StandInAuthor(), service, count=1, task_checks=(reviewer(CLOSED_REEF, is_refusing=False),)
+        tmp_path, StandInAuthor(), service, count=1, task_checks=(reviewer(CLOSED_ASTER, is_refusing=False),)
     )
     task, errors = validated(generator)
     assert errors == (), "a measuring review keeps no task out"
@@ -182,21 +182,21 @@ def test_the_agents_rules_say_how_to_read_the_review_only_when_its_checks_review
 def test_the_agents_check_returns_the_reviews_findings(
     tmp_path: Path, reply: str, passed: bool, review: dict[str, object] | None
 ) -> None:
-    reef, calls = serving_reef(reply)
+    aster, calls = serving_aster(reply)
     author = StandInAuthor()
     try:
-        generator = autoenvscaling(tmp_path, author, count=1, task_checks=(reviewer(reef_url(reef)),))
+        generator = autoenvscaling(tmp_path, author, count=1, task_checks=(reviewer(aster_url(aster)),))
         asyncio.run(generator.generate(REQUEST))
     finally:
-        reef.shutdown()
-        reef.server_close()
+        aster.shutdown()
+        aster.server_close()
     check = author.calls[0]["check"]
     assert check["passed"] is passed and check["oracle_reward"] == 1.0
     if review is None:
         assert check["review"]["ran"] is False and "not the JSON asked for" in check["review"]["error"]
     else:
         assert check["review"] == review and check["stage"] == "review"
-    assert calls[0]["headers"]["x-reef-tag-check"] == "1" and calls[0]["headers"]["x-reef-tag-index"] == "0"
+    assert calls[0]["headers"]["x-aster-tag-check"] == "1" and calls[0]["headers"]["x-aster-tag-index"] == "0"
 
 
 # YAML reads a bare off as false.
@@ -206,12 +206,12 @@ def test_the_agents_check_returns_the_reviews_findings(
 def test_the_configured_review_refuses_by_default_and_only_a_refusing_one_reaches_the_agents_check(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fields: dict[str, object]
 ) -> None:
-    reef, calls = serving_reef(json.dumps({"findings": [FINDING]}))
+    aster, calls = serving_aster(json.dumps({"findings": [FINDING]}))
     service = StandInGenerator(tmp_path / "tasks")
     monkeypatch.setattr(generator_module, "HttpGenerator", lambda url: service)
     try:
         generator = AutoEnvScalingGenerator.from_config(
-            generating_config(tmp_path, count=1, agent_reef_url=reef_url(reef), **fields),
+            generating_config(tmp_path, count=1, agent_aster_url=aster_url(aster), **fields),
             scenario="autoenvscaling",
             environ={"E2B_API_KEY": "e2b-test"},
         )
@@ -220,8 +220,8 @@ def test_the_configured_review_refuses_by_default_and_only_a_refusing_one_reache
         monkeypatch.setattr(generator, "author", author)
         task, errors = validated(generator)
     finally:
-        reef.shutdown()
-        reef.server_close()
+        aster.shutdown()
+        aster.server_close()
     check = author.calls[0]["check"]
     finding = f"wording in tests/test.sh: {FINDING['requirement']}"
     if not fields:
@@ -324,20 +324,20 @@ def calibration_details(document: dict[str, Any]) -> dict[str, Any]:
 def test_calibration_runs_only_after_the_other_checks_pass(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, reply: str, is_solvable: bool, counts: list[int]
 ) -> None:
-    reef, _ = serving_reef(reply)
+    aster, _ = serving_aster(reply)
     service = ScriptedRollouts(tmp_path / "tasks", [0.0, 1.0, 1.0, 0.0], is_solvable=is_solvable)
     monkeypatch.setattr(generator_module, "HttpGenerator", lambda url: service)
     try:
         generator = AutoEnvScalingGenerator.from_config(
-            generating_config(tmp_path, count=1, agent_reef_url=reef_url(reef), calibration="refuse"),
+            generating_config(tmp_path, count=1, agent_aster_url=aster_url(aster), calibration="refuse"),
             scenario="autoenvscaling",
             environ={"E2B_API_KEY": "e2b-test"},
         )
         monkeypatch.setattr(generator, "author", StandInAuthor())
         _, errors = validated(generator)
     finally:
-        reef.shutdown()
-        reef.server_close()
+        aster.shutdown()
+        aster.server_close()
     assert [check.name for check in generator.task_checks] == ["oracle", "review", "calibration"]
     assert service.requested_counts == counts
     assert (errors == ()) is (counts == [4])
@@ -709,14 +709,14 @@ def test_measure_mode_records_the_hit_and_never_refuses(tmp_path: Path, monkeypa
 def test_a_contaminated_task_costs_no_review_call_and_no_calibration_rollout(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    reef, calls = serving_reef(json.dumps({"findings": []}))
+    aster, calls = serving_aster(json.dumps({"findings": []}))
     service = ScriptedRollouts(tmp_path / "tasks", [0.0, 1.0, 1.0, 0.0])
     try:
         generator = contamination_from_config(
             tmp_path,
             monkeypatch,
             service,
-            agent_reef_url=reef_url(reef),
+            agent_aster_url=aster_url(aster),
             contamination="refuse",
             calibration="refuse",
         )
@@ -725,8 +725,8 @@ def test_a_contaminated_task_costs_no_review_call_and_no_calibration_rollout(
         assert len(calls) == 1
         errors = asyncio.run(generator.validate(task)).errors
     finally:
-        reef.shutdown()
-        reef.server_close()
+        aster.shutdown()
+        aster.server_close()
     assert [check.name for check in generator.task_checks] == ["oracle", "contamination", "review", "calibration"]
     assert len(errors) == 1 and errors[0].startswith("instruction.md shares a 13-gram with reference task port-file")
     assert len(calls) == 1 and service.requested_counts == []

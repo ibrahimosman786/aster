@@ -6,24 +6,24 @@ import json
 import time
 
 import pytest
-from tests.reef_service.test_sse_streams import FakeStream
+from tests.aster_service.test_sse_streams import FakeStream
 from tests.support._policy_recipe import TestPolicyRecipe
 from tests.support.artifact_versions import ImportingComponent, finished_jobs
 from tests.support.runtime_stubs import runtime_bindings
 
-from reef.artifact import InMemoryRepositoryBackend
-from reef.core import AgentRecord, RequestType
-from reef.core.artifact_selection import ArtifactSelection
-from reef.core.snapshot import SnapshotRef
-from reef.dispatcher import Dispatcher
-from reef.observability import TracingConfig, build_record_observer
-from reef.service.deploy.service_config import service_config_from_mapping
-from reef.service.streaming import stream_record
-from reef.storage.commits import CommitRecord
-from reef.storage.observer import ObservedScenarioStorage, RecordObserver
-from reef.storage.samples import consumed_sample_id, stage_item_id
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.sqlite import SQLiteScenarioStorage
+from aster.artifact import InMemoryRepositoryBackend
+from aster.core import AgentRecord, RequestType
+from aster.core.artifact_selection import ArtifactSelection
+from aster.core.snapshot import SnapshotRef
+from aster.dispatcher import Dispatcher
+from aster.observability import TracingConfig, build_record_observer
+from aster.service.deploy.service_config import service_config_from_mapping
+from aster.service.streaming import stream_record
+from aster.storage.commits import CommitRecord
+from aster.storage.observer import ObservedScenarioStorage, RecordObserver
+from aster.storage.samples import consumed_sample_id, stage_item_id
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.sqlite import SQLiteScenarioStorage
 
 
 def _inference(agent_record_id: str, scenario: str = "math", **payload) -> AgentRecord:
@@ -66,14 +66,14 @@ def test_tracing_config_defaults_to_disabled_and_rejects_unknown_settings() -> N
 @pytest.mark.unit
 def test_tracing_credential_comes_from_config_or_environment_and_stays_out_of_repr() -> None:
     configured = TracingConfig.from_mapping(
-        {"authorization": " Basic abc "}, environ={"REEF_TRACING_AUTHORIZATION": "Basic env"}
+        {"authorization": " Basic abc "}, environ={"ASTER_TRACING_AUTHORIZATION": "Basic env"}
     )
     assert configured.authorization == "Basic abc"
     assert configured.request_headers() == {"Authorization": "Basic abc"}
     assert "abc" not in repr(configured)
 
     from_environment = TracingConfig.from_mapping(
-        {"headers": {"x-team": "ml"}}, environ={"REEF_TRACING_AUTHORIZATION": "Basic env"}
+        {"headers": {"x-team": "ml"}}, environ={"ASTER_TRACING_AUTHORIZATION": "Basic env"}
     )
     assert from_environment.authorization == "Basic env"
     assert from_environment.request_headers() == {"x-team": "ml", "Authorization": "Basic env"}
@@ -91,7 +91,7 @@ def test_tracing_config_parses_every_setting() -> None:
             "endpoint": " http://collector:4318/v1/traces ",
             "authorization": "Basic abc",
             "headers": {"x-team": "ml"},
-            "service_name": "reef-prod",
+            "service_name": "aster-prod",
         }
     )
     assert config == TracingConfig(
@@ -99,17 +99,17 @@ def test_tracing_config_parses_every_setting() -> None:
         endpoint="http://collector:4318/v1/traces",
         authorization="Basic abc",
         headers={"x-team": "ml"},
-        service_name="reef-prod",
+        service_name="aster-prod",
     )
 
 
 @pytest.mark.unit
 def test_service_config_carries_the_tracing_section() -> None:
     settings = service_config_from_mapping(
-        {"reef": {"recipe": "recipe"}, "observability": {"tracing": {"enabled": True, "endpoint": "http://c:4318"}}}
+        {"aster": {"recipe": "recipe"}, "observability": {"tracing": {"enabled": True, "endpoint": "http://c:4318"}}}
     )
     assert settings.tracing_config == {"enabled": True, "endpoint": "http://c:4318"}
-    assert service_config_from_mapping({"reef": {"recipe": "recipe"}}).tracing_config == {}
+    assert service_config_from_mapping({"aster": {"recipe": "recipe"}}).tracing_config == {}
 
 
 @pytest.mark.unit
@@ -125,7 +125,7 @@ def _observer(**overrides):
     pytest.importorskip("opentelemetry.sdk")
     from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-    from reef.observability.open_telemetry import OpenTelemetryRecordObserver
+    from aster.observability.open_telemetry import OpenTelemetryRecordObserver
 
     exporter = InMemorySpanExporter()
     observer = OpenTelemetryRecordObserver(TracingConfig(enabled=True, **overrides), span_exporter=exporter)
@@ -140,7 +140,7 @@ def _spans(observer, exporter):
 @pytest.mark.unit
 def test_enabled_tracing_builds_the_opentelemetry_observer() -> None:
     pytest.importorskip("opentelemetry.sdk")
-    from reef.observability.open_telemetry import OpenTelemetryRecordObserver
+    from aster.observability.open_telemetry import OpenTelemetryRecordObserver
 
     observer = build_record_observer({"enabled": True, "endpoint": "http://127.0.0.1:1/v1/traces"})
     try:
@@ -152,7 +152,7 @@ def test_enabled_tracing_builds_the_opentelemetry_observer() -> None:
 @pytest.mark.unit
 def test_inference_record_becomes_a_client_span_with_stable_ids() -> None:
     observer, exporter = _observer()
-    from reef.observability.open_telemetry import record_span_context
+    from aster.observability.open_telemetry import record_span_context
 
     item = AgentRecord.create(
         scenario="math",
@@ -182,14 +182,14 @@ def test_inference_record_becomes_a_client_span_with_stable_ids() -> None:
     assert span.parent is None
     assert span.kind.name == "CLIENT"
     assert span.start_time == span.end_time == 1_700_000_000_500_000_000
-    assert span.resource.attributes["service.name"] == "reef"
+    assert span.resource.attributes["service.name"] == "aster"
     assert dict(span.attributes) == {
         "session.id": "math",
-        "reef.scenario": "math",
-        "reef.agent_record_id": "i1",
-        "reef.request_type": "inference",
-        "reef.artifact_id": "artifact-3",
-        "reef.tags": ("eval", "smoke"),
+        "aster.scenario": "math",
+        "aster.agent_record_id": "i1",
+        "aster.request_type": "inference",
+        "aster.artifact_id": "artifact-3",
+        "aster.tags": ("eval", "smoke"),
         "gen_ai.operation.name": "chat",
         "gen_ai.request.model": "qwen",
         "gen_ai.response.model": "qwen-served",
@@ -299,20 +299,20 @@ def test_spans_carry_the_exchange_and_feedback_text() -> None:
     assert json.loads(spans["chat qwen"].attributes["gen_ai.output.messages"]) == [
         {"role": "assistant", "content": "hello"}
     ]
-    assert json.loads(spans["feedback"].attributes["reef.feedback"]) == {"note": "good"}
+    assert json.loads(spans["feedback"].attributes["aster.feedback"]) == {"note": "good"}
 
 
 @pytest.mark.unit
 def test_feedback_joins_the_first_referenced_trace_and_links_the_rest() -> None:
     observer, exporter = _observer()
-    from reef.observability.open_telemetry import record_span_context
+    from aster.observability.open_telemetry import record_span_context
 
     observer.record_accepted(_inference("i1", model="qwen"))
     observer.record_accepted(_inference("i2", model="qwen"))
     observer.record_accepted(_report("r1", "i1", "i2", score=0.25, feedback="secret transcript"))
     observer.record_accepted(_report("r2"))
     observer.close()
-    spans = {span.attributes["reef.agent_record_id"]: span for span in exporter.get_finished_spans()}
+    spans = {span.attributes["aster.agent_record_id"]: span for span in exporter.get_finished_spans()}
 
     scored = spans["r1"]
     first = record_span_context("math", "i1")
@@ -321,9 +321,9 @@ def test_feedback_joins_the_first_referenced_trace_and_links_the_rest() -> None:
     assert scored.parent.span_id == first.span_id
     assert scored.context.span_id == record_span_context("math", "r1").span_id
     assert [link.context.trace_id for link in scored.links] == [spans["i2"].context.trace_id]
-    assert scored.attributes["reef.score"] == 0.25
-    assert scored.attributes["reef.references"] == ("i1", "i2")
-    assert scored.attributes["reef.feedback"] == "secret transcript"
+    assert scored.attributes["aster.score"] == 0.25
+    assert scored.attributes["aster.references"] == ("i1", "i2")
+    assert scored.attributes["aster.feedback"] == "secret transcript"
 
     unreferenced = spans["r2"]
     assert unreferenced.parent is None
@@ -333,7 +333,7 @@ def test_feedback_joins_the_first_referenced_trace_and_links_the_rest() -> None:
 @pytest.mark.unit
 def test_committed_step_adds_a_child_span_below_every_consumed_record() -> None:
     observer, exporter = _observer()
-    from reef.observability.open_telemetry import commit_span_context, record_span_context
+    from aster.observability.open_telemetry import commit_span_context, record_span_context
 
     commit = CommitRecord(
         scenario="math",
@@ -358,29 +358,29 @@ def test_committed_step_adds_a_child_span_below_every_consumed_record() -> None:
     assert step.context.trace_id == commit_span_context("math", 3).trace_id
     assert step.context.span_id == commit_span_context("math", 3).span_id
     assert step.parent is None
-    assert step.attributes["reef.step"] == 3
-    assert step.attributes["reef.component"] == "harness"
-    assert step.attributes["reef.artifact_id"] == "artifact:h3"
-    assert step.attributes["reef.artifacts.weights"] == "artifact:w2"
-    assert "reef.release_id" not in step.attributes
-    assert step.attributes["reef.consumed_record_count"] == 2
-    assert "reef.compacted_record_count" not in step.attributes
-    assert step.attributes["reef.training_job_id"] == "job-3"
-    assert step.attributes["reef.metrics.loss"] == 0.5
-    assert step.attributes["reef.metrics.selected"] is True
-    assert step.attributes["reef.metrics.label"] == "ok"
-    assert "reef.metrics.nan" not in step.attributes
-    assert "reef.metrics.nested" not in step.attributes
+    assert step.attributes["aster.step"] == 3
+    assert step.attributes["aster.component"] == "harness"
+    assert step.attributes["aster.artifact_id"] == "artifact:h3"
+    assert step.attributes["aster.artifacts.weights"] == "artifact:w2"
+    assert "aster.release_id" not in step.attributes
+    assert step.attributes["aster.consumed_record_count"] == 2
+    assert "aster.compacted_record_count" not in step.attributes
+    assert step.attributes["aster.training_job_id"] == "job-3"
+    assert step.attributes["aster.metrics.loss"] == 0.5
+    assert step.attributes["aster.metrics.selected"] is True
+    assert step.attributes["aster.metrics.label"] == "ok"
+    assert "aster.metrics.nan" not in step.attributes
+    assert "aster.metrics.nested" not in step.attributes
 
-    consumed = {span.attributes["reef.agent_record_id"]: span for span in spans if span.name == "trained in step 3"}
+    consumed = {span.attributes["aster.agent_record_id"]: span for span in spans if span.name == "trained in step 3"}
     assert set(consumed) == {"i1", "i2"}
     for agent_record_id, span in consumed.items():
         expected_parent = record_span_context("math", agent_record_id)
         assert span.context.trace_id == expected_parent.trace_id
         assert span.parent.span_id == expected_parent.span_id
         assert [link.context.span_id for link in span.links] == [step.context.span_id]
-        assert span.attributes["reef.artifact_id"] == "artifact:h3"
-        assert span.attributes["reef.component"] == "harness"
+        assert span.attributes["aster.artifact_id"] == "artifact:h3"
+        assert span.attributes["aster.component"] == "harness"
 
 
 # -- storage observer ---------------------------------------------------------

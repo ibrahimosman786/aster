@@ -1,4 +1,4 @@
-"""Opt-in cloud acceptance of the Modal sandbox: REEF_TEST_MODAL=1 and Modal credentials.
+"""Opt-in cloud acceptance of the Modal sandbox: ASTER_TEST_MODAL=1 and Modal credentials.
 
 The test builds an image for a small npm program, starts one sandbox, and checks a process in it: it runs the
 program, reaches a server on this host through the relay tunnel, writes its workspace (copied back here), cannot
@@ -12,13 +12,13 @@ from pathlib import Path
 
 import pytest
 
-from reef.execution.sandbox.modal import ModalExecutor, ModalSession
-from reef.execution.sandbox.process import ProgramTimeout, SandboxProgram
-from reef.execution.sandbox.remote import deployment_owner
+from aster.execution.sandbox.modal import ModalExecutor, ModalSession
+from aster.execution.sandbox.process import ProgramTimeout, SandboxProgram
+from aster.execution.sandbox.remote import deployment_owner
 
-pytestmark = pytest.mark.skipif(os.environ.get("REEF_TEST_MODAL") != "1", reason="opt-in paid Modal test")
+pytestmark = pytest.mark.skipif(os.environ.get("ASTER_TEST_MODAL") != "1", reason="opt-in paid Modal test")
 
-ANSWER = "REEF_MODAL_OK"
+ANSWER = "ASTER_MODAL_OK"
 
 
 class Cowsay(SandboxProgram):
@@ -59,7 +59,7 @@ def host_server():
 
 
 def test_a_process_runs_jailed_in_a_modal_sandbox_and_reaches_the_host_through_the_tunnel(tmp_path, host_server):
-    executor, binary = ModalExecutor(app_name="reef-tests", owner=deployment_owner(tmp_path)).for_program(Cowsay())
+    executor, binary = ModalExecutor(app_name="aster-tests", owner=deployment_owner(tmp_path)).for_program(Cowsay())
     assert isinstance(executor, ModalExecutor) and binary == "cowsay"
     executor.preflight()
     root = tmp_path / "run"
@@ -70,7 +70,7 @@ def test_a_process_runs_jailed_in_a_modal_sandbox_and_reaches_the_host_through_t
         "cowsay hi > answer.txt"
         f" && python3 -c \"import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:{host_server}/')"
         '.read().decode())" > fetched.txt'
-        " && (touch /etc/reef-escape 2>/dev/null && echo writable || echo read-only) > jail.txt"
+        " && (touch /etc/aster-escape 2>/dev/null && echo writable || echo read-only) > jail.txt"
         " && cat task.md"
     )
     session = executor.open_session(forward_ports=(host_server,), timeout_s=300)

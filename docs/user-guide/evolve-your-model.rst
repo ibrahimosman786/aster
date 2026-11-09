@@ -52,9 +52,9 @@ directory Aster keeps its state in:
 
    docker run --gpus all --network host --ipc host --shm-size 32g -it \
      -v ~/models:/root/models \
-     -v ~/reef-run:/var/lib/reef \
+     -v ~/aster-run:/var/lib/aster \
      -v "$PWD":/workspace/Aster \
-     reef bash
+     aster bash
 
 ``--network host`` lets the HTTP service, the inference component, and Ray
 reach each other on localhost; ``--ipc host --shm-size 32g`` is what the training stack needs for
@@ -102,7 +102,7 @@ What to review
    ``recipe.implementation``
        the recipe this deployment serves; its fields live in ``recipe.config``
 
-   ``reef.token``
+   ``aster.token``
        the bearer token the service accepts
 
    ``training.config.num_gpus``
@@ -151,7 +151,7 @@ Run the example
 
 .. code:: bash
 
-   export REEF_TOKEN=reef-local     # the token recipes/sao/examples/imo_answerbench/serve.yaml declares
+   export ASTER_TOKEN=aster-local     # the token recipes/sao/examples/imo_answerbench/serve.yaml declares
 
    aster serve -c recipes/sao/examples/imo_answerbench/serve.yaml \
      --inference.model-path ~/models/Qwen2.5-1.5B-Instruct
@@ -162,9 +162,9 @@ minutes; wait for the inference component and the HTTP service to report ready.
 .. code:: bash
 
    curl -f http://127.0.0.1:8900/healthz
-   curl -H "Authorization: Bearer reef-local" http://127.0.0.1:8900/reef/status
+   curl -H "Authorization: Bearer aster-local" http://127.0.0.1:8900/aster/status
 
-``/healthz`` says the HTTP service is up. Read ``/reef/status`` when something
+``/healthz`` says the HTTP service is up. Read ``/aster/status`` when something
 is wrong: it reports asynchronous training and preload failures, current weight
 versions, inference admission, processor state, and the running training job.
 
@@ -179,10 +179,10 @@ publishes it, loads it into the engines, and records a new version.
 
 .. code:: bash
 
-   export SCENARIO=<the x-reef-scenario you sent>   # examples/imo_answerbench uses sao-smoke
+   export SCENARIO=<the x-aster-scenario you sent>   # examples/imo_answerbench uses sao-smoke
 
-   curl -sS -H "Authorization: Bearer reef-local" \
-     http://127.0.0.1:8900/reef/scenarios/$SCENARIO/artifacts
+   curl -sS -H "Authorization: Bearer aster-local" \
+     http://127.0.0.1:8900/aster/scenarios/$SCENARIO/artifacts
    # {"scenario": "...", "artifacts": [{"operation": "training", "active": true, ...}, ...]}
 
 You are training when a new ``training`` entry appears, which happens once
@@ -230,7 +230,7 @@ a new adapter name. The engines start with the adapter's rank and target
 modules. ``inference.max-loaded-adapters`` (default 1) sizes their adapter
 table: the adapters they keep resident. With 1, the engines unload the
 served adapter before they load the new one, while generation is paused; with
-2, the new adapter loads beside it. ``/reef/status`` reports the scenario's
+2, the new adapter loads beside it. ``/aster/status`` reports the scenario's
 ``adapter_runtime_load_id``. LoRA needs ``inference.backend: sglang``; vLLM
 serves full weights only. To train one adapter per scenario on one base
 model, use `Tinker with inference engines <tinker.rst#serve-on-inference-engines>`__.
@@ -254,7 +254,7 @@ gigabytes. Thus the snapshot chain can keep every revision.
    adapter_config.json          standard PEFT config: peft_type, r, lora_alpha,
                                 target_modules, lora_dropout, base_model_name_or_path
    adapter_model.safetensors    the adapter tensors, and only those
-   reef-adapter.json            Aster's training metadata for this revision
+   aster-adapter.json            Aster's training metadata for this revision
 
 The first two files are a plain Hugging Face PEFT adapter, so a published
 revision loads outside Aster with nothing but ``transformers`` and ``peft``:
@@ -267,7 +267,7 @@ revision loads outside Aster with nothing but ``transformers`` and ``peft``:
    base = AutoModelForCausalLM.from_pretrained("Qwen/Qwen3-8B")
    model = PeftModel.from_pretrained(base, "/path/to/release/adapter")
 
-``reef-adapter.json`` is what lets you check a revision, not just load it. It
+``aster-adapter.json`` is what lets you check a revision, not just load it. It
 records:
 
 - the base model, plus a checksum of its tokenizer and chat-template files;
@@ -299,14 +299,14 @@ Run Harbor tasks and report
 
 .. code-block:: bash
 
-   python -m reef.harness.harbor.rollouts \
-     --reef-url http://127.0.0.1:8900 --scenario my-agent --model qwen3.8:27b \
+   python -m aster.harness.harbor.rollouts \
+     --aster-url http://127.0.0.1:8900 --scenario my-agent --model qwen3.8:27b \
      --manifest tasks/manifest.json --tasks-root tasks --side train
 
 Each task directory runs one rollout with a Harbor agent (``terminus-2`` unless
 ``--agent-json`` names another) whose model calls go through Aster, so every
 inference is a record. When the verifier scores the rollout, one report reaches
-``/reef/report``: the reward as the score, the receipts as the references, and
+``/aster/report``: the reward as the score, the receipts as the references, and
 the task's name, path and digest under ``metadata.task``. The recipe's reported
 processor turns those records into training samples like any other report.
 ``--instructions FILE`` appends a file to every task's instruction and

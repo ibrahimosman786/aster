@@ -23,13 +23,13 @@ from typing import Any
 
 import yaml
 
-import reef.harness.adapters
-from reef.harness.adapters.descriptor import ADAPTER_FILE, AdapterDescriptor
-from reef.harness.sync import TOKEN_PLACEHOLDER, LayerInstall
-from reef.harness.tasks import run as run_run
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tree import HarnessTree, render_tree
-from reef.harness.tree.checks import NATIVE_LOOP_DEFAULT_MAX_STEPS
+import aster.harness.adapters
+from aster.harness.adapters.descriptor import ADAPTER_FILE, AdapterDescriptor
+from aster.harness.sync import TOKEN_PLACEHOLDER, LayerInstall
+from aster.harness.tasks import run as run_run
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tree import HarnessTree, render_tree
+from aster.harness.tree.checks import NATIVE_LOOP_DEFAULT_MAX_STEPS
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -117,7 +117,7 @@ __all__ = [
 
 
 #: The directory of the bundled adapters.
-ADAPTERS = Path(reef.harness.adapters.__file__).parent
+ADAPTERS = Path(aster.harness.adapters.__file__).parent
 
 
 def descriptor_data(adapter: str) -> dict[str, Any]:

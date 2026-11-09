@@ -18,12 +18,12 @@ from typing import Any
 
 import pytest
 
-from reef.harness.harbor.rollouts import RolloutRow, TaskLab
-from reef.storage.durable_files import write_json
-from reef.train.slime_backend import harbor_rollouts
-from reef.train.slime_backend.dataset import DATASET_FILE
-from reef.train.slime_backend.engine_chat import EngineChat
-from reef.train.slime_backend.harbor_rollouts import (
+from aster.harness.harbor.rollouts import RolloutRow, TaskLab
+from aster.storage.durable_files import write_json
+from aster.train.slime_backend import harbor_rollouts
+from aster.train.slime_backend.dataset import DATASET_FILE
+from aster.train.slime_backend.engine_chat import EngineChat
+from aster.train.slime_backend.harbor_rollouts import (
     GENERATE_FUNCTION_PATH,
     HarborRolloutSession,
     SampleFields,
@@ -38,7 +38,7 @@ from reef.train.slime_backend.harbor_rollouts import (
     removed_fields,
     task_job_metrics,
 )
-from reef.train.task_rollouts import HarborSettings
+from aster.train.task_rollouts import HarborSettings
 
 DISTRIBUTION = {"temperature": 1.0, "top_p": 1.0, "top_k": -1}
 
@@ -406,7 +406,7 @@ class Args(SimpleNamespace):
             "group_rm": False,
             "reward_key": None,
             "custom_generate_function_path": None,
-            "data_source_path": "reef.train.slime_backend.dataset_source.ReefDatasetSource",
+            "data_source_path": "aster.train.slime_backend.dataset_source.AsterDatasetSource",
             "rollout_function_path": "slime.rollout.sglang_rollout.generate_rollout",
             "partial_rollout": False,
             "dynamic_sampling_filter_path": None,

@@ -1,9 +1,9 @@
 """Harbor ``BaseAgent`` subclass for summary-only Guidance-TTT.
 
 One Harbor trial owns the complete Guidance-TTT trajectory: every step samples
-the trainable guidance policy through Reef, executes the guidance with a frozen
+the trainable guidance policy through Aster, executes the guidance with a frozen
 external model, verifies the candidate with the external judge, and waits for
-Reef's LoRA training job to end before the next step starts. It ends
+Aster's LoRA training job to end before the next step starts. It ends
 by writing the archive's best candidate into the task environment, where the
 Harbor verifier scores it independently.
 
@@ -19,9 +19,9 @@ import base64
 from harbor.agents.base import BaseAgent
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
-from reef_client import ReefClient
+from reef_client import AsterClient
 
-from .agent import ReefGuidanceTTTHarness, prepare_library
+from .agent import AsterGuidanceTTTHarness, prepare_library
 from .bootstrap import prepare_seed
 from .config import RunConfig
 from .contract import TaskContract
@@ -53,22 +53,22 @@ WORKSPACE = "/workspace"
 
 
 class HarborAgent(BaseAgent):
-    """A Harbor agent that runs Guidance-TTT search through Reef."""
+    """A Harbor agent that runs Guidance-TTT search through Aster."""
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._client = ReefClient(SERVICE_URL, token=TOKEN, timeout_s=CLIENT_TIMEOUT_S)
+        self._client = AsterClient(SERVICE_URL, token=TOKEN, timeout_s=CLIENT_TIMEOUT_S)
 
     @staticmethod
     def name() -> str:
-        return "reef-guidance-ttt"
+        return "aster-guidance-ttt"
 
     def version(self) -> str | None:
         return None
 
     async def setup(self, environment: BaseEnvironment) -> None:
         """Create the scenario if it does not exist yet: the inference routes serve only a scenario that exists."""
-        await asyncio.to_thread(self._client.post, "/reef/scenarios", SCENARIO, {"name": SCENARIO})
+        await asyncio.to_thread(self._client.post, "/aster/scenarios", SCENARIO, {"name": SCENARIO})
 
     async def run(
         self,
@@ -77,7 +77,7 @@ class HarborAgent(BaseAgent):
         context: AgentContext,
     ) -> None:
         CONFIG.validate_state()
-        model = self.model_name or "reef"
+        model = self.model_name or "aster"
         backend = CONFIG.backend
         contract = TaskContract.load(TASK_CONTRACT, problem_prompt=instruction)
         scorer = JudgeScorer(
@@ -119,7 +119,7 @@ class HarborAgent(BaseAgent):
         if not state_store.committed_library_path.exists():
             state_store.commit_library()
 
-        harness = ReefGuidanceTTTHarness(
+        harness = AsterGuidanceTTTHarness(
             self._client,
             OpenAICompatibleExecutionClient(backend),
             library,
@@ -164,7 +164,7 @@ class HarborAgent(BaseAgent):
             raise RuntimeError(f"writing {solution_path} failed: {result.stderr}")
 
         metadata = dict(context.metadata or {})
-        metadata["reef"] = {
+        metadata["aster"] = {
             "agent_record_ids": [result.agent_record_id for result in outcome.results if result.guidance_format_ok],
             "start_step": outcome.start_step,
             "next_step": outcome.next_step,

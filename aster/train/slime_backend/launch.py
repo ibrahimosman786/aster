@@ -1,0 +1,261 @@
+"""Slime's deployment definition and its runtime factory, without GPU imports at discovery.
+
+Slime trains in the HTTP service's process: the runtime factory builds a
+``SlimeTrainingComponent`` that owns its Ray session and training workers.
+Serving is not Slime's: the deployment's ``inference`` section configures it
+(``aster.service.deploy.serving``), and an activated checkpoint reaches the
+serving engines as files. Each job runs in a driver of its own, which Slime
+places; Slime's native options in ``training.options`` reach it unread,
+including those of the rollout engines that a task job's rollouts call
+(``rollout-num-gpus``, ``colocate``, ``sglang-*``). A distillation teacher runs
+as its own service.
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+from collections.abc import Mapping
+from typing import Any
+
+from aster.core.config import config_value, interpolate_config
+from aster.core.errors import DeployConfigError, RuntimeConfigError
+from aster.execution.executor.arguments import MANAGED_ENGINE_OPTIONS, native_arguments, normalize_native_options
+from aster.execution.executor.config import role_executor_settings, select_executor
+from aster.execution.processes import http_readiness_command
+from aster.storage.job_data import JobDataKind
+from aster.train.algos.registry import loss_family_refs
+from aster.train.component import TrainingComponent, TrainingComponentFactory
+from aster.train.deployment import TrainingDeployment
+from aster.train.slime_backend.objectives import resolve_slime_objective
+
+
+def require_ray_roles(config: dict[str, Any], *roles: str, backend: str) -> None:
+    """Default the named execution roles to Ray and refuse any other executor for them."""
+    execution = config.setdefault("execution", {})
+    for role in roles:
+        execution.setdefault(role, "ray")
+        if select_executor(role_executor_settings(config, role), role=role).settings.backend != "ray":
+            raise DeployConfigError(f"automatic {backend} training requires execution.{role}.backend: ray")
+
+
+def global_batch_size(options: Mapping[str, Any]) -> int:
+    """Read ``--global-batch-size`` from normalized, resolved Slime ``options``: the samples in one training step.
+
+    The component cuts each job's data into optimizer steps of this size, so
+    the option must be explicit, even when Slime could derive it from
+    ``--num-steps-per-rollout``. The value is a
+    positive int or its decimal string.
+    """
+    value = options.get("global-batch-size")
+    if isinstance(value, str) and value.strip().isdigit():
+        value = int(value)
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise DeployConfigError(
+            f"training.options.global-batch-size must be a positive integer, the samples in one training step; "
+            f"got {value!r}"
+        )
+    return value
+
+
+OptionValue = bool | int | float | str | list["OptionValue"] | dict[str, "OptionValue"] | None
+
+
+def expand_option_references(
+    config: Mapping[str, object], options: Mapping[str, OptionValue]
+) -> dict[str, OptionValue]:
+    """Resolve configuration references in nested native training and inference options."""
+
+    def _expand(value: OptionValue) -> OptionValue:
+        if isinstance(value, str):
+            return interpolate_config(config, value)
+        if isinstance(value, dict):
+            return {key: _expand(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [_expand(item) for item in value]
+        return value
+
+    return {name: _expand(value) for name, value in options.items()}
+
+
+#: The variable that carries the teacher engine's URL to the HTTP service, where Slime trains.
+TEACHER_URL_ENV = "ASTER_DISTILL_TEACHER_URL"
+
+
+def slime_arguments(settings: Mapping[str, Any], *, loss_family: str, environ: Mapping[str, str]) -> list[str]:
+    """Adapt the resolved service settings to the pinned Slime parser.
+
+    The arguments configure Slime only; the serving engines are the inference
+    section's, and a job's driver adds ``--rollout-num-gpus=0`` to a job that
+    rolls nothing out. References such as
+    ``${aster.model_path}`` in the options resolve against ``settings``, and the
+    teacher's URL comes from ``TEACHER_URL_ENV`` in ``environ``.
+    """
+    config = {"aster": dict(settings)}
+    training_options = expand_option_references(config, settings.get("training_backend_options") or {})
+    if settings.get("teacher_model_path"):
+        if not loss_family:
+            raise DeployConfigError("a teacher engine requires a distillation loss family")
+        managed = {
+            f"{loss_family}-teacher-url": environ[TEACHER_URL_ENV],
+            f"{loss_family}-teacher-model-path": settings["teacher_model_path"],
+            f"{loss_family}-teacher-timeout": settings.get("teacher_timeout", 300.0),
+        }
+        if any(name in training_options for name in (*managed, f"{loss_family}-teacher-checkpoint")):
+            raise DeployConfigError("teacher section replaces native teacher URL, model path, timeout and checkpoint")
+        training_options.update(managed)
+    return native_arguments(training_options)
+
+
+#: The teacher engine's service name; the HTTP service, where Slime trains, reads its endpoint as
+#: ``${endpoints.distill-teacher}``.
+TEACHER_SERVICE = "distill-teacher"
+#: SGLang options the teacher section sets itself or that would change which model it serves.
+TEACHER_RESERVED_OPTIONS = MANAGED_ENGINE_OPTIONS | {
+    "tokenizer-path",
+    "tokenizer-mode",
+    "revision",
+    "tokenizer-revision",
+    "enable-lora",
+    "lora-paths",
+    "load-format",
+    "enable-mis",
+    "skip-tokenizer-init",
+}
+
+
+def teacher_service(settings: Mapping[str, Any]) -> dict[str, Any] | None:
+    """The teacher engine as a Ray service with its own GPUs, stopped with its deployment."""
+    if not settings.get("teacher_model_path"):
+        if settings.get("teacher_options"):
+            raise DeployConfigError("teacher.options requires teacher.model-path")
+        return None
+    size = settings["teacher_num_gpus"]
+    port = settings["teacher_port"]
+    if isinstance(size, bool) or not isinstance(size, int) or size < 1:
+        raise DeployConfigError("teacher.num-gpus must be a positive integer")
+    if isinstance(port, bool) or not isinstance(port, int) or not 1 <= port <= 65535 or port == settings["port"]:
+        raise DeployConfigError("teacher.port must be valid and distinct from aster.port")
+    options = normalize_native_options(settings["teacher_options"])
+    arguments = native_arguments(options, reserved=set(TEACHER_RESERVED_OPTIONS))
+    python = os.environ.get("ASTER_PYTHON", sys.executable)
+    return {
+        "name": TEACHER_SERVICE,
+        "executor": "ray",
+        "resources": {"num_gpus": size, "num_cpus": 1},
+        "endpoint": f"http://{{host}}:{port}",
+        "command": [
+            python,
+            "-m",
+            "sglang.launch_server",
+            "--model-path",
+            "${aster.teacher_model_path}",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            str(port),
+            "--tp",
+            str(size),
+            *arguments,
+        ],
+        "ready": http_readiness_command(python, f"${{endpoints.{TEACHER_SERVICE}}}/health"),
+        "ready_timeout": settings["training_ready_timeout"],
+    }
+
+
+class SlimeDeployment(TrainingDeployment):
+    """Train each job with Slime in a driver of its own; the inference section serves its activated checkpoints."""
+
+    supports_teacher_engine = True
+    component_type = "aster.train.slime_backend.launch:component_factory"
+
+    def prepare(self, config: dict[str, Any], settings: Mapping[str, Any]) -> tuple[dict[str, Any], ...]:
+        model = config_value(config, "aster", "model_path")
+        require_ray_roles(config, "training", backend="Slime")
+        options = normalize_native_options(settings["training_backend_options"])
+        native_arguments(options)
+        # Refuse a missing batch size at deploy time; the HTTP service reads it again, resolved.
+        global_batch_size(expand_option_references(config, {"global-batch-size": options.get("global-batch-size")}))
+        if options.get("use-rollout-routing-replay"):
+            raise DeployConfigError(
+                "training.options.use-rollout-routing-replay needs each rollout's routed experts, "
+                "which Aster's served samples do not record"
+            )
+        checkpoint = options.get("hf-checkpoint")
+        if checkpoint is not None and (
+            not isinstance(checkpoint, str)
+            or os.path.expanduser(interpolate_config(config, checkpoint).strip()) != model
+        ):
+            raise DeployConfigError("training.options.hf-checkpoint must match inference.model-path")
+        # Resolve/download the model once; Slime and the serving engines read that same path.
+        options["hf-checkpoint"] = "${aster.model_path}"
+        config["aster"].update(training_backend_options=options)
+        # The HTTP service parses Slime's arguments, with Megatron's parser, before it serves its first request.
+        config["ready_timeout"] = max(int(config.get("ready_timeout", 30)), int(settings["training_ready_timeout"]))
+        teacher = teacher_service(settings)
+        return () if teacher is None else (teacher,)
+
+    def http_environment(self, settings: Mapping[str, Any]) -> Mapping[str, str]:
+        if not settings.get("teacher_model_path"):
+            return {}
+        return {TEACHER_URL_ENV: f"${{endpoints.{TEACHER_SERVICE}}}"}
+
+    def component_config(
+        self, settings: Mapping[str, Any], *, default_parameters: Mapping[JobDataKind, Mapping[str, Any]]
+    ) -> dict[str, Any]:
+        """The component config, whose startup loss family is that of the recipe's first default objective.
+
+        The trajectory kind comes first, then the task kind. No default objective leaves the family empty, which
+        the factory refuses, so a deployment can be checked without a recipe.
+        """
+        kinds: tuple[JobDataKind, ...] = ("trajectory", "task")
+        objectives = [default_parameters.get(kind, {}).get("objective") for kind in kinds]
+        objective = next((name for name in objectives if name), None)
+        return {
+            "type": self.component_type,
+            "loss_family": "" if objective is None else resolve_slime_objective(objective).loss_family,
+            "recipe": settings["recipe"],
+            "ray_address": settings["ray_address"] or os.environ.get("RAY_ADDRESS", ""),
+            "namespace": settings["ray_namespace"],
+            "execution": dict(settings["execution_config"]),
+            "train_timeout_s": settings["train_timeout_s"],
+            "settings": {
+                key: settings[key]
+                for key in ("model_path", "training_backend_options", "teacher_model_path", "teacher_timeout")
+            },
+        }
+
+
+class SlimeComponentFactory(TrainingComponentFactory):
+    """Build the Slime training component."""
+
+    kind = SlimeDeployment.component_type
+
+    def __call__(self, config: Mapping[str, Any], model_path: str, environ: Mapping[str, str]) -> TrainingComponent:
+        loss_family = config["loss_family"]
+        if not loss_family:
+            raise RuntimeConfigError("Slime starts its workers with the loss family of the recipe's default objective")
+        from aster.train.slime_backend.component import SlimeSettings, SlimeTrainingComponent
+        from aster.train.slime_backend.aster_adapters.train_groups import DEFAULT_TRAIN_TIMEOUT_S
+
+        settings = config["settings"]
+        ray_address = config["ray_address"]
+        if not isinstance(ray_address, str) or not ray_address.strip():
+            raise RuntimeConfigError("Slime trains on a Ray cluster: set training.ray-address or RAY_ADDRESS")
+        # SlimeSettings checks that the timeout is positive.
+        train_timeout_s = config["train_timeout_s"]
+        return SlimeTrainingComponent(
+            SlimeSettings(
+                arguments=tuple(slime_arguments(settings, loss_family=loss_family, environ=environ)),
+                # A job's driver is a new process, whose registry holds no family a recipe registered by name.
+                loss_family=loss_family_refs().get(loss_family, loss_family),
+                recipe=config["recipe"],
+                execution=config["execution"],
+                ray_address=ray_address,
+                namespace=config["namespace"],
+                train_timeout_s=DEFAULT_TRAIN_TIMEOUT_S if train_timeout_s is None else float(train_timeout_s),
+            )
+        )
+
+
+component_factory = SlimeComponentFactory()

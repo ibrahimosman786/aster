@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from reef.core.reports import ReportValidationError, ScoredRolloutReport
+from aster.core.reports import ReportValidationError, ScoredRolloutReport
 
 __all__ = ["TTTDGroupedRolloutReport"]
 

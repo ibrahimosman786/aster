@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from reef.core.chat_rendering import ChatTemplate
+from aster.core.chat_rendering import ChatTemplate
 
 ROLES = {"system": 1, "user": 2, "assistant": 9, "tool": 4}
 

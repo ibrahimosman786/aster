@@ -10,12 +10,12 @@ from contextlib import closing
 import pytest
 from sqlalchemy import select
 
-from reef.core.serving_config import ServingConfig
-from reef.core.snapshot import SnapshotRef
-from reef.storage.commits import CommitHistoryError, CommitRecord
-from reef.storage.postgres import POSTGRES_SCHEMA_VERSION, PostgresRecordDatabase, PostgresScenarioStorage
-from reef.storage.scenario import ScenarioSettings
-from reef.storage.sqlite import SQLiteScenarioStorage
+from aster.core.serving_config import ServingConfig
+from aster.core.snapshot import SnapshotRef
+from aster.storage.commits import CommitHistoryError, CommitRecord
+from aster.storage.postgres import POSTGRES_SCHEMA_VERSION, PostgresRecordDatabase, PostgresScenarioStorage
+from aster.storage.scenario import ScenarioSettings
+from aster.storage.sqlite import SQLiteScenarioStorage
 
 EVALUATION = {"harness": {"name": "terminus-2"}}
 

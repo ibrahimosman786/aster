@@ -7,9 +7,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-from reef.harness.adapters import get_adapter
-from reef.harness.tree import HarnessTree, validate_tree
-from reef.harness.tree.checks import directive_shaped
+from aster.harness.adapters import get_adapter
+from aster.harness.tree import HarnessTree, validate_tree
+from aster.harness.tree.checks import directive_shaped
 
 PI = get_adapter("pi")
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -76,7 +76,7 @@ def test_ordinary_text_about_keys_is_not_a_credential() -> None:
     assert not problems(
         {
             "rules.md": "Set your api key in the environment before running.",
-            "skills/auth/SKILL.md": "# auth\n\nUse REEF_TOKEN=sk-local for the demo.",
+            "skills/auth/SKILL.md": "# auth\n\nUse ASTER_TOKEN=sk-local for the demo.",
             "extensions/read.ts": "const key = process.env.API_KEY;",
         }
     )

@@ -4,7 +4,7 @@ HTTP API: inference, feedback, and artifacts
 Aster serves the provider's own inference routes: OpenAI Chat Completions at
 ``/v1/chat/completions``, OpenAI Responses at ``/v1/responses``, and Anthropic
 at ``/v1/messages``. It forwards each
-request to the runtime unchanged. It adds a small set of ``/reef/*`` routes for
+request to the runtime unchanged. It adds a small set of ``/aster/*`` routes for
 feedback, scenarios, artifacts, and status.
 
 The service accepts request bodies up to 64 MiB so coding agents can send
@@ -18,7 +18,7 @@ To put the snapshot routes into practice, follow the `agent harness tutorial
 
 .. code:: bash
 
-   export REEF_TOKEN=reef-local
+   export ASTER_TOKEN=aster-local
    curl -f http://127.0.0.1:8900/healthz     # {"ok": true}
 
 Routes
@@ -37,170 +37,170 @@ Routes
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
 | ``POST /v1/messages/count_tokens``                                                                                    | count request tokens; recorded like any inference |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/scenarios/{scenario}/v1/{route}``                                                                        | one of the inference routes above, with the       |
+| ``POST /aster/scenarios/{scenario}/v1/{route}``                                                                        | one of the inference routes above, with the       |
 |                                                                                                                       | scenario in the path instead of a header: served  |
 |                                                                                                                       | and recorded as the same call to ``/v1/{route}``; |
 |                                                                                                                       | what a client install's model binding calls       |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/scenarios/{scenario}/evaluation/v1/{route}``                                                             | one of the inference routes above, answered by    |
+| ``POST /aster/scenarios/{scenario}/evaluation/v1/{route}``                                                             | one of the inference routes above, answered by    |
 |                                                                                                                       | the scenario's active model and kept by nobody:   |
 |                                                                                                                       | what a recipe's evaluation rollouts call. The     |
 |                                                                                                                       | answer has no ``training`` block. 404 for an      |
 |                                                                                                                       | unknown scenario or one that serves no model      |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/scenarios/{scenario}/components/{component}/evaluation/v1/{route}``                                      | the same, for a candidate of one component of a   |
+| ``POST /aster/scenarios/{scenario}/components/{component}/evaluation/v1/{route}``                                      | the same, for a candidate of one component of a   |
 |                                                                                                                       | composed snapshot                                 |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/scenarios/{scenario}/artifacts/{artifact_id}/v1/{route}``                                                | one of the inference routes above, answered and   |
+| ``POST /aster/scenarios/{scenario}/artifacts/{artifact_id}/v1/{route}``                                                | one of the inference routes above, answered and   |
 |                                                                                                                       | recorded by an artifact that the scenario serves  |
 |                                                                                                                       | beside its active selection; 404 for any other    |
 |                                                                                                                       | artifact. The same prefix with                    |
 |                                                                                                                       | ``/evaluation/v1/{route}`` makes the same call    |
 |                                                                                                                       | without a record                                  |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/records``                                                                                                | import one existing inference or report           |
+| ``POST /aster/records``                                                                                                | import one existing inference or report           |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/records/batch``                                                                                          | atomically import a batch of records              |
+| ``POST /aster/records/batch``                                                                                          | atomically import a batch of records              |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/namespaces/{owner}/data``                                                                                | create record and artifact items                  |
+| ``POST /aster/namespaces/{owner}/data``                                                                                | create record and artifact items                  |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/namespaces/{owner}/data/trajectories``                                                                   | create trajectory items from JSON Lines           |
+| ``POST /aster/namespaces/{owner}/data/trajectories``                                                                   | create trajectory items from JSON Lines           |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/namespaces/{owner}/data/tasks``                                                                          | create task items from a tar.gz of Harbor tasks   |
+| ``POST /aster/namespaces/{owner}/data/tasks``                                                                          | create task items from a tar.gz of Harbor tasks   |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/namespaces/{owner}/data``                                                                                 | the owner's items, in arrival order               |
+| ``GET /aster/namespaces/{owner}/data``                                                                                 | the owner's items, in arrival order               |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/namespaces/{owner}/data/groups/{key}``                                                                    | the owner's items grouped by a metadata value     |
+| ``GET /aster/namespaces/{owner}/data/groups/{key}``                                                                    | the owner's items grouped by a metadata value     |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/namespaces/{owner}/data/{id}``                                                                            | one item, with its content                        |
+| ``GET /aster/namespaces/{owner}/data/{id}``                                                                            | one item, with its content                        |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/namespaces/{owner}/data/metadata``                                                                       | patch the metadata of items                       |
+| ``POST /aster/namespaces/{owner}/data/metadata``                                                                       | patch the metadata of items                       |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``DELETE /reef/namespaces/{owner}/data/{id}``                                                                         | delete one item                                   |
+| ``DELETE /aster/namespaces/{owner}/data/{id}``                                                                         | delete one item                                   |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/namespaces/{owner}/data/{id}/archive``                                                                    | one item to download: a task's files as tar.gz,   |
+| ``GET /aster/namespaces/{owner}/data/{id}/archive``                                                                    | one item to download: a task's files as tar.gz,   |
 |                                                                                                                       | another item's content as JSON                    |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/namespaces/{owner}/data/imports``                                                                        | import the files at a URI as items                |
+| ``POST /aster/namespaces/{owner}/data/imports``                                                                        | import the files at a URI as items                |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/namespaces/{owner}/data/imports/{id}``                                                                    | the status of one import                          |
+| ``GET /aster/namespaces/{owner}/data/imports/{id}``                                                                    | the status of one import                          |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/namespaces/{owner}/data/exports``                                                                        | export items to a tar.gz at a URI                 |
+| ``POST /aster/namespaces/{owner}/data/exports``                                                                        | export items to a tar.gz at a URI                 |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/namespaces/{owner}/data/exports/{id}``                                                                    | the status of one export                          |
+| ``GET /aster/namespaces/{owner}/data/exports/{id}``                                                                    | the status of one export                          |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/report``                                                                                                 | submit feedback about one or more trajectories    |
+| ``POST /aster/report``                                                                                                 | submit feedback about one or more trajectories    |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/train``                                                                                                  | enqueue one training request                      |
+| ``POST /aster/train``                                                                                                  | enqueue one training request                      |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios``                                                                                               | scenario selections and harness adapter           |
+| ``GET /aster/scenarios``                                                                                               | scenario selections and harness adapter           |
 |                                                                                                                       | adapter                                           |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/scenarios``                                                                                              | create a scenario explicitly                      |
+| ``POST /aster/scenarios``                                                                                              | create a scenario explicitly                      |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/inference/status``                                                                   | artifact startup state; ``?model=active`` by      |
+| ``GET /aster/scenarios/{scenario}/inference/status``                                                                   | artifact startup state; ``?model=active`` by      |
 |                                                                                                                       | default                                           |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/scenarios/{scenario}/update``                                                                            | update a scenario's settings                      |
+| ``POST /aster/scenarios/{scenario}/update``                                                                            | update a scenario's settings                      |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/settings``                                                                           | read a scenario's settings                        |
+| ``GET /aster/scenarios/{scenario}/settings``                                                                           | read a scenario's settings                        |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/contract``                                                                           | what this scenario accepts                        |
+| ``GET /aster/scenarios/{scenario}/contract``                                                                           | what this scenario accepts                        |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/records``                                                                            | retained record metadata                          |
+| ``GET /aster/scenarios/{scenario}/records``                                                                            | retained record metadata                          |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/commits``                                                                            | compatibility route for operation history         |
+| ``GET /aster/scenarios/{scenario}/commits``                                                                            | compatibility route for operation history         |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/operations``                                                                         | paginated operation history and selections        |
+| ``GET /aster/scenarios/{scenario}/operations``                                                                         | paginated operation history and selections        |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/records/{record_id}``                                                                | one retained record and its trace payload         |
+| ``GET /aster/scenarios/{scenario}/records/{record_id}``                                                                | one retained record and its trace payload         |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/artifacts``                                                                          | ``{scenario, artifacts}``, newest first           |
+| ``GET /aster/scenarios/{scenario}/artifacts``                                                                          | ``{scenario, artifacts}``, newest first           |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/artifacts/{artifact_id}/files``                                                      | an artifact's file list, or one file with         |
+| ``GET /aster/scenarios/{scenario}/artifacts/{artifact_id}/files``                                                      | an artifact's file list, or one file with         |
 |                                                                                                                       | ``?path=``                                        |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/scenarios/{scenario}/artifacts``                                                                         | import a directory as a new artifact              |
+| ``POST /aster/scenarios/{scenario}/artifacts``                                                                         | import a directory as a new artifact              |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/scenarios/{scenario}/activate``                                                                          | make an existing artifact the one that serves     |
+| ``POST /aster/scenarios/{scenario}/activate``                                                                          | make an existing artifact the one that serves     |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/scenarios/{scenario}/restore``                                                                           | restore the complete selection at an earlier step |
+| ``POST /aster/scenarios/{scenario}/restore``                                                                           | restore the complete selection at an earlier step |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/scenarios/{scenario}/train-from``                                                                        | set the artifact a trainer starts its next job or |
+| ``POST /aster/scenarios/{scenario}/train-from``                                                                        | set the artifact a trainer starts its next job or |
 |                                                                                                                       | step from                                         |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/scenarios/{scenario}/serve``                                                                             | serve an artifact beside the active selection     |
+| ``POST /aster/scenarios/{scenario}/serve``                                                                             | serve an artifact beside the active selection     |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/scenarios/{scenario}/stop-serving``                                                                      | stop serving an artifact beside the active        |
+| ``POST /aster/scenarios/{scenario}/stop-serving``                                                                      | stop serving an artifact beside the active        |
 |                                                                                                                       | release                                           |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/scenarios/{scenario}/redeploy``                                                                          | deploy the served engines again (RFC #1299)       |
+| ``POST /aster/scenarios/{scenario}/redeploy``                                                                          | deploy the served engines again (RFC #1299)       |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/tasks``                                                                              | the tasks the scenario uses, which trained        |
+| ``GET /aster/scenarios/{scenario}/tasks``                                                                              | the tasks the scenario uses, which trained        |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/jobs``                                                                               | the scenario's training jobs in the jobs queue    |
+| ``GET /aster/scenarios/{scenario}/jobs``                                                                               | the scenario's training jobs in the jobs queue    |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/scenarios/{scenario}/jobs/{job_id}/cancel``                                                              | cancel one training job of the scenario           |
+| ``POST /aster/scenarios/{scenario}/jobs/{job_id}/cancel``                                                              | cancel one training job of the scenario           |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/samples``                                                                            | the scenario's training samples, in use order     |
+| ``GET /aster/scenarios/{scenario}/samples``                                                                            | the scenario's training samples, in use order     |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/sample-processing``                                                                  | the scenario's sample processing tasks and counts |
+| ``GET /aster/scenarios/{scenario}/sample-processing``                                                                  | the scenario's sample processing tasks and counts |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/sample-processing/{task_id}``                                                        | one sample processing task of the scenario        |
+| ``GET /aster/scenarios/{scenario}/sample-processing/{task_id}``                                                        | one sample processing task of the scenario        |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/sample-processing/{task_id}/logs``                                                   | the log of one attempt of a task                  |
+| ``GET /aster/scenarios/{scenario}/sample-processing/{task_id}/logs``                                                   | the log of one attempt of a task                  |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/next-job``                                                                           | the samples that the next automatic job trains    |
+| ``GET /aster/scenarios/{scenario}/next-job``                                                                           | the samples that the next automatic job trains    |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/scenarios/{scenario}/evaluations``                                                                       | evaluate one artifact of a snapshot               |
+| ``POST /aster/scenarios/{scenario}/evaluations``                                                                       | evaluate one artifact of a snapshot               |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/scenarios/{scenario}/evaluations/{evaluation_id}/cancel``                                                | cancel one evaluation                             |
+| ``POST /aster/scenarios/{scenario}/evaluations/{evaluation_id}/cancel``                                                | cancel one evaluation                             |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/evaluations``                                                                        | artifact evaluations, newest first                |
+| ``GET /aster/scenarios/{scenario}/evaluations``                                                                        | artifact evaluations, newest first                |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/evaluations/{evaluation_id}``                                                        | one evaluation: its state and result              |
+| ``GET /aster/scenarios/{scenario}/evaluations/{evaluation_id}``                                                        | one evaluation: its state and result              |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/evaluations/{evaluation_id}/rollouts``                                               | the rollouts of one evaluation, as they run       |
+| ``GET /aster/scenarios/{scenario}/evaluations/{evaluation_id}/rollouts``                                               | the rollouts of one evaluation, as they run       |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/evaluations/{evaluation_id}/rollouts/{task_index}/{repeat}/calls``                   | the model calls of one rollout, without bodies    |
+| ``GET /aster/scenarios/{scenario}/evaluations/{evaluation_id}/rollouts/{task_index}/{repeat}/calls``                   | the model calls of one rollout, without bodies    |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/evaluations/{evaluation_id}/rollouts/{task_index}/{repeat}/calls/{attempt}/{index}`` | one model call of a rollout, with its bodies      |
+| ``GET /aster/scenarios/{scenario}/evaluations/{evaluation_id}/rollouts/{task_index}/{repeat}/calls/{attempt}/{index}`` | one model call of a rollout, with its bodies      |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/evaluations/{evaluation_id}/rollouts/{task_index}/{repeat}/trajectories``            | the ATIF trajectories of each attempt of a rollout|
+| ``GET /aster/scenarios/{scenario}/evaluations/{evaluation_id}/rollouts/{task_index}/{repeat}/trajectories``            | the ATIF trajectories of each attempt of a rollout|
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/evaluations/{evaluation_id}/trajectories``                                           | the trajectories of an evaluation, as NDJSON      |
+| ``GET /aster/scenarios/{scenario}/evaluations/{evaluation_id}/trajectories``                                           | the trajectories of an evaluation, as NDJSON      |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``DELETE /reef/scenarios/{scenario}``                                                                                 | remove a scenario; its state is archived          |
+| ``DELETE /aster/scenarios/{scenario}``                                                                                 | remove a scenario; its state is archived          |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/harness``                                                                                                 | the harness tree of the active selection, rendered|
+| ``GET /aster/harness``                                                                                                 | the harness tree of the active selection, rendered|
 |                                                                                                                       | for the adapter, as its source tree, or bound for |
 |                                                                                                                       | a client install                                  |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``POST /reef/harness/import``                                                                                         | merge a person's harness files onto the newest    |
+| ``POST /aster/harness/import``                                                                                         | merge a person's harness files onto the newest    |
 |                                                                                                                       | head and commit them as a sync                    |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/harness/artifacts``                                                                                       | harness artifact catalog, oldest first            |
+| ``GET /aster/harness/artifacts``                                                                                       | harness artifact catalog, oldest first            |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/harness/artifacts/{step}/page``                                                                           | one HTML page per catalog step: why, the method's |
+| ``GET /aster/harness/artifacts/{step}/page``                                                                           | one HTML page per catalog step: why, the method's |
 |                                                                                                                       | summary, what changed, result, the method's       |
 |                                                                                                                       | notes, setup, chain                               |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/harness/requests/{record_id}/page``                                                                       | one HTML page per filed harness request: its      |
+| ``GET /aster/harness/requests/{record_id}/page``                                                                       | one HTML page per filed harness request: its      |
 |                                                                                                                       | step's state, then the result; reloads itself     |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/harness/requests/{record_id}/progress``                                                                   | the same reading as JSON: the step's phase, for a |
+| ``GET /aster/harness/requests/{record_id}/progress``                                                                   | the same reading as JSON: the step's phase, for a |
 |                                                                                                                       | client with no browser to open the page           |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/harness/artifacts/{step}/records``                                                                        | retained raw step file inventory or file body     |
+| ``GET /aster/harness/artifacts/{step}/records``                                                                        | retained raw step file inventory or file body     |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/harness/adapters``                                                                                        | every harness adapter this process resolves       |
+| ``GET /aster/harness/adapters``                                                                                        | every harness adapter this process resolves       |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
-| ``GET /reef/status``                                                                                                  | training, serving, and storage state              |
+| ``GET /aster/status``                                                                                                  | training, serving, and storage state              |
 +-----------------------------------------------------------------------------------------------------------------------+---------------------------------------------------+
 
-In the split layout, the harness service answers ``GET /reef/harness``,
-``POST /reef/harness/import``, ``GET /reef/harness/artifacts`` and
-``GET /reef/harness/adapters``; control answers the other harness routes (`Run
+In the split layout, the harness service answers ``GET /aster/harness``,
+``POST /aster/harness/import``, ``GET /aster/harness/artifacts`` and
+``GET /aster/harness/adapters``; control answers the other harness routes (`Run
 the services in separate processes
 <../user-guide/operate.rst#run-the-services-in-separate-processes>`__).
 
@@ -210,7 +210,7 @@ Headers
 +-----------------------------------+---------------------------------------------------------+
 | Header                            | Required for                                            |
 +===================================+=========================================================+
-| ``x-reef-scenario``               | inference, report, harness manifest, releases and       |
+| ``x-aster-scenario``               | inference, report, harness manifest, releases and       |
 |                                   | import. Names the workload a record belongs to.         |
 +-----------------------------------+---------------------------------------------------------+
 | ``Authorization: Bearer <token>`` | every route except ``GET /healthz``, when auth is       |
@@ -218,17 +218,17 @@ Headers
 |                                   | carries the token. The evaluation routes also accept    |
 |                                   | the token the service issues the recipe at startup.     |
 +-----------------------------------+---------------------------------------------------------+
-| ``x-reef-artifact-id``            | response only: the artifact that answered inference or  |
+| ``x-aster-artifact-id``            | response only: the artifact that answered inference or  |
 |                                   | supplied the harness tree. To pull a specific harness   |
 |                                   | artifact, use ``?artifact_id=``.                        |
 +-----------------------------------+---------------------------------------------------------+
-| ``x-reef-tag-<name>``             | optional on inference: context stored under             |
+| ``x-aster-tag-<name>``             | optional on inference: context stored under             |
 |                                   | ``metadata.tags``; see `Client release tags`_ below.    |
 +-----------------------------------+---------------------------------------------------------+
-| ``x-reef-rollout: 1``             | optional on inference: a call of a rollout that Aster    |
+| ``x-aster-rollout: 1``             | optional on inference: a call of a rollout that Aster    |
 |                                   | runs itself. It is served like any other call, but no   |
 |                                   | record is kept. The response has no ``training`` block; |
-|                                   | ``x-reef-artifact-id`` names the answering artifact.    |
+|                                   | ``x-aster-artifact-id`` names the answering artifact.    |
 |                                   | The call must not stream (HTTP 400). Only the service   |
 |                                   | token opens it.                                         |
 +-----------------------------------+---------------------------------------------------------+
@@ -236,13 +236,13 @@ Headers
 Client artifact tags
 ~~~~~~~~~~~~~~~~~~~~
 
-``x-reef-tag-artifact_id`` identifies the harness artifact installed by the native client.
+``x-aster-tag-artifact_id`` identifies the harness artifact installed by the native client.
 Aster stores it under ``metadata.tags`` like any other tag, so a processor can
 read which harness artifact made the call.
 The tag does not change which artifact
 serves inference, and it does not change the record's ``artifact_id``: the
 record names the artifact that answered. This tag is separate
-from ``x-reef-artifact-id``, the response header that names the model artifact.
+from ``x-aster-artifact-id``, the response header that names the model artifact.
 
 Routed external-model requests
 ------------------------------
@@ -250,12 +250,12 @@ Routed external-model requests
 When `Scenario routing <configuration.rst#scenario-routing-between-students-and-teachers>`__
 is enabled, clients send ``POST /v1/chat/completions`` directly to Aster with a
 service token. Only the base record-only Recipe is supported. A routed Aster
-serves only this route, ``POST /reef/report`` and ``GET /healthz``; other
+serves only this route, ``POST /aster/report`` and ``GET /healthz``; other
 routes return 404. With the `external router lifecycle
 <configuration.rst#external-router-lifecycle>`__, the ``inference`` service
 applies this section to the manifest's Scenarios only, and also serves
-``GET /readyz``. Send ``POST /reef/report`` to the ``control`` service there.
-Calls with ``x-reef-rollout: 1`` or ``true`` return 400
+``GET /readyz``. Send ``POST /aster/report`` to the ``control`` service there.
+Calls with ``x-aster-rollout: 1`` or ``true`` return 400
 (``unsupported_rollout``). Rollout calls remain available when routing is disabled.
 
 .. list-table:: Client fields
@@ -263,7 +263,7 @@ Calls with ``x-reef-rollout: 1`` or ``true`` return 400
 
    * - Field
      - Required value
-   * - ``x-reef-scenario``
+   * - ``x-aster-scenario``
      - A Scenario listed in the manifest.
    * - JSON ``model``
      - The manifest's automatic model name, or one of the Scenario's target IDs.
@@ -281,9 +281,9 @@ request. These checks precede Scenario creation and provider execution:
 * An unconfigured Scenario returns 403 (``unknown_scenario``), and so does a
   pin to a target outside the Scenario (``target_not_allowed``).
 * A missing Scenario or model, an unknown target, a private router entrypoint
-  as ``model``, a repeated ``x-reef-*`` header, a client-supplied
-  ``x-reef-routing-*``, ``x-reef-sr-decision`` or ``x-selected-model`` header,
-  and a nonempty ``x-reef-artifact-id`` or legacy ``x-reef-release-id`` return 400.
+  as ``model``, a repeated ``x-aster-*`` header, a client-supplied
+  ``x-aster-routing-*``, ``x-aster-sr-decision`` or ``x-selected-model`` header,
+  and a nonempty ``x-aster-artifact-id`` or legacy ``x-aster-release-id`` return 400.
 * A disabled target returns 503.
 * A managed deployment returns 408 when the request body does not finish
   uploading within 30 seconds.
@@ -334,10 +334,10 @@ mode does not train models or supply the sampled tensors required for OPD.
 Managed routing lifecycle
 -------------------------
 
-With ``reef.routing_manifest`` set, the deployment controller uses
-``GET /reef/lifecycle`` and ``POST /reef/lifecycle`` on a private Unix socket
+With ``aster.routing_manifest`` set, the deployment controller uses
+``GET /aster/lifecycle`` and ``POST /aster/lifecycle`` on a private Unix socket
 that the routed Aster child serves (directory 0700, socket 0600). These routes
-are never served on ``reef.port``. They require a separate per-generation
+are never served on ``aster.port``. They require a separate per-generation
 control credential: service and evaluation tokens cannot open them, and the
 control credential is not a service token on public routes. Operators normally use
 ``aster serve`` and the deployment status/cleanup commands rather than calling
@@ -381,7 +381,7 @@ return 409. ``stop`` is terminal for the generation. ``close`` and ``stop``
 also accept ``cancel_active: true`` to cancel accepted inference requests
 after their drain deadline; ``open`` and ``activate`` cannot use this option.
 
-``POST /reef/lifecycle/check`` on the same socket, with the same control
+``POST /aster/lifecycle/check`` on the same socket, with the same control
 credential, checks a candidate manifest before the owner changes anything. It
 takes exactly ``deployment_id``, ``generation``, ``manifest_path``,
 ``snapshot_version`` (the candidate's digest), ``expected_snapshot_version``
@@ -418,15 +418,15 @@ write. ``pending_writes`` always reports the total.
 Import records for cold-start learning
 --------------------------------------
 
-``POST /reef/records`` accepts an existing inference or report without calling
-an inference provider. It uses the usual Bearer token and ``x-reef-scenario``
+``POST /aster/records`` accepts an existing inference or report without calling
+an inference provider. It uses the usual Bearer token and ``x-aster-scenario``
 header. Submit one record per request and use a stable ``agent_record_id``:
 
 .. code:: bash
 
-   curl -f http://127.0.0.1:8900/reef/records \
-     -H "Authorization: Bearer $REEF_TOKEN" \
-     -H 'x-reef-scenario: my-agent' \
+   curl -f http://127.0.0.1:8900/aster/records \
+     -H "Authorization: Bearer $ASTER_TOKEN" \
+     -H 'x-aster-scenario: my-agent' \
      -H 'Content-Type: application/json' \
      -d '{
        "agent_record_id": "offline-0001",
@@ -453,8 +453,8 @@ understands. Import does not run inference or assign the active artifact to
 externally generated examples. Training reads no token IDs or log
 probabilities from an imported record: the training component renders the
 recorded exchange with the model's chat template.
-Reports use the same schema and reference validation as ``POST /reef/report``;
-import referenced inferences first. Training requests use ``POST /reef/train``.
+Reports use the same schema and reference validation as ``POST /aster/report``;
+import referenced inferences first. Training requests use ``POST /aster/train``.
 To train on ATIF trajectories that are already complete, see `Data items
 <#data-items>`__.
 
@@ -483,8 +483,8 @@ and commit status to determine when its imported examples have been consumed.
 Batch imports and resume
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-``POST /reef/records/batch`` accepts ``{"records": [record, ...]}``, where each
-record uses the same three-field envelope as ``POST /reef/records``. The batch
+``POST /aster/records/batch`` accepts ``{"records": [record, ...]}``, where each
+record uses the same three-field envelope as ``POST /aster/records``. The batch
 must contain 1 to 1000 records and fit within the 10 MiB request-body limit.
 All records share the request's scenario, release and tag headers. Put an
 inference before reports that reference it, including within the same batch.
@@ -506,7 +506,7 @@ arbitrary dataset schemas.
 
 .. code:: bash
 
-   # Authentication is read from REEF_TOKEN when set.
+   # Authentication is read from ASTER_TOKEN when set.
    reef-client import records.jsonl --url http://127.0.0.1:8900 --scenario my-agent
 
 The CLI reads incrementally and sends batches limited by both ``--batch-size``
@@ -515,7 +515,7 @@ bounded batch and one look-ahead record are buffered. The defaults are starting
 settings, not throughput guarantees. A single JSONL line must fit the byte
 limit; increase it, below 1048576, for larger records.
 
-Progress is saved to ``records.jsonl.reef-import.json``, or ``--progress PATH``.
+Progress is saved to ``records.jsonl.aster-import.json``, or ``--progress PATH``.
 It contains the destination, scenario, source checksum and last acknowledged
 byte offset/count; it contains no token or record payloads. Each invocation
 first hashes the complete file with bounded memory to verify its identity,
@@ -560,7 +560,7 @@ for the deployment (RFC #1028). An item is content and metadata:
   change. You can add other keys.
 
 Each item belongs to one owner. The routes have the owner in the path:
-``/reef/namespaces/{owner}/data``. ``scenarios`` maps each scenario that uses
+``/aster/namespaces/{owner}/data``. ``scenarios`` maps each scenario that uses
 the item to its split, ``train`` or ``eval``. A trajectory is always
 ``train``. An artifact item has no ``scenarios``: a scenario uses it by
 importing it (`Artifact items`_).
@@ -572,7 +572,7 @@ the services in separate processes
 <../user-guide/operate.rst#run-the-services-in-separate-processes>`__).
 
 A scenario uses only the items of its owner. A scenario's owner is the
-scenario's name, or the ``owner`` that ``POST /reef/scenarios`` gave when it
+scenario's name, or the ``owner`` that ``POST /aster/scenarios`` gave when it
 created the scenario. Aster refuses an item that names a scenario of another
 owner. Archiving a scenario does not delete its items. It removes the
 scenario from their ``scenarios``, except from the record items that the
@@ -596,7 +596,7 @@ Create trajectory items
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 Send trajectories as JSON Lines to ``POST
-/reef/namespaces/{owner}/data/trajectories`` with ``Content-Type:
+/aster/namespaces/{owner}/data/trajectories`` with ``Content-Type:
 application/x-ndjson`` (or ``application/jsonl``). Each line is one ATIF
 document, and Aster skips blank lines. A document must have an ``ATIF-v``
 ``schema_version``, an ``agent`` object, one or more steps, and a
@@ -607,10 +607,10 @@ the request; its ``kind`` is ``trajectory``:
 
 .. code:: bash
 
-   curl -f "http://127.0.0.1:8900/reef/namespaces/my-agent/data/trajectories" \
+   curl -f "http://127.0.0.1:8900/aster/namespaces/my-agent/data/trajectories" \
      --get --data-urlencode 'metadata={"scenarios": {"my-agent": "train"}}' \
      -X POST \
-     -H "Authorization: Bearer $REEF_TOKEN" \
+     -H "Authorization: Bearer $ASTER_TOKEN" \
      -H 'Content-Type: application/x-ndjson' \
      --data-binary @trajectories.jsonl
 
@@ -618,7 +618,7 @@ The response has status 201: ``{"owner", "items": [{"id", "sequence",
 "digest", "metadata"}], "synced"}``. Aster stores all of the items in one transaction,
 or none. An identical retry changes nothing. The same ID with other content
 returns 409. A line that is not an ATIF document returns 400 and names the
-line. ``POST /reef/namespaces/{owner}/data`` refuses a trajectory; it creates
+line. ``POST /aster/namespaces/{owner}/data`` refuses a trajectory; it creates
 record items only.
 
 Before Aster stores the items, it checks each scenario that they name. The
@@ -648,7 +648,7 @@ Create task items
 ~~~~~~~~~~~~~~~~~
 
 Send a gzip-compressed tar archive to ``POST
-/reef/namespaces/{owner}/data/tasks`` with ``Content-Type:
+/aster/namespaces/{owner}/data/tasks`` with ``Content-Type:
 application/gzip``. Each top-level entry is one Harbor task directory, named
 by its task name: a lowercase letter or a digit, then lowercase letters,
 digits, ``.``, ``_`` and ``-``. The task name is the item's ID. The query
@@ -657,10 +657,10 @@ parameter ``metadata`` is the JSON metadata of every task of the archive:
 .. code:: bash
 
    tar -czf tasks.tar.gz -C /data/benchmark/tasks sum-391 sort-17
-   curl -f "http://127.0.0.1:8900/reef/namespaces/my-agent/data/tasks" \
+   curl -f "http://127.0.0.1:8900/aster/namespaces/my-agent/data/tasks" \
      --get --data-urlencode 'metadata={"scenarios": {"my-agent": "train"}}' \
      -X POST \
-     -H "Authorization: Bearer $REEF_TOKEN" \
+     -H "Authorization: Bearer $ASTER_TOKEN" \
      -H 'Content-Type: application/gzip' \
      --data-binary @tasks.tar.gz
 
@@ -714,7 +714,7 @@ restarts. A record store from before this release can hold a copy of an item,
 and that copy stays. The scenario that made a record always uses its item: a
 patch that removes it returns 400.
 
-You can also create record items with ``POST /reef/namespaces/{owner}/data``,
+You can also create record items with ``POST /aster/namespaces/{owner}/data``,
 for example records that you keep from an older system. The content must have
 the keys above, ``request_type`` must be ``inference`` or ``report``, and the
 ID must be ``<origin scenario>/<agent_record_id>``. Otherwise Aster returns 400.
@@ -787,7 +787,7 @@ artifact identity. New writes discard it. A retry of an older item preserves
 its original content and digest when every other content field matches.
 
 The data service makes an item for each artifact that a scenario lists
-(``GET /reef/scenarios/{scenario}/artifacts``), after each commit. Its ID is
+(``GET /aster/scenarios/{scenario}/artifacts``), after each commit. Its ID is
 ``<scenario>/<artifact_id>``, and its ``origin`` is ``{scenario, artifact_id}``.
 Its ``source_uri`` comes from the artifact backend: a backend
 that keeps releases where other deployments can read them, such as an object
@@ -795,12 +795,12 @@ store, gives the URI of the snapshot's directory. The built-in ``git_lfs``
 backend gives none, so its items have a null ``source_uri``.
 
 To add files that you stored, such as an upload to an S3 prefix, create an
-item with ``POST /reef/namespaces/{owner}/data``, ``metadata`` ``{"kind":
+item with ``POST /aster/namespaces/{owner}/data``, ``metadata`` ``{"kind":
 "artifact"}`` and no ``origin``. Its content needs a ``source_uri`` and a null
 ``component``.
 
 To use an artifact item in a scenario, import it:
-``POST /reef/scenarios/{scenario}/artifacts`` with ``{"item": "<id>"}``. The
+``POST /aster/scenarios/{scenario}/artifacts`` with ``{"item": "<id>"}``. The
 scenario must belong to the item's owner. Aster reads the item's
 ``source_uri`` and imports the files into the scenario; the import's ``source``
 names the item. The artifact keeps its ID, so the ID names one artifact in each
@@ -813,7 +813,7 @@ an artifact item: see `Create a scenario`_.
 Read, query, update and delete items
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-- ``GET /reef/namespaces/{owner}/data?kind=&scenario=&group_key=&group_value=&after=&limit=&content=``
+- ``GET /aster/namespaces/{owner}/data?kind=&scenario=&group_key=&group_value=&after=&limit=&content=``
   lists the owner's items in the order they arrived: ``{"owner", "items",
   "next"}``. ``kind`` and ``scenario`` filter the items. ``group_key`` keeps
   only the items of one group of the groups route below: those with the
@@ -827,7 +827,7 @@ Read, query, update and delete items
   leaves it out. Use it with ``kind=artifact`` to read the artifact library's
   kinds and sources in one page; a page of trajectories with content can be
   large.
-- ``GET /reef/namespaces/{owner}/data/groups/{key}?kind=&scenario=&before=&limit=``
+- ``GET /aster/namespaces/{owner}/data/groups/{key}?kind=&scenario=&before=&limit=``
   groups the owner's items of ``kind`` by the string under ``key`` in their
   metadata, for example the trajectories of each uploaded file by
   ``set_id``: ``{"owner", "groups", "next"}``. Each group is ``{"value",
@@ -843,9 +843,9 @@ Read, query, update and delete items
   To read the items of one group, query with ``group_key`` and its
   ``value``, and page with ``after`` from its ``first_sequence``. Give the
   same ``scenario`` to that query.
-- ``GET /reef/namespaces/{owner}/data/{id}`` returns one item with its
+- ``GET /aster/namespaces/{owner}/data/{id}`` returns one item with its
   ``content``. A task's ``content`` is null.
-- ``POST /reef/namespaces/{owner}/data/metadata`` takes ``{"ids": [...],
+- ``POST /aster/namespaces/{owner}/data/metadata`` takes ``{"ids": [...],
   "patch": {...}}``. Aster applies the JSON merge patch (RFC 7386) to the
   metadata of each item, all or none. A null value removes a key. For
   example, ``{"scenarios": {"my-agent": null}}`` removes the items from
@@ -853,7 +853,7 @@ Read, query, update and delete items
   ``eval`` split. Aster checks the new uses as for a create call. A patch that
   changes ``kind``, ``owner`` or ``origin`` returns 400. The response is
   ``{"owner", "items", "synced"}``, without content.
-- ``DELETE /reef/namespaces/{owner}/data/{id}`` deletes one item and returns
+- ``DELETE /aster/namespaces/{owner}/data/{id}`` deletes one item and returns
   ``{"owner", "id", "deleted": true, "synced"}``. The scenarios that used a
   trajectory or a task lose its copy. A record stays in the record store of the
   scenario that made it. The item of an artifact that a scenario made returns 400 while
@@ -863,7 +863,7 @@ An unknown ID returns 404. A deployment without a data store returns 503.
 An item that leaves a scenario keeps its train counts there, so ``auto`` does
 not train it again if it comes back.
 
-``GET /reef/scenarios/{scenario}/tasks`` returns ``{"scenario", "tasks":
+``GET /aster/scenarios/{scenario}/tasks`` returns ``{"scenario", "tasks":
 [{"name", "split", "files_digest", "trained"}]}``: the tasks that the
 scenario uses, in the order they joined it. ``trained`` is true once a
 committed task job of any trainer of the scenario trained the task.
@@ -878,7 +878,7 @@ items other IDs.
 Download an item
 ~~~~~~~~~~~~~~~~
 
-``GET /reef/namespaces/{owner}/data/{id}/archive`` downloads one item as an
+``GET /aster/namespaces/{owner}/data/{id}/archive`` downloads one item as an
 attachment, named after the last segment of its ID:
 
 - A task downloads as ``<name>.tar.gz`` (``application/gzip``), with its files
@@ -897,11 +897,11 @@ An import stores the files at a URI as items of the owner. An export writes
 items of the owner to a tar.gz at a URI. Each runs in the background on a
 data service worker:
 
-- ``POST /reef/namespaces/{owner}/data/imports`` and ``POST
-  /reef/namespaces/{owner}/data/exports`` start one and return 202 with its
+- ``POST /aster/namespaces/{owner}/data/imports`` and ``POST
+  /aster/namespaces/{owner}/data/exports`` start one and return 202 with its
   status. A body that is not valid returns 400.
-- ``GET /reef/namespaces/{owner}/data/imports/{id}`` and ``GET
-  /reef/namespaces/{owner}/data/exports/{id}`` read the status. An unknown
+- ``GET /aster/namespaces/{owner}/data/imports/{id}`` and ``GET
+  /aster/namespaces/{owner}/data/exports/{id}`` read the status. An unknown
   ID, or the ID of another owner's transfer, returns 404.
 
 The status is ``{"id", "kind", "state", "request", "result", "error"}``:
@@ -935,8 +935,8 @@ wait for the syncs of the scenarios that it touched.
 
 .. code:: bash
 
-   curl -f http://127.0.0.1:8900/reef/namespaces/my-agent/data/imports \
-     -H "Authorization: Bearer $REEF_TOKEN" \
+   curl -f http://127.0.0.1:8900/aster/namespaces/my-agent/data/imports \
+     -H "Authorization: Bearer $ASTER_TOKEN" \
      -H 'Content-Type: application/json' \
      -d '{"uri": "s3://my-bucket/benchmark/tasks/",
           "metadata": {"kind": "task", "scenarios": {"my-agent": "eval"}}}'
@@ -964,8 +964,8 @@ Another scheme fails the export.
 Signed download URLs
 ~~~~~~~~~~~~~~~~~~~~
 
-Add ``?signed=1`` to ``GET /reef/namespaces/{owner}/data/{id}/archive`` or to
-``GET /reef/scenarios/{scenario}/artifacts/{artifact_id}/files`` (`Artifacts`_)
+Add ``?signed=1`` to ``GET /aster/namespaces/{owner}/data/{id}/archive`` or to
+``GET /aster/scenarios/{scenario}/artifacts/{artifact_id}/files`` (`Artifacts`_)
 to get a URL that opens the download without the token. The response is
 ``{"url", "expires_at"}``:
 
@@ -987,7 +987,7 @@ Choose the samples that train
 
 Every training sample of a scenario is a data item that it uses: an uploaded
 trajectory, an imported task, or a trajectory or task that a trainer's stages
-made (RFC #1140). ``GET /reef/scenarios/{scenario}/samples`` lists them in the
+made (RFC #1140). ``GET /aster/scenarios/{scenario}/samples`` lists them in the
 order that their uses began, at most ``limit`` (default and maximum 1000) after
 the sequence ``after`` (default 0):
 
@@ -1005,19 +1005,19 @@ Samples that share a ``group`` train together. ``train_counts`` holds, for each
 trainer, the number of committed jobs that trained the sample. ``next`` is the
 ``after`` of the next page, or ``null`` after the last one.
 
-``GET /reef/scenarios/{scenario}/next-job`` returns the samples that the next
+``GET /aster/scenarios/{scenario}/next-job`` returns the samples that the next
 automatic job trains, in use order, with the trainer's ``training_mode``.
 Each sample has ``sample_id``, ``kind``, ``group``, ``component`` and the
 trainer's ``train_count``. A scenario of several components needs
 ``?component=<name>``.
 
 In ``manual``, a request names the samples that its job trains: the
-``samples`` of ``POST /reef/train`` (see `Manual training <#manual-training>`__):
+``samples`` of ``POST /aster/train`` (see `Manual training <#manual-training>`__):
 
 .. code:: bash
 
-   curl -sS http://127.0.0.1:8900/reef/train \
-     -H "Authorization: Bearer $REEF_TOKEN" -H "x-reef-scenario: my-agent" \
+   curl -sS http://127.0.0.1:8900/aster/train \
+     -H "Authorization: Bearer $ASTER_TOKEN" -H "x-aster-scenario: my-agent" \
      -H "Content-Type: application/json" \
      -d '{"text": "Train these", "session": "s-1", "artifact_id": "a-1",
           "samples": ["trajectory-0001", "report-17:0"]}'
@@ -1056,15 +1056,15 @@ First create the tasks as task items in the scenario's ``eval`` split
 
 .. code:: bash
 
-   curl -f http://127.0.0.1:8900/reef/scenarios/my-agent/evaluations \
-     -H "Authorization: Bearer $REEF_TOKEN" \
+   curl -f http://127.0.0.1:8900/aster/scenarios/my-agent/evaluations \
+     -H "Authorization: Bearer $ASTER_TOKEN" \
      -H 'Content-Type: application/json' \
      -d '{"artifact_id": "8f3c...", "harness": {"name": "terminus-2"}, "rollouts_per_task": 2}'
 
 The body takes these fields:
 
 - ``artifact_id`` (required): one of the scenario's artifacts, by the
-  ``artifact_id`` that ``GET /reef/scenarios/{scenario}/artifacts`` lists.
+  ``artifact_id`` that ``GET /aster/scenarios/{scenario}/artifacts`` lists.
 - ``component``: the component to evaluate. Leave it out when the artifacts
   hold one component with a kind.
 - ``harness``: the Harbor agent that runs a model artifact. ``{"name":
@@ -1104,7 +1104,7 @@ The body takes these fields:
   start (RFC #1287).
 
 The answer is 202 with the stored evaluation, whose ``state`` is ``running``.
-``GET /reef/scenarios/{scenario}/evaluations/{evaluation_id}`` returns it as
+``GET /aster/scenarios/{scenario}/evaluations/{evaluation_id}`` returns it as
 it runs and after it ends:
 
 .. code:: json
@@ -1128,7 +1128,7 @@ rollouts ran, and each rollout's score by task (see `Rollout
 that was queued or running when the service stopped reads as ``failed``; Aster
 does not resume it. ``mean_score`` is the mean of the rollouts that have a
 score: a failed rollout does not count as 0. ``GET
-/reef/scenarios/{scenario}/evaluations`` lists the evaluations, newest first,
+/aster/scenarios/{scenario}/evaluations`` lists the evaluations, newest first,
 at most ``limit`` (50 by default).
 
 ``progress`` counts the rollouts of the evaluation, also while it runs. It is
@@ -1146,7 +1146,7 @@ null when the evaluations queue no longer holds them:
   rollouts left at the rate at which rollouts ended in the last 20 minutes. It
   is null when no rollout ended in that time, or when the evaluation ended.
 
-``GET /reef/scenarios/{scenario}/evaluations/{evaluation_id}/rollouts``
+``GET /aster/scenarios/{scenario}/evaluations/{evaluation_id}/rollouts``
 shows the progress of an evaluation while it runs. It answers ``{scenario,
 evaluation_id, rollouts}``: each rollout in task and repeat order, as
 ``{task, task_index, repeat, state, attempt_count, started_at, ended_at,
@@ -1188,9 +1188,9 @@ holds the rollouts that wait. An evaluation process runs at most
 ``evaluation.max_sandboxes`` rollouts at once, across all evaluations (see
 `Configuration <configuration.rst>`__).
 
-``POST /reef/scenarios/{scenario}/evaluations/{evaluation_id}/cancel``
+``POST /aster/scenarios/{scenario}/evaluations/{evaluation_id}/cancel``
 cancels one evaluation. It answers the evaluation after the cancel, as ``GET
-/reef/scenarios/{scenario}/evaluations/{evaluation_id}`` returns it:
+/aster/scenarios/{scenario}/evaluations/{evaluation_id}`` returns it:
 
 - A queued or running evaluation fails with the error ``cancelled by
   request``. Each of its rollouts that did not end fails with the same error.
@@ -1216,7 +1216,7 @@ scenario trains on it, and record retention does not delete it. After an
 archive of the scenario, the items stay in the data store, but these routes no
 longer reach them, because the evaluation is gone.
 
-``GET /reef/scenarios/{scenario}/evaluations/{evaluation_id}/rollouts/{task_index}/{repeat}/calls``
+``GET /aster/scenarios/{scenario}/evaluations/{evaluation_id}/rollouts/{task_index}/{repeat}/calls``
 answers the calls of one rollout, without their bodies:
 
 .. code:: json
@@ -1293,30 +1293,30 @@ calls of each conversation in index order, without the calls that a retry
 replaced, and orders the conversations by their first calls. An attempt
 without a 200 call has no trajectory.
 
-- Each call is one entry of ``extra.reef.records``. Its ``agent_record_id`` is
+- Each call is one entry of ``extra.aster.records``. Its ``agent_record_id`` is
   the call's record ID (`Evaluation calls`_), and its
   ``created_at`` is the call's ``started_at``. Its ``payload`` is the request
   body plus ``response``, the response body.
-- ``extra.reef.reward`` is the rollout's score for each trajectory of the
+- ``extra.aster.reward`` is the rollout's score for each trajectory of the
   attempt that was scored: the last attempt of a finished rollout. It is null
   for every other attempt, and for a failed score.
-- ``extra.reef.evaluation`` is ``{evaluation_id, task, task_index, repeat,
+- ``extra.aster.evaluation`` is ``{evaluation_id, task, task_index, repeat,
   attempt, caller, conversation, scored}``. ``conversation`` counts the
   conversations of the attempt from 0. ``scored`` is true only for the
   attempt that was scored.
 
-``GET /reef/scenarios/{scenario}/evaluations/{evaluation_id}/rollouts/{task_index}/{repeat}/trajectories``
+``GET /aster/scenarios/{scenario}/evaluations/{evaluation_id}/rollouts/{task_index}/{repeat}/trajectories``
 answers ``{scenario, evaluation_id, task_index, repeat, trajectories}``: the
 trajectories of each attempt of one rollout, in attempt and then conversation
 order. Add ``?caller=verifier`` for the verifier's trajectories. In each
 attempt, these are the trajectory files that the verifier wrote, in name
 order, and then the trajectories that Aster stitches from the verifier's
 calls. A verifier trajectory has no reward. Each verifier file has
-``extra.reef.evaluation`` as ``{evaluation_id, task, task_index, repeat,
+``extra.aster.evaluation`` as ``{evaluation_id, task, task_index, repeat,
 attempt, caller, file, scored}``, where ``file`` is the name of its file and
 ``scored`` is false. Another ``caller`` value returns 400.
 
-``GET /reef/scenarios/{scenario}/evaluations/{evaluation_id}/trajectories``
+``GET /aster/scenarios/{scenario}/evaluations/{evaluation_id}/trajectories``
 streams the trajectories of the whole evaluation as ``application/x-ndjson``:
 one trajectory on each line, in task and repeat order. It sends the agent's
 trajectories only. By default it sends the last attempt of each rollout. Add ``?attempts=all`` to send every attempt.
@@ -1330,14 +1330,14 @@ returns 400.
 Automatic evaluation
 ~~~~~~~~~~~~~~~~~~~~
 
-``POST /reef/scenarios/{scenario}/update`` with ``artifact_evaluation`` stores
+``POST /aster/scenarios/{scenario}/update`` with ``artifact_evaluation`` stores
 the settings that Aster evaluates each new artifact of the scenario with. The
 settings are the body of an evaluation request without ``artifact_id``:
 
 .. code:: bash
 
-   curl -f http://127.0.0.1:8900/reef/scenarios/my-agent/update \
-     -H "Authorization: Bearer $REEF_TOKEN" \
+   curl -f http://127.0.0.1:8900/aster/scenarios/my-agent/update \
+     -H "Authorization: Bearer $ASTER_TOKEN" \
      -H 'Content-Type: application/json' \
      -d '{"artifact_evaluation": {"harness": {"name": "terminus-2"}, "rollouts_per_task": 2}}'
 
@@ -1355,7 +1355,7 @@ no task, is not stored; the service logs why.
 Manual training
 ---------------
 
-``POST /reef/train`` queues one training request for a scenario in
+``POST /aster/train`` queues one training request for a scenario in
 ``data.training_mode: manual``; in harness evolution, every method takes it.
 A request is not a record: it waits in the deployment's training request queue
 until a training commit consumes it, and the commit keeps it in its
@@ -1424,9 +1424,9 @@ uploaded trajectories, run an RL job on uploaded train tasks:
 
 .. code:: bash
 
-   curl -sS http://127.0.0.1:8900/reef/train \
-     -H "Authorization: Bearer $REEF_TOKEN" \
-     -H "x-reef-scenario: coding" \
+   curl -sS http://127.0.0.1:8900/aster/train \
+     -H "Authorization: Bearer $ASTER_TOKEN" \
+     -H "x-aster-scenario: coding" \
      -H "Content-Type: application/json" \
      -d '{"agent_record_id":"rl-001","text":"RL on the uploaded tasks","session":"session-1","artifact_id":"artifact-1",
           "samples":["task-a","task-b"],
@@ -1437,14 +1437,14 @@ The Tinker component takes ``objective``, ``learning_rate_schedule``,
 and ``rollout``; ``rollout`` only on a job of tasks. Slime takes ``objective``,
 ``learning_rate_schedule``, ``scheduling``, ``save_interval``, ``dataset`` and
 ``harbor``; ``harbor`` only on a job of tasks. ``GET
-/reef/scenarios/{scenario}/contract`` serves the JSON Schema. A job with no
+/aster/scenarios/{scenario}/contract`` serves the JSON Schema. A job with no
 objective, from the recipe or the request, is refused.
 
 .. code:: bash
 
-   curl -sS http://127.0.0.1:8900/reef/train \
-     -H "Authorization: Bearer $REEF_TOKEN" \
-     -H "x-reef-scenario: coding" \
+   curl -sS http://127.0.0.1:8900/aster/train \
+     -H "Authorization: Bearer $ASTER_TOKEN" \
+     -H "x-aster-scenario: coding" \
      -H "Content-Type: application/json" \
      -d '{"agent_record_id":"change-001","text":"Add a skill that runs tests before answering", "session":"session-1", "artifact_id":"artifact-1"}'
 
@@ -1466,7 +1466,7 @@ stay held for the next job, so no failing trace is consumed unread. The
 every step, request steps included, and stop automatic steps only; a
 request still runs past them. The existing evaluation and publication
 rules still determine whether the result becomes served.
-``GET /reef/status`` reports ``training_mode``. Processors that take
+``GET /aster/status`` reports ``training_mode``. Processors that take
 requests also report ``pending_requests`` (accepted requests that
 no commit consumed yet, read from the queue).
 Committed step metrics include ``training_request`` with the request
@@ -1511,23 +1511,23 @@ Scenarios
 ---------
 
 A scenario isolates the records, trainer, and snapshot chain for one workload.
-Create it with ``POST /reef/scenarios`` before you send inference requests to
+Create it with ``POST /aster/scenarios`` before you send inference requests to
 it. An inference request never creates a scenario: for an unknown scenario, it
 answers HTTP 404. The first report or imported record carrying a new
-``x-reef-scenario`` also creates the scenario, and a harness install without
-``x-reef-scenario`` creates one with a generated name. Aster creates every scenario with
+``x-aster-scenario`` also creates the scenario, and a harness install without
+``x-aster-scenario`` creates one with a generated name. Aster creates every scenario with
 the deployment's configured recipe. Requests never select a recipe.
 
 .. code:: bash
 
-   curl -sS -X POST http://127.0.0.1:8900/reef/scenarios \
-     -H "Authorization: Bearer $REEF_TOKEN" \
+   curl -sS -X POST http://127.0.0.1:8900/aster/scenarios \
+     -H "Authorization: Bearer $ASTER_TOKEN" \
      -H "Content-Type: application/json" \
-     -d '{"name": "hello-reef"}'
+     -d '{"name": "hello-aster"}'
 
    curl -sS -i http://127.0.0.1:8900/v1/chat/completions \
-     -H "Authorization: Bearer $REEF_TOKEN" \
-     -H "x-reef-scenario: hello-reef" \
+     -H "Authorization: Bearer $ASTER_TOKEN" \
+     -H "x-aster-scenario: hello-aster" \
      -H "Content-Type: application/json" \
      -d '{"model": "m", "messages": [{"role": "user", "content": "fix it"}]}'
 
@@ -1538,15 +1538,15 @@ it.
 
 A deployment can limit its scenarios. See `Limit the scenarios a service holds
 <../user-guide/operate.rst#limit-the-scenarios-a-service-holds>`__. A request
-that would create a scenario past ``reef.max_scenarios`` returns HTTP 409.
+that would create a scenario past ``aster.max_scenarios`` returns HTTP 409.
 A request can also need to load a scenario when the service already holds
-``reef.max_loaded_scenarios`` loaded scenarios. If none of them is idle, the
+``aster.max_loaded_scenarios`` loaded scenarios. If none of them is idle, the
 request returns HTTP 503 with a ``Retry-After`` header.
 
 Create a scenario
 ~~~~~~~~~~~~~~~~~
 
-``POST /reef/scenarios`` takes the object ``{"name", "owner"?,
+``POST /aster/scenarios`` takes the object ``{"name", "owner"?,
 "artifact_id"?, "component"?}``. Any other key is HTTP 400, and the message
 names the keys that the route takes:
 
@@ -1564,7 +1564,7 @@ names the keys that the route takes:
 
 Aster stores the starting artifacts and registers the scenario with their
 component mapping. With ``artifact_id``, Aster reads the item's files and checks
-them as ``POST /reef/scenarios/{scenario}/artifacts`` with ``{"item": "<id>"}``
+them as ``POST /aster/scenarios/{scenario}/artifacts`` with ``{"item": "<id>"}``
 does (`Import an artifact`_), by reference or as a copy. Each other component
 uses its default start. These are the initial active selections and training
 starts. Their artifact rows have ``operation: creation``; ``source`` names
@@ -1581,32 +1581,32 @@ ignores the requested ``artifact_id`` and ``component``.
 
 .. code:: bash
 
-   curl -sS -X POST http://127.0.0.1:8900/reef/scenarios \
-     -H "Authorization: Bearer $REEF_TOKEN" \
+   curl -sS -X POST http://127.0.0.1:8900/aster/scenarios \
+     -H "Authorization: Bearer $ASTER_TOKEN" \
      -H "Content-Type: application/json" \
-     -d '{"name": "hello-reef-2", "owner": "acme", "artifact_id": "hello-reef/<artifact_id>"}'
+     -d '{"name": "hello-aster-2", "owner": "acme", "artifact_id": "hello-aster/<artifact_id>"}'
 
 Scenario routes
 ~~~~~~~~~~~~~~~
 
-If the deployment sets ``reef.allow_implicit_scenario_creation: false``, a
+If the deployment sets ``aster.allow_implicit_scenario_creation: false``, a
 report, a record import or a harness install for an unknown scenario also
 returns HTTP 404, and you create the scenario first:
 
 +---------------------------------------------+---------------------------------------------+
 | Route                                       | Body and response                           |
 +=============================================+=============================================+
-| ``POST /reef/scenarios``                    | ``{"name", "owner"?, "artifact_id"?,        |
+| ``POST /aster/scenarios``                    | ``{"name", "owner"?, "artifact_id"?,        |
 |                                             | "component"?}`` → ``{scenario, owner,       |
 |                                             | components, artifact_id?}``;                |
 |                                             | 201 created, 200 already existed            |
 +---------------------------------------------+---------------------------------------------+
-| ``GET /reef/scenarios``                     | every known scenario, its selections        |
+| ``GET /aster/scenarios``                     | every known scenario, its selections        |
 |                                             | once loaded and, for a harness recipe, the  |
 |                                             | ``adapter`` its tree is rendered for, also  |
 |                                             | while the scenario loads                    |
 +---------------------------------------------+---------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/contract`` | ``{scenario, processor,                     |
+| ``GET /aster/scenarios/{scenario}/contract`` | ``{scenario, processor,                     |
 |                                             | required_request_types, training_mode,      |
 |                                             | status,                                     |
 |                                             | parameters_schema}``;                       |
@@ -1615,9 +1615,9 @@ returns HTTP 404, and you create the scenario first:
 |                                             | for each kind whose schema the training     |
 |                                             | component declares                          |
 +---------------------------------------------+---------------------------------------------+
-| ``DELETE /reef/scenarios/{scenario}``       | → ``{scenario, archived}``; 404 unknown     |
+| ``DELETE /aster/scenarios/{scenario}``       | → ``{scenario, archived}``; 404 unknown     |
 +---------------------------------------------+---------------------------------------------+
-| ``GET /reef/scenarios/{scenario}/jobs``     | → ``{scenario, jobs}``: the scenario's      |
+| ``GET /aster/scenarios/{scenario}/jobs``     | → ``{scenario, jobs}``: the scenario's      |
 |                                             | training jobs in the jobs queue, oldest     |
 |                                             | first, each a job object (see below). Read  |
 |                                             | only, from the data service; 404 unknown    |
@@ -1647,7 +1647,7 @@ A job object has these keys. A time is an ISO 8601 string in UTC, such as
   It is ``null`` for a job with no sample.
 - ``train_from_artifact_id``: the artifact that the job started from.
 - ``request``: ``{id, text, parameters}`` of the training request
-  (``POST /reef/train``) that the job trains. ``parameters`` is what the
+  (``POST /aster/train``) that the job trains. ``parameters`` is what the
   request gave, ``{}`` when it gave none. It is ``null`` for a job that
   the ``auto`` training mode made.
 - ``created_at``: when control added the job.
@@ -1685,14 +1685,14 @@ For example:
      "created_at": "2026-10-31T08:15:00.250000+00:00",
      "started_at": "2026-10-31T08:15:01.020000+00:00",
      "ended_at": "2026-10-31T08:21:44.900000+00:00",
-     "experiment": {"tracker": "wandb", "project": "reef", "entity": "acme",
+     "experiment": {"tracker": "wandb", "project": "aster", "entity": "acme",
                     "run_id": "0d4c3b2a19f8e7d6c5b4a39281706f5e",
-                    "url": "https://wandb.ai/acme/reef/runs/0d4c3b2a19f8e7d6c5b4a39281706f5e"}
+                    "url": "https://wandb.ai/acme/aster/runs/0d4c3b2a19f8e7d6c5b4a39281706f5e"}
    }
 
-``POST /reef/scenarios/{scenario}/jobs/{job_id}/cancel`` cancels one training
+``POST /aster/scenarios/{scenario}/jobs/{job_id}/cancel`` cancels one training
 job of the scenario. It answers ``{scenario, job}``, with the job as ``GET
-/reef/scenarios/{scenario}/jobs`` lists it after the cancel:
+/aster/scenarios/{scenario}/jobs`` lists it after the cancel:
 
 - A queued job fails at once, with the error ``cancelled by request``.
 - A running job fails the same way, and its training worker cancels the run
@@ -1706,13 +1706,13 @@ route.
 Deleting a scenario
 -------------------
 
-``DELETE /reef/scenarios/{scenario}`` removes the scenario from the running
+``DELETE /aster/scenarios/{scenario}`` removes the scenario from the running
 service and frees its name. Nothing is destroyed: the record store and commit
 log move under ``<agent_record_dir>/archived/``, the recipe's own directories
 (a harness scenario's history and step records) move under an
 ``archived/`` sibling, and the
 scenario's ref in the artifact repository is renamed into
-``refs/reef/archived/``, so every snapshot it published stays reachable. A
+``refs/aster/archived/``, so every snapshot it published stays reachable. A
 later create of the same name writes a new root snapshot. A local step in flight for the scenario ends without a
 commit. Only a local artifact repository can be archived; a remote one
 answers 501.
@@ -1726,7 +1726,7 @@ adapter residency evicts it.
 Scenario updates
 ~~~~~~~~~~~~~~~~
 
-``POST /reef/scenarios/{scenario}/update`` updates an existing scenario. The
+``POST /aster/scenarios/{scenario}/update`` updates an existing scenario. The
 body holds one or more of these settings. Aster rejects other fields:
 
 - ``training_mode``: the mode of the data processor, below.
@@ -1764,7 +1764,7 @@ Unknown scenarios return ``404`` without implicit creation; invalid payloads
 return ``400``. A processor that does not support the requested mode returns
 ``501`` without changing its state.
 
-``GET /reef/status`` reports the selected ``training_mode``. Aster stores the
+``GET /aster/status`` reports the selected ``training_mode``. Aster stores the
 mode with the scenario's settings, so a reload and a restart keep it.
 
 The ``activation`` setting selects the rule that decides whether Aster
@@ -1848,7 +1848,7 @@ maps artifact IDs to integers from 0 to 100 that sum to 100:
 
 To start a split:
 
-1. Serve each artifact with ``POST /reef/scenarios/{scenario}/serve``, unless it is
+1. Serve each artifact with ``POST /aster/scenarios/{scenario}/serve``, unless it is
    the active artifact.
 2. Wait until each artifact has started.
 3. Send the weights. Inference replicas use them within a few seconds, without a
@@ -1863,7 +1863,7 @@ The weights apply to a model request that names ``active``, or a model that the
 scenario does not serve under that name:
 
 - **One conversation stays on one artifact.** Send the
-  ``x-reef-session-key`` header with an identifier of the conversation. Aster then
+  ``x-aster-session-key`` header with an identifier of the conversation. Aster then
   computes a bucket from the scenario and that identifier.
 - **Without the header, Aster reads the first messages.** It computes the bucket
   from the scenario and the text of the system message, the first message and the
@@ -1877,7 +1877,7 @@ scenario does not serve under that name:
   target:
 
   - a request without a message;
-  - a request with ``previous_response_id`` and no ``x-reef-session-key``, which
+  - a request with ``previous_response_id`` and no ``x-aster-session-key``, which
     goes to the active artifact;
   - a request that names an artifact or an artifact's route;
   - a rollout call or an evaluation call.
@@ -1898,7 +1898,7 @@ recorded log probabilities.
 Read the settings
 ~~~~~~~~~~~~~~~~~
 
-``GET /reef/scenarios/{scenario}/settings`` returns the settings of an existing
+``GET /aster/scenarios/{scenario}/settings`` returns the settings of an existing
 scenario:
 
 .. code:: json
@@ -1944,8 +1944,8 @@ route after startup succeeds. Read its state with:
 
 .. code:: bash
 
-   curl -sS http://127.0.0.1:8900/reef/scenarios/hello-reef/inference/status \
-     -H "Authorization: Bearer $REEF_TOKEN"
+   curl -sS http://127.0.0.1:8900/aster/scenarios/hello-aster/inference/status \
+     -H "Authorization: Bearer $ASTER_TOKEN"
 
 .. code:: json
 
@@ -1977,14 +1977,14 @@ or its failure, does not change it.
 
 A newer request, such as one for a changed serving config, replaces the
 current one at once. The work of the replaced request stops within seconds
-when the runtime reads ``reef.inference.startup.stopping()`` (RFC #1299).
+when the runtime reads ``aster.inference.startup.stopping()`` (RFC #1299).
 Requests of different scenarios start one after another, or at the same time
 when the runtime has more than one ``serving_slots``.
 
-``POST /reef/scenarios/{scenario}/redeploy`` deploys the engines of what the
+``POST /aster/scenarios/{scenario}/redeploy`` deploys the engines of what the
 scenario serves again, also when they run its current settings, for example
 after a hang. A new request with the same selection replaces the current one,
-and the runtime reads ``reef.inference.startup.redeploying()``. It answers
+and the runtime reads ``aster.inference.startup.redeploying()``. It answers
 ``{scenario}``, also for a scenario that serves nothing.
 
 ``error`` is null in every other state.
@@ -2060,9 +2060,9 @@ The receipt identifies the stored record:
 +---------------+-----------------------------------------------------------+
 | Response kind | Where the receipt is                                      |
 +===============+===========================================================+
-| non-streaming | the ``x-reef-agent-record-id`` response header            |
+| non-streaming | the ``x-aster-agent-record-id`` response header            |
 +---------------+-----------------------------------------------------------+
-| OpenAI SSE    | ``reef.agent_record_id`` in a final empty-``choices``     |
+| OpenAI SSE    | ``aster.agent_record_id`` in a final empty-``choices``     |
 |               | chunk, immediately before ``data: [DONE]``                |
 +---------------+-----------------------------------------------------------+
 | Anthropic SSE | the same field on ``message_stop``                        |
@@ -2078,7 +2078,7 @@ The record-to-record stage excludes aborted records from sample creation and
 training, including when a report references their IDs directly or retained
 records are replayed after a restart.
 
-An inference response from a served Aster artifact carries ``x-reef-artifact-id``,
+An inference response from a served Aster artifact carries ``x-aster-artifact-id``,
 the ID of the artifact that answered. Routed external models have no such header.
 A client learns
 of a new harness artifact from the harness routes (`Harness artifacts`_).
@@ -2095,7 +2095,7 @@ Artifact of a recorded response
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 An inference record holds the provider exchange and ``artifact_id``, the
-artifact that answered: the same ID as ``x-reef-artifact-id``. The staleness
+artifact that answered: the same ID as ``x-aster-artifact-id``. The staleness
 check reads it (see `Staleness
 <../developer-guide/processors.rst#staleness>`__). Serving returns no training
 tensors. Aster removes any ``training`` block that an engine handler returns
@@ -2144,7 +2144,7 @@ It answers ``{agent_record_id, scenario, request_type}``.
 
 .. code:: python
 
-   client.report("hello-reef", {
+   client.report("hello-aster", {
        "agent_record_id": "myharness:run42:trial7",
        "score": 1.0,
        "references": ["abc123"],
@@ -2176,8 +2176,8 @@ Record
 ------
 
 Aster stores every exchange of inference and every report as ``AgentRecord``.
-These records are referenced via a record id. In ``/reef/train`` and
-``/reef/report`` API calls, users can provide an optional ``agent_record_id``
+These records are referenced via a record id. In ``/aster/train`` and
+``/aster/report`` API calls, users can provide an optional ``agent_record_id``
 field for retry-safety. Appending the same id with different content returns a
 conflict rather than overwriting. Aster keeps track of consumed records so
 retried reports and late reports whose references already trained are not
@@ -2199,7 +2199,7 @@ inference endpoint and it serves the active selection. The artifact
 lives in the inference runtime, so requests reach the new snapshot directly.
 
 A scenario whose artifact is the harness tree works the other way: the client
-pulls. It fetches the tree of the active selection with ``GET /reef/harness``,
+pulls. It fetches the tree of the active selection with ``GET /aster/harness``,
 writes the files where its agent reads them, binds the agent's model to this
 Aster, and runs the agent on that snapshot. The snapshot it runs is then the one
 whose receipts it reports against. ``reef-client harness`` is that client (see
@@ -2212,12 +2212,12 @@ Harness artifacts
 +--------------------------------+---------------------------------------------------------------+
 | Route                          | Response                                                      |
 +================================+===============================================================+
-| ``GET /reef/harness``          | ``{artifact_id, parent_artifact_id, files, evaluation,        |
+| ``GET /aster/harness``          | ``{artifact_id, parent_artifact_id, files, evaluation,        |
 |                                | requires}``, plus ``components`` (component name to           |
 |                                | artifact ID) for several components;                          |
-|                                | ``x-reef-artifact-id`` identifies the tree                    |
+|                                | ``x-aster-artifact-id`` identifies the tree                    |
 +--------------------------------+---------------------------------------------------------------+
-| ``GET /reef/harness/artifacts``| ``{scenario, artifacts}``, oldest first: the creation and     |
+| ``GET /aster/harness/artifacts``| ``{scenario, artifacts}``, oldest first: the creation and     |
 |                                | every training step of the harness component, also a step     |
 |                                | that published nothing (``checkpoint: false``). Each row has  |
 |                                | ``artifact_id``, ``component``, ``active`` (true on exactly   |
@@ -2227,7 +2227,7 @@ Harness artifacts
 |                                | ``page_path``, its step's page with the query a browser opens |
 |                                | it by                                                         |
 +--------------------------------+---------------------------------------------------------------+
-| ``GET /reef/harness/adapters`` | ``{adapters}`` — every harness adapter this process resolves, |
+| ``GET /aster/harness/adapters`` | ``{adapters}`` — every harness adapter this process resolves, |
 |                                | each with ``name``, ``binary``, ``trajectory_format``,        |
 |                                | ``model_bindings``, the pinned ``install`` spec, ``roots``    |
 |                                | (each render root to its ``variable`` and ``default``         |
@@ -2235,12 +2235,12 @@ Harness artifacts
 |                                | paths of the harness's files, ``{name}`` for one path         |
 |                                | segment); both are empty for an adapter that does not sync    |
 +--------------------------------+---------------------------------------------------------------+
-| ``POST /reef/harness/import``  | ``{artifact_id, parent_artifact_id, changed, merged, files,   |
-|                                | ignored}``, with ``x-reef-artifact-id``; see                  |
+| ``POST /aster/harness/import``  | ``{artifact_id, parent_artifact_id, changed, merged, files,   |
+|                                | ignored}``, with ``x-aster-artifact-id``; see                  |
 |                                | `Importing a harness`_                                        |
 +--------------------------------+---------------------------------------------------------------+
 
-The manifest and catalog reads take ``x-reef-scenario`` and never create a
+The manifest and catalog reads take ``x-aster-scenario`` and never create a
 scenario. An unknown scenario or one without a harness tree answers HTTP 404.
 
 ``?form=`` chooses what ``files`` holds, path to text:
@@ -2255,11 +2255,11 @@ scenario. An unknown scenario or one without a harness tree answers HTTP 404.
   renders the tree itself reads this form.
 - ``client``: the snapshot as a layer over a person's own configuration,
   for an install at ``root``, bound to
-  ``<service_url>/reef/scenarios/<scenario>``. Both query parameters are
+  ``<service_url>/aster/scenarios/<scenario>``. Both query parameters are
   required: ``service_url`` is the address the client reaches Aster at, and
   ``root`` is the directory the client installs the files in. The binding
   asks for the served model, and its key is the literal
-  ``REEF_TOKEN_PLACEHOLDER``, which the client replaces with its own token.
+  ``ASTER_TOKEN_PLACEHOLDER``, which the client replaces with its own token.
   This form adds ``run``, the command that runs the agent on the files
   (``binary``, ``args`` and ``env``; ``env`` may hold the placeholder too),
   the agent's own commands that record the install and remove it
@@ -2296,21 +2296,21 @@ commit-history update.
 Importing a harness
 ~~~~~~~~~~~~~~~~~~~
 
-``POST /reef/harness/import`` commits the harness files of a person's agent
-as a sync, with ``x-reef-scenario``. A sync is a commit operation of its own:
+``POST /aster/harness/import`` commits the harness files of a person's agent
+as a sync, with ``x-aster-scenario``. A sync is a commit operation of its own:
 the merged tree becomes a new artifact. That operation selects the artifact
 for serving and as the harness trainer's start.
 
 .. code:: bash
 
-   curl -sS -X POST -H "Authorization: Bearer $REEF_TOKEN" \
-     -H "x-reef-scenario: code-repair" -H "Content-Type: application/json" \
+   curl -sS -X POST -H "Authorization: Bearer $ASTER_TOKEN" \
+     -H "x-aster-scenario: code-repair" -H "Content-Type: application/json" \
      -d '{"files": {"plugin/rules.md": "Run the tests first.\n"},
           "base_artifact_id": "artifact-12"}' \
-     "$REEF_URL/reef/harness/import"
+     "$ASTER_URL/aster/harness/import"
 
 - ``files`` maps each file's render path (``roots`` and ``files`` of
-  ``GET /reef/harness/adapters``) to its text: every harness file of the
+  ``GET /aster/harness/adapters``) to its text: every harness file of the
   install, changed or not. Aster maps each file back to the tree path of the
   part that renders there. A path that no part renders to is ignored and
   listed in ``ignored``. A file of the base that ``files`` lacks is one the
@@ -2341,9 +2341,9 @@ Harness requests
 ~~~~~~~~~~~~~~~~
 
 A client submits a person's request for a harness change through
-``POST /reef/train``, described under `Manual training <#manual-training>`__.
+``POST /aster/train``, described under `Manual training <#manual-training>`__.
 Set ``data.training_mode: manual``, or switch an existing scenario with
-``POST /reef/scenarios/{scenario}/update``. The client sends ``text``,
+``POST /aster/scenarios/{scenario}/update``. The client sends ``text``,
 ``session`` and the ``artifact_id`` it runs. HTTP 200 acknowledges durable
 acceptance and returns ``agent_record_id`` and ``page_path``. A request needs
 no inference receipts, so the receipts a client captured stay free for
@@ -2370,7 +2370,7 @@ An unchanged component keeps its artifact ID through another component's
 update. Activation and serving existing artifacts append operations and
 change scenario selections; they create no artifacts or repository revisions.
 
-``GET /reef/scenarios/{scenario}/artifacts`` answers ``{scenario,
+``GET /aster/scenarios/{scenario}/artifacts`` answers ``{scenario,
 artifacts}``, **newest first**. Each row is one artifact of one component:
 
 +-----------------------+------------------------------------------------------+
@@ -2414,11 +2414,11 @@ from another scenario does not create a cross-scenario parent link.
 
 The list holds artifacts only. A training step that made no artifact, such
 as a rejected or skipped step, a job submission or a job's end, has no row;
-``GET /reef/scenarios/{scenario}/operations`` holds its record (see `Record and
+``GET /aster/scenarios/{scenario}/operations`` holds its record (see `Record and
 commit history`_). Activations, train-from operations and serves have no rows
 either.
 
-``GET /reef/scenarios/{scenario}/artifacts/{artifact_id}/files`` answers
+``GET /aster/scenarios/{scenario}/artifacts/{artifact_id}/files`` answers
 ``{scenario, artifact_id, files}``: each file of the artifact as ``{path,
 bytes, url, url_expires_at}``, in path order.
 
@@ -2462,7 +2462,7 @@ ignores it, and a metadata patch can remove it.
 Import an artifact
 ~~~~~~~~~~~~~~~~~~
 
-``POST /reef/scenarios/{scenario}/artifacts?component=<name>`` makes a new
+``POST /aster/scenarios/{scenario}/artifacts?component=<name>`` makes a new
 artifact from the directory that a URI names. Leave out ``component`` when
 the scenario has one component. The body is ``{"source": "<uri>"}``, or
 ``{"item": "<id>"}`` for an `artifact item <#artifact-items>`__ of the
@@ -2483,10 +2483,10 @@ first, for example an S3 prefix.
 
 .. code:: bash
 
-   curl -sS -X POST -H "Authorization: Bearer $REEF_TOKEN" \
+   curl -sS -X POST -H "Authorization: Bearer $ASTER_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{"source": "s3://my-bucket/adapters/run-7/"}' \
-     "$REEF_URL/reef/scenarios/code-repair/artifacts"
+     "$ASTER_URL/aster/scenarios/code-repair/artifacts"
 
 The answer is HTTP 201 with ``{scenario, component, artifact_id}``.
 Each import creates a new artifact, even when another artifact contains the
@@ -2559,17 +2559,17 @@ Activate an artifact
 ~~~~~~~~~~~~~~~~~~~~
 
 Pulling an older artifact changes only your local copy. A scenario keeps
-one selected ``artifact_id`` per component. ``GET /reef/harness`` serves the
+one selected ``artifact_id`` per component. ``GET /aster/harness`` serves the
 selected harness tree. Inference serves the last selection that completed
 startup.
-To select another artifact, send ``POST /reef/scenarios/{scenario}/activate``:
+To select another artifact, send ``POST /aster/scenarios/{scenario}/activate``:
 
 .. code:: bash
 
-   curl -sS -X POST -H "Authorization: Bearer $REEF_TOKEN" \
+   curl -sS -X POST -H "Authorization: Bearer $ASTER_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{"artifact_id": "<id>"}' \
-     "$REEF_URL/reef/scenarios/code-repair/activate"
+     "$ASTER_URL/aster/scenarios/code-repair/activate"
 
 The body is ``{"artifact_id": "<id>", "component": "<name>"}``. Leave out
 ``component`` when the scenario has one component. The answer is
@@ -2594,7 +2594,7 @@ Restore a scenario selection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To restore every component's active artifact together, send
-``POST /reef/scenarios/{scenario}/restore`` with ``{"step": 12}``.
+``POST /aster/scenarios/{scenario}/restore`` with ``{"step": 12}``.
 The step names an existing operation. Aster restores the active selection
 as it stood after that step. Use ``{"step": 0}`` for the starting artifacts.
 
@@ -2620,15 +2620,15 @@ trainer starts from its component's creation artifact. After each job or step, t
 trainer moves its training start to its own newest output.
 A harness sync (`Importing a harness`_) also moves the harness trainer's
 training start, to the artifact that the sync made.
-``POST /reef/scenarios/{scenario}/train-from`` sets the start to an existing
+``POST /aster/scenarios/{scenario}/train-from`` sets the start to an existing
 artifact and cancels the running job:
 
 .. code:: bash
 
-   curl -sS -X POST -H "Authorization: Bearer $REEF_TOKEN" \
+   curl -sS -X POST -H "Authorization: Bearer $ASTER_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{"artifact_id": "<id>"}' \
-     "$REEF_URL/reef/scenarios/code-repair/train-from"
+     "$ASTER_URL/aster/scenarios/code-repair/train-from"
 
 The body is ``{"artifact_id": "<id>", "component": "<name>"}``.
 ``component`` names the trainer's component. Leave it out when the scenario
@@ -2683,10 +2683,10 @@ artifact beside the active selection to:
 
 .. code:: bash
 
-   curl -sS -X POST -H "Authorization: Bearer $REEF_TOKEN" \
+   curl -sS -X POST -H "Authorization: Bearer $ASTER_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{"artifact_id": "<id>"}' \
-     "$REEF_URL/reef/scenarios/code-repair/serve"
+     "$ASTER_URL/aster/scenarios/code-repair/serve"
 
 The body and answer are as for ``activate``: ``{scenario, component,
 artifact_id}``. Aster records the served selection without creating an
@@ -2695,9 +2695,9 @@ other selected artifacts stay bound to this served selection, including after
 a later activation.
 
 A served artifact answers at its own URL. Send an inference call to
-``/reef/scenarios/{scenario}/artifacts/{artifact_id}/v1/{route}``, where
+``/aster/scenarios/{scenario}/artifacts/{artifact_id}/v1/{route}``, where
 ``{route}`` is ``chat/completions``, ``responses``, ``messages`` or
-``messages/count_tokens``. The call needs no ``x-reef-scenario`` header and
+``messages/count_tokens``. The call needs no ``x-aster-scenario`` header and
 never creates a scenario. Aster records it like a call to ``/v1/{route}``,
 and the record names the ``artifact_id`` that answered. A call to ``/v1/{route}``
 whose ``model`` is the ``artifact_id`` of a served artifact is answered by that
@@ -2714,7 +2714,7 @@ The staleness check of a recipe counts only the artifacts that the scenario
 served as active, so it refuses the records of a served artifact that was not
 active within ``max_staleness`` artifacts.
 
-``POST /reef/scenarios/{scenario}/stop-serving`` with ``{"artifact_id":
+``POST /aster/scenarios/{scenario}/stop-serving`` with ``{"artifact_id":
 "<id>"}`` ends the serve and appends a ``stop_serving`` record. It answers
 ``{scenario, component, artifact_id}``. The artifact's URL
 answers HTTP 404 afterwards.
@@ -2755,9 +2755,9 @@ a tree whose patch changes a file of a kind listed in the ``always`` rule's
 ``native_loop``). The step creates an artifact but does not activate it. Its row carries ``active: false`` and
 ``activated: false``. The manifest keeps serving the active selection, and
 ``?artifact_id=`` pulls the inactive tree for a trial run. To make it serve,
-send the row's ``artifact_id`` to ``POST /reef/scenarios/{scenario}/activate``.
+send the row's ``artifact_id`` to ``POST /aster/scenarios/{scenario}/activate``.
 
-``GET /reef/harness/artifacts`` lists only the harness component's artifacts.
+``GET /aster/harness/artifacts`` lists only the harness component's artifacts.
 A weights update does not create another harness artifact. Each row's
 ``parent_artifact_id`` identifies the artifact from which it derives, when known.
 Every listed artifact can be requested through ``?artifact_id=``.
@@ -2765,9 +2765,9 @@ Every listed artifact can be requested through ``?artifact_id=``.
 Version page
 ~~~~~~~~~~~~
 
-``GET /reef/harness/artifacts/{step}/page`` answers one self-contained HTML
+``GET /aster/harness/artifacts/{step}/page`` answers one self-contained HTML
 page (``text/html``) for one catalog row. ``step`` is the row's position in
-``GET /reef/harness/artifacts``, oldest first, with the creation row as 0. A
+``GET /aster/harness/artifacts``, oldest first, with the creation row as 0. A
 rejected step creates no artifact. The step number therefore identifies the
 page independently of its artifact.
 
@@ -2783,26 +2783,26 @@ HTTP 404.
 
 .. code:: bash
 
-   curl -sS -H "Authorization: Bearer $REEF_TOKEN" -H "x-reef-scenario: code-repair" \
-     "$REEF_URL/reef/harness/artifacts/3/page" > harness-step-3.html
+   curl -sS -H "Authorization: Bearer $ASTER_TOKEN" -H "x-aster-scenario: code-repair" \
+     "$ASTER_URL/aster/harness/artifacts/3/page" > harness-step-3.html
 
 Request page
 ~~~~~~~~~~~~
 
-``GET /reef/harness/requests/{record_id}/page`` answers one self-contained
+``GET /aster/harness/requests/{record_id}/page`` answers one self-contained
 HTML page (``text/html``, ``Cache-Control: no-store``) for a harness request
-filed through ``POST /reef/train``; ``record_id`` is the ``agent_record_id``
+filed through ``POST /aster/train``; ``record_id`` is the ``agent_record_id``
 that the request answered, and its ``page_path`` links this page. Until a
 step settles the request, the page reloads every five seconds and shows the
 request's state and the step's activity (its latest 80 lines). The catalog row
 whose ``metrics.training_request.id`` is the record id settles the page: it
-then shows the result, the next action (``GET /reef/harness`` for an active
+then shows the result, the next action (``GET /aster/harness`` for an active
 selection, the activate request for an inactive one), ``method_summary``, the
 patch with each file's kind of the harness tree (from the row's
 ``patch_parts``), and ``method_notes``. An unknown id, or one that is not a
 training request, is HTTP 404.
 
-``GET /reef/harness/requests/{record_id}/progress`` answers the same state as
+``GET /aster/harness/requests/{record_id}/progress`` answers the same state as
 JSON (``Cache-Control: no-store``) for a client that polls:
 
 - ``request_id`` and ``settled``;
@@ -2827,14 +2827,14 @@ Page links
 
 A browser sends no header, so the two pages also take the scenario and a
 credential as query parameters, ``?scenario=<name>&key=<page key>``; a header
-wins when present. Clients never build these links: ``POST /reef/train``
-answers ``page_path`` for the request page, and ``GET /reef/harness/artifacts``
+wins when present. Clients never build these links: ``POST /aster/train``
+answers ``page_path`` for the request page, and ``GET /aster/harness/artifacts``
 one per row for its step's page. A client prints its service URL followed by
 that path.
 
 .. code:: text
 
-   $REEF_URL/reef/harness/requests/<record_id>/page?scenario=<scenario>&key=<page key>
+   $ASTER_URL/aster/harness/requests/<record_id>/page?scenario=<scenario>&key=<page key>
 
 The path holds a page key only when the request presented a service token;
 an evaluation token gets none, and with authentication off the query names
@@ -2842,14 +2842,14 @@ the scenario alone. The key is an HMAC SHA-256 of the scenario, keyed by the
 token's digest. It opens these two pages of that one scenario and no other
 route, and the token cannot be read back from it, so a client may print the
 links where a session's model reads them. A request whose
-``x-reef-scenario`` header names another scenario is HTTP 401. The token
+``x-aster-scenario`` header names another scenario is HTTP 401. The token
 itself is never read from a query: ``?token=`` is HTTP 401 on every route, and
 ``?key=`` is HTTP 401 on every route but the two pages.
 
 Retained step files
 ~~~~~~~~~~~~~~~~~~~
 
-``GET /reef/harness/artifacts/{step}/records`` returns the raw file inventory
+``GET /aster/harness/artifacts/{step}/records`` returns the raw file inventory
 of the same catalog step's record directory, authenticated and
 scenario-scoped like the version page. The response is
 ``{"status": "retained", "files": [{"path": "calls.json", "bytes": 123}]}``.
@@ -2882,7 +2882,7 @@ from online record-body capacity eviction.
 Status
 ------
 
-Read ``GET /reef/status`` when inference is still serving an older snapshot while
+Read ``GET /aster/status`` when inference is still serving an older snapshot while
 a training job runs or an update is being published.
 
 .. code:: json
@@ -2892,7 +2892,7 @@ a training job runs or an update is being published.
      "loaded_scenarios": 1,
      "preload_errors": {},
      "scenarios": {
-       "hello-reef": {
+       "hello-aster": {
          "scenario_step": 3,
          "artifact_head_sync": {"state": "synchronized", "error": null},
          "last_committed_step": {
@@ -2949,7 +2949,7 @@ and ``processor`` describe the first trainer that trains, else the first
 trainer. The scenario-wide ``last_committed_step`` is the latest commit of
 any recipe component.
 
-Every row of ``GET /reef/scenarios/{scenario}/artifacts`` names the
+Every row of ``GET /aster/scenarios/{scenario}/artifacts`` names the
 ``component`` whose artifact it is.
 
 ``last_committed_step`` reports the latest durable training step number,
@@ -2969,7 +2969,7 @@ Status codes
 +--------+-------------------------------------------------------------+
 | Status | Cause                                                       |
 +========+=============================================================+
-| 400    | malformed body, a missing or empty ``x-reef-scenario`` on a |
+| 400    | malformed body, a missing or empty ``x-aster-scenario`` on a |
 |        | scenario-scoped route, a report violating the recipe's      |
 |        | declared schema, or an activation or a train-from naming an |
 |        | artifact that Aster cannot serve or train from               |
@@ -2982,7 +2982,7 @@ Status codes
 |        | per-scenario authorization belongs to the gateway in front  |
 |        | of Aster.                                                    |
 +--------+-------------------------------------------------------------+
-| 404    | unknown scenario (on inference, on ``POST /reef/train``,    |
+| 404    | unknown scenario (on inference, on ``POST /aster/train``,    |
 |        | or with implicit creation off), a scenario that serves no   |
 |        | model, unknown snapshot or artifact, unknown adapter, no    |
 |        | configured harness recipe, or a scenario that serves no     |
@@ -2997,7 +2997,7 @@ Status codes
 |        | the engine's status and message                             |
 +--------+-------------------------------------------------------------+
 | 503    | the artifact store is unreachable, no loaded scenario is    |
-|        | idle at ``reef.max_loaded_scenarios`` (with                 |
+|        | idle at ``aster.max_loaded_scenarios`` (with                 |
 |        | ``Retry-After``), ``served_models`` cannot be read, or the  |
 |        | record store does not take an inference record              |
 +--------+-------------------------------------------------------------+
@@ -3009,13 +3009,13 @@ Browser consoles
 
 A browser console sends requests to this HTTP API directly, as every other
 client does. The browser must be able to open the service URL. To let a console
-connect, add ``reef.console-origins`` to the serve YAML. List each trusted
+connect, add ``aster.console-origins`` to the serve YAML. List each trusted
 console origin explicitly, with no path, trailing slash, credentials, or
 wildcard:
 
 .. code-block:: yaml
 
-   reef:
+   aster:
      console-origins:
        - "https://console.example.com"
        - "http://localhost:3000"
@@ -3025,10 +3025,10 @@ does not add CORS headers. With it, unlisted browser origins are rejected before
 a route runs. CORS preflight requests from listed origins do not need a service
 token; actual requests retain the configured Bearer authentication. Browser
 requests may use GET, POST or DELETE with Authorization, Content-Type and
-x-reef-scenario headers. Cookies are not enabled through CORS.
+x-aster-scenario headers. Cookies are not enabled through CORS.
 
 CORS headers also cover errors and streamed responses, exposing
-``x-reef-agent-record-id``, ``x-reef-artifact-id`` and ``x-reef-artifact-version``
+``x-aster-agent-record-id``, ``x-aster-artifact-id`` and ``x-aster-artifact-version``
 to the browser. Clients without an Origin header keep their existing behavior.
 A browser can also require local network permission or HTTPS. An origin that
 Aster allows does not override browser policy.
@@ -3040,7 +3040,7 @@ does not create a cloud deployment or upload history.
 Record and commit history
 -------------------------
 
-``GET /reef/scenarios/{scenario}/records`` reads retained record metadata,
+``GET /aster/scenarios/{scenario}/records`` reads retained record metadata,
 including consumed records. ``after_sequence`` defaults to 0 and ``limit``
 defaults to 50 (1 to 100). ``request_type`` (``inference``, ``report`` or
 ``train``) lists one type only; another value is HTTP 400. Records are oldest
@@ -3051,11 +3051,11 @@ first; ``next_after_sequence`` is null at the end. Each row contains
 null when the record names none. No record payload or learning classification
 is included.
 
-``GET /reef/scenarios/{scenario}/records/{record_id}`` returns that metadata
+``GET /aster/scenarios/{scenario}/records/{record_id}`` returns that metadata
 and the stored ``payload``. A missing body returns 404: it may have expired or
 never been retained. Reading never reactivates records or changes retention.
 
-``GET /reef/scenarios/{scenario}/operations`` returns ``{scenario,
+``GET /aster/scenarios/{scenario}/operations`` returns ``{scenario,
 operations, next_after_step}``, oldest first. ``after_step`` defaults to 0;
 ``limit`` defaults to 50 and accepts 1–100. ``next_after_step`` is null at
 the end. ``/commits`` remains an alias with the array named ``commits``.
@@ -3090,7 +3090,7 @@ what serves. Recovery replays serving selections and training starts
 independently. Restore appends a new operation; it does not remove or rewind
 history.
 
-The existing ``GET /reef/scenarios/{scenario}/contract`` also reports
+The existing ``GET /aster/scenarios/{scenario}/contract`` also reports
 ``training_mode`` and processor ``status`` alongside ``processor`` and
 ``required_request_types``. These are live runtime facts, not policy versions
 or historical rule decisions.
@@ -3111,7 +3111,7 @@ snapshot made from the records serves.
 Sample processing tasks
 -----------------------
 
-``GET /reef/scenarios/{scenario}/sample-processing`` reads the samples queue through the data service.
+``GET /aster/scenarios/{scenario}/sample-processing`` reads the samples queue through the data service.
 The scenario must exist. It does not start processing.
 
 Optional query parameters are ``state``, ``before``, ``limit`` and ``changed``.
@@ -3135,7 +3135,7 @@ A run has ``after``, ``count``, ``first_created_at`` and ``last_created_at``.
 ``next`` is the next page's ``before`` value, or null.
 Reads of the page and counts are separate snapshots; tasks can change between them.
 
-``GET /reef/scenarios/{scenario}/sample-processing/{task_id}`` returns one task.
+``GET /aster/scenarios/{scenario}/sample-processing/{task_id}`` returns one task.
 An unknown task, or a task of another scenario, returns 404.
 
 Each task has ``id``, ``component``, ``state``, ``attempt_count``, ``created_at``, ``started_at``,
@@ -3166,7 +3166,7 @@ Legacy results report null counts.
 Control removes ended tasks after ``storage.work_retention_s``, which defaults to seven days.
 This removes task history, not stored samples. Active tasks do not expire through this retention policy.
 
-``GET /reef/scenarios/{scenario}/sample-processing/{task_id}/logs`` returns the log of one attempt of a task.
+``GET /aster/scenarios/{scenario}/sample-processing/{task_id}/logs`` returns the log of one attempt of a task.
 The samples worker keeps each line that the attempt's work logs.
 This includes the stage's background jobs that the attempt submitted, also when they end after the attempt.
 Aster writes the lines every 2 seconds and when the attempt ends.

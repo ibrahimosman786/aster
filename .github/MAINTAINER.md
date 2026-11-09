@@ -1,6 +1,6 @@
-# Reef Code Maintenance Model
+# Aster Code Maintenance Model
 
-This document defines how Reef maintainers route, review, and merge community
+This document defines how Aster maintainers route, review, and merge community
 contributions. Its goals are to give contributors a clear path to a decision,
 keep review ownership explicit, and protect the compatibility and operability
 of the project as it grows.
@@ -10,7 +10,7 @@ pull request.
 
 ## Review routing
 
-Reef has no single on-call maintainer. [`CODEOWNERS`](CODEOWNERS) routes each
+Aster has no single on-call maintainer. [`CODEOWNERS`](CODEOWNERS) routes each
 pull request: GitHub requests review from the code owners of every changed
 path when the pull request is ready for review. Each area lists a primary owner
 and a backup owner, and an approval from either one satisfies that area.
@@ -31,7 +31,7 @@ Who merges depends on the author:
 Maintainers are accountable for project direction and the repository as a
 whole. They can merge and close pull requests and are responsible for:
 
-- deciding whether a contribution fits Reef's direction and maintenance
+- deciding whether a contribution fits Aster's direction and maintenance
   budget;
 - identifying when an RFC is required;
 - requesting additional reviewers when path rules do not cover an affected
@@ -219,7 +219,7 @@ and combined coverage checks after lint succeeds. Documentation and real-harness
 smoke workflows select their jobs from changed paths, including renamed files.
 No maintainer action is needed for this routine feedback.
 
-Reef supports Python 3.12 only, so the routine run is the complete
+Aster supports Python 3.12 only, so the routine run is the complete
 validation. Keep the required `lint`, `test (3.12)`, and `package (3.12)` checks
 in the `protect-main` ruleset. Skipped suites must not turn the test gates
 green. The `docs-gate` permits a skipped build only for a draft or a
@@ -227,7 +227,7 @@ successfully evaluated change set that does not affect documentation.
 
 New pushes and conversion to draft cancel previous runs. To retry a failure, a
 contributor with repository write access reruns the latest `ci` run of the pull
-request (`gh run rerun RUN_ID --repo Human-Agent-Society/reef`). A rerun fails if
+request (`gh run rerun RUN_ID --repo Human-Agent-Society/aster`). A rerun fails if
 the pull request is closed, is a draft, or has newer commits. Manual dispatches
 are diagnostic runs.
 
@@ -311,6 +311,6 @@ repository-level decision and record the rationale when consensus is not
 possible.
 
 Substantial changes to this maintenance model start with an
-[RFC issue](https://github.com/Human-Agent-Society/reef/issues/new?template=rfc.yml).
+[RFC issue](https://github.com/Human-Agent-Society/aster/issues/new?template=rfc.yml).
 Routine clarifications may be proposed directly as a pull request to this
 document.

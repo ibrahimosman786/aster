@@ -11,7 +11,7 @@ permissions:
 jobs:
   wake:
     if: >-
-      github.repository == 'Human-Agent-Society/reef' &&
+      github.repository == 'Human-Agent-Society/aster' &&
       !github.event.issue.pull_request &&
       github.event.issue.state == 'open' &&
       github.event.comment.user.login == github.event.issue.user.login &&

@@ -8,10 +8,10 @@ from dataclasses import dataclass
 
 import pytest
 
-from reef.core.served_models import ScenarioModel, ScheduledStop, ServedArtifact
-from reef.execution.workers import ItemFailed, QueueWorker, WorkerStopped
-from reef.storage.control_lease import ControlLease
-from reef.storage.served_models import (
+from aster.core.served_models import ScenarioModel, ScheduledStop, ServedArtifact
+from aster.execution.workers import ItemFailed, QueueWorker, WorkerStopped
+from aster.storage.control_lease import ControlLease
+from aster.storage.served_models import (
     AUTOMATIC_RETRIES,
     INFERENCE_OWNER_QUEUE,
     SERVING_KIND,
@@ -20,14 +20,14 @@ from reef.storage.served_models import (
     ControlLeaseConflict,
     ServedModelsWriter,
 )
-from reef.storage.sql_coordination import (
+from aster.storage.sql_coordination import (
     PostgresCoordinationDatabase,
     SQLControlLease,
     SQLiteCoordinationDatabase,
     SQLServedModels,
     SQLWorkQueue,
 )
-from reef.storage.work_queue import NewWork, WorkConflict, WorkItem, WorkLeaseLost, WorkQueue
+from aster.storage.work_queue import NewWork, WorkConflict, WorkItem, WorkLeaseLost, WorkQueue
 
 
 @dataclass
@@ -203,7 +203,7 @@ def test_a_worker_logs_one_warning_for_each_item_that_fails_for_good(caplog, err
     with closing(SQLiteCoordinationDatabase(None)) as database:
         queue = SQLWorkQueue(database, max_attempts={"jobs": attempts})
         queue.add(job("a"))
-        with caplog.at_level(logging.WARNING, logger="reef.execution.workers"):
+        with caplog.at_level(logging.WARNING, logger="aster.execution.workers"):
             assert FailingWorker(queue, error).run_once()
         item = queue.get("jobs", "a")
         assert item.state == state
@@ -239,7 +239,7 @@ def test_a_worker_logs_an_expired_item_that_has_no_attempts_left(caplog):
         queue = SQLWorkQueue(database, lease_seconds=10, max_attempts={"jobs": 1})
         queue.add(job("a"), now=0)
         queue.take("jobs", "stopped-worker", ["training_job:tinker"], now=0)
-        with caplog.at_level(logging.WARNING, logger="reef.execution.workers"):
+        with caplog.at_level(logging.WARNING, logger="aster.execution.workers"):
             assert not FailingWorker(queue, ItemFailed("unused")).run_once()
         assert queue.get("jobs", "a").state == "failed"
         assert warnings_of(caplog) == ["work item jobs/a of scenario s failed: the worker's lease expired"]
@@ -827,13 +827,13 @@ def test_queue_pages_and_counts_are_scoped_and_newest_first(open_coordination):
 
 @pytest.mark.unit
 def test_the_log_of_each_attempt_reads_in_pages_and_goes_with_its_item(open_coordination):
-    from reef.storage.work_queue import WorkLogLine
+    from aster.storage.work_queue import WorkLogLine
 
     queue = open_coordination().queue
     queue.add(job("a"), now=0)
     queue.take("jobs", "w", ["training_job:tinker"], now=1)
-    queue.append_log("jobs", "a", 1, [WorkLogLine(n, 1.0 + n, "INFO", "reef.test", f"line {n}") for n in range(3)])
-    queue.append_log("jobs", "a", 2, [WorkLogLine(0, 9.0, "ERROR", "reef.test", "second attempt")])
+    queue.append_log("jobs", "a", 1, [WorkLogLine(n, 1.0 + n, "INFO", "aster.test", f"line {n}") for n in range(3)])
+    queue.append_log("jobs", "a", 2, [WorkLogLine(0, 9.0, "ERROR", "aster.test", "second attempt")])
 
     first = queue.read_log("jobs", "a", 1, limit=2)
     assert [line.message for line in first] == ["line 0", "line 1"]

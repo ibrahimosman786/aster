@@ -1,8 +1,8 @@
 # spade
 
-**Status: beta.** SPADE remains under `recipes/beta/spade/` until complete, reproducible learning results are published. The tests validate the experience section and the generator's generations against stand ins; they do not establish learning performance. See [issue #482](https://github.com/Human-Agent-Society/reef/issues/482) and [issue #498](https://github.com/Human-Agent-Society/reef/issues/498) for the pieces, [issue #447](https://github.com/Human-Agent-Society/reef/issues/447) for the pipeline they belong to, and [issue #422](https://github.com/Human-Agent-Society/reef/issues/422) for this classification.
+**Status: beta.** SPADE remains under `recipes/beta/spade/` until complete, reproducible learning results are published. The tests validate the experience section and the generator's generations against stand ins; they do not establish learning performance. See [issue #482](https://github.com/Human-Agent-Society/aster/issues/482) and [issue #498](https://github.com/Human-Agent-Society/aster/issues/498) for the pieces, [issue #447](https://github.com/Human-Agent-Society/aster/issues/447) for the pipeline they belong to, and [issue #422](https://github.com/Human-Agent-Society/aster/issues/422) for this classification.
 
-[SPADE](https://arxiv.org/abs/2608.19197), self play in adaptive synthetic executable environments, as a Reef task generator: one policy plays an Environment Designer that writes executable environments and a Reasoning Agent that learns in them. Reef knows one task format, Harbor, and writes and checks Harbor tasks and runs their rollouts in `reef.record2sample.generator`: the task contract as a prompt, the served model asked through Reef (every proposal a record with a receipt), the reply held to the authoring rules and written with `reef.core.tasks`, Harbor's oracle and nop agents on the result, and the rollout runner. That runs as the generator service `reef serve` starts beside the HTTP service. What SPADE adds is the method, and it lives here.
+[SPADE](https://arxiv.org/abs/2608.19197), self play in adaptive synthetic executable environments, as an Aster task generator: one policy plays an Environment Designer that writes executable environments and a Reasoning Agent that learns in them. Aster knows one task format, Harbor, and writes and checks Harbor tasks and runs their rollouts in `aster.record2sample.generator`: the task contract as a prompt, the served model asked through Aster (every proposal a record with a receipt), the reply held to the authoring rules and written with `aster.core.tasks`, Harbor's oracle and nop agents on the result, and the rollout runner. That runs as the generator service `aster serve` starts beside the HTTP service. What SPADE adds is the method, and it lives here.
 
 - Paper: [arXiv:2608.19197](https://arxiv.org/abs/2608.19197)
 - Reference code: [spade-rl/spade](https://github.com/spade-rl/spade)
@@ -16,11 +16,11 @@ beta/spade/
   examples/tinker/serve.yaml   a Tinker deployment with the generator service and the generated-task recipe
 ```
 
-SPADE is a task generator. The deployment selects it in `pipeline.record2sample.config.generator`. The built-in generated-task recipe (`reef.recipe.generated_tasks:GeneratedTaskRecipe`) runs the tasks and trains on them. Its stages and their settings are described in [generated tasks](../../../docs/reference/configuration.rst#generated-tasks).
+SPADE is a task generator. The deployment selects it in `pipeline.record2sample.config.generator`. The built-in generated-task recipe (`aster.recipe.generated_tasks:GeneratedTaskRecipe`) runs the tasks and trains on them. Its stages and their settings are described in [generated tasks](../../../docs/reference/configuration.rst#generated-tasks).
 
 ## The generator
 
-`SpadeTaskGenerator` implements `reef.recipe.generated_tasks.TaskGenerator`. One round of the recipe is one SPADE generation:
+`SpadeTaskGenerator` implements `aster.recipe.generated_tasks.TaskGenerator`. One round of the recipe is one SPADE generation:
 
 1. `generate` makes `count` Designer proposals across the configured `skills`. Each prompt includes the previous generation's results as SPADE's experience section.
 2. `validate` writes the task under the service's tasks root, runs Harbor's oracle and nop agents, and removes the task again. The reference solution must score 1. Doing nothing must score below 1. A duplicate task is invalid. After a reload cancels a generation, a rerun replaces a task with the same name from the earlier attempt.
@@ -48,24 +48,24 @@ The generator's `config` keys:
 | `designer_report` | true | report each proposal's regret against the Designer's receipt |
 | `served_model` | the deployment's | the model the Designer and the hint plays ask for |
 
-Set `eval_fraction` and `split_seed` in `pipeline.record2sample.config`, outside the generator configuration. With the defaults, 0.0 and 0, all tasks train. The task store keeps each published task's split, not these settings. After a restart, published tasks keep their split and new tasks are placed with the settings in force. Reef does not refuse a changed `eval_fraction` or `split_seed`, so keep both fixed for the life of a scenario.
+Set `eval_fraction` and `split_seed` in `pipeline.record2sample.config`, outside the generator configuration. With the defaults, 0.0 and 0, all tasks train. The task store keeps each published task's split, not these settings. After a restart, published tasks keep their split and new tasks are placed with the settings in force. Aster does not refuse a changed `eval_fraction` or `split_seed`, so keep both fixed for the life of a scenario.
 
 The generated-task recipe names no objective. The deployment provides one, as a dotted reference in `recipe.config.job_parameters.objective`; the example `serve.yaml` holds a placeholder that you must replace. The objective's loss can be Tinker's `importance_sampling`. The example uses the `tinker` backend, which runs the rollouts on its own sampler.
 
 ## Run it
 
 ```bash
-export REEF_TOKEN=reef-local REEF_SPADE_STATE_DIR="$PWD/work/spade"   # and TINKER_API_KEY
-reef serve -c recipes/beta/spade/examples/tinker/serve.yaml
-curl -s -X POST -H "Authorization: Bearer $REEF_TOKEN" -H "Content-Type: application/json" \
-  -d '{"name": "spade"}' http://127.0.0.1:8900/reef/scenarios
+export ASTER_TOKEN=aster-local ASTER_SPADE_STATE_DIR="$PWD/work/spade"   # and TINKER_API_KEY
+aster serve -c recipes/beta/spade/examples/tinker/serve.yaml
+curl -s -X POST -H "Authorization: Bearer $ASTER_TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "spade"}' http://127.0.0.1:8900/aster/scenarios
 ```
 
-`reef serve` creates no scenario on its own. The `POST /reef/scenarios` above (or the first model call that names the scenario) creates it. Round 0 starts when the recipe's processor first looks for job data after that.
+`aster serve` creates no scenario on its own. The `POST /aster/scenarios` above (or the first model call that names the scenario) creates it. Round 0 starts when the recipe's processor first looks for job data after that.
 
-The deployment's `generator` section makes `reef serve` start the generator service before the HTTP service and hand its address to the recipe as `${endpoints.generator}`. The generator runs under Reef's interpreter; its host needs Docker and the `harbor` command line, which the Reef service itself does not. `execution: {generator: ray}` places it elsewhere. `generator.designer-url` and `generator.designer-model` point the Designer at another service (a strong model on OpenRouter while the Reasoning Agent is the deployment under training); by default both roles are the served model. `generator.designer-options` adds fields to the Designer's request: a model that thinks for thousands of tokens before writing an environment runs past the service's inference deadline, and `{"reasoning_effort": "none"}` keeps it to the reply. With `generator.designer-api: responses` (the default when `inference.upstream-api` is `responses`), the Designer asks through the Responses API, and its options take Responses fields such as `{"reasoning": {"effort": "low"}}`. See [the generator section](../../../docs/reference/configuration.rst) for every key.
+The deployment's `generator` section makes `aster serve` start the generator service before the HTTP service and hand its address to the recipe as `${endpoints.generator}`. The generator runs under Aster's interpreter; its host needs Docker and the `harbor` command line, which the Aster service itself does not. `execution: {generator: ray}` places it elsewhere. `generator.designer-url` and `generator.designer-model` point the Designer at another service (a strong model on OpenRouter while the Reasoning Agent is the deployment under training); by default both roles are the served model. `generator.designer-options` adds fields to the Designer's request: a model that thinks for thousands of tokens before writing an environment runs past the service's inference deadline, and `{"reasoning_effort": "none"}` keeps it to the reply. With `generator.designer-api: responses` (the default when `inference.upstream-api` is `responses`), the Designer asks through the Responses API, and its options take Responses fields such as `{"reasoning": {"effort": "low"}}`. See [the generator section](../../../docs/reference/configuration.rst) for every key.
 
-With `rounds: 0` the recipe generates nothing; it trains only on the train tasks that earlier generations saved in the scenario's task store. A rollout is not a record: Reef keeps no record of its model calls. The training component assembles the rollout's sample from the calls that its sampler answered.
+With `rounds: 0` the recipe generates nothing; it trains only on the train tasks that earlier generations saved in the scenario's task store. A rollout is not a record: Aster keeps no record of its model calls. The training component assembles the rollout's sample from the calls that its sampler answered.
 
 Thinking stays off because a thinking model's rollout never assembles into one sample: the agent's history carries earlier turns without their thinking, so the second turn's prompt no longer extends the first turn's tokens. With thinking off, Qwen3's generation prompt still ends with an empty think block that the history drops; `scaffold_tolerance` (in `recipe.config.job_parameters.rollout`) lets the assembly realign those masked tokens. A tasks root under a path Docker shares with the host (on macOS, under the home directory) is required, or the verifier's reward file never reaches the host.
 
@@ -79,9 +79,9 @@ To reconstruct a past task, pass its `AgentRecord` objects and selected local ma
 from pathlib import Path
 
 from recipes.beta.spade import SpadeTaskGenerator
-from reef.core import AgentRecord
-from reef.core.tasks import HarborTask
-from reef.record2sample.generator import HttpGenerator, TaskGenerationRequest
+from aster.core import AgentRecord
+from aster.core.tasks import HarborTask
+from aster.record2sample.generator import HttpGenerator, TaskGenerationRequest
 
 
 async def rebuild_task(
@@ -107,7 +107,7 @@ Materials can be UTF-8 files or directories on the caller's machine. The client 
 
 Use a prepared snapshot containing only the materials the Designer should see. The client rejects symlinks, special files, non-text files, and unreadable files. Limits are 128 files, 256 KiB of file contents, and 512 KiB of JSON for records and files combined. Oversized inputs fail before a Designer call. The client and service do not truncate these inputs.
 
-The input contract is `TaskGenerationRequest` in `reef.record2sample.generator`. Both SPADE and the generator service use this type. For materials already in memory, pass `asset_files={"state.txt": "file contents"}` instead of `assets`.
+The input contract is `TaskGenerationRequest` in `aster.record2sample.generator`. Both SPADE and the generator service use this type. For materials already in memory, pass `asset_files={"state.txt": "file contents"}` instead of `assets`.
 
 To call the generator directly, wrap the shared request in `DesignerRequest(inputs=request, difficulty="hard")`. Then call `HttpGenerator.propose(...)`. `DesignerRequest` holds the shared input and adds Designer settings. The HTTP client reads local `assets` into `asset_files`. The service reconstructs the same input type. Each source record retains its payload, type, timestamp, references, and artifact version. Existing `DesignerRequest(target="...")` calls still work for description-only generation. Use matching client and generator versions for historical inputs.
 

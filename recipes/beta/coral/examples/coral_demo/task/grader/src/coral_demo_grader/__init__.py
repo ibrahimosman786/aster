@@ -1,1 +1,1 @@
-"""Grader package for the Reef test-time-training CORAL demo task."""
+"""Grader package for the Aster test-time-training CORAL demo task."""

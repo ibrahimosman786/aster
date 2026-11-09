@@ -1,4 +1,4 @@
-"""The task designer's prompt, the parse of its reply, and the call through Reef."""
+"""The task designer's prompt, the parse of its reply, and the call through Aster."""
 
 from __future__ import annotations
 
@@ -8,19 +8,19 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from tests.harness.test_task_rollout_runner import StandInReef
+from tests.harness.test_task_rollout_runner import StandInAster
 
-from reef.record2sample.generator import (
+from aster.record2sample.generator import (
     DesignerError,
     DesignerReplyError,
     DesignerRequest,
-    ReefDesigner,
+    AsterDesigner,
     designer_messages,
     designer_prompt,
     parse_harbor_reply,
 )
-from reef.record2sample.generator.inputs import TaskGenerationRequest
-from reef.record2sample.generator.wire import designer_request_document
+from aster.record2sample.generator.inputs import TaskGenerationRequest
+from aster.record2sample.generator.wire import designer_request_document
 
 pytestmark = pytest.mark.unit
 
@@ -194,40 +194,40 @@ def test_a_harbor_reply_without_json_is_refused() -> None:
 # ----------------------------------------------------------------------------------------------- the call
 
 
-def test_the_reef_designer_posts_its_request_options_with_the_tags_and_keeps_the_receipt() -> None:
-    reef = StandInReef()
+def test_the_aster_designer_posts_its_request_options_with_the_tags_and_keeps_the_receipt() -> None:
+    aster = StandInAster()
     try:
-        designer = ReefDesigner(reef_url=reef.url, token="t", request_options={"reasoning_effort": "none"})
+        designer = AsterDesigner(aster_url=aster.url, token="t", request_options={"reasoning_effort": "none"})
         answer = designer.answer(
             designer_messages(request()), scenario="spade", model="m", tags={"role": "designer", "generation": "2"}
         )
         report_id = designer.report(answer.record_id, scenario="spade", score=0.5, metadata={"generation": 2})
     finally:
-        reef.close()
+        aster.close()
     assert answer.text == "ls" and answer.record_id == "rec-1"
-    call = reef.inferences[0]
+    call = aster.inferences[0]
     assert call["path"] == "/v1/chat/completions", "Chat Completions by default"
     assert call["body"]["model"] == "m" and call["body"]["reasoning_effort"] == "none"
     assert call["body"]["messages"][0]["role"] == "system"
-    assert call["headers"]["x-reef-tag-role"] == "designer" and call["headers"]["x-reef-tag-generation"] == "2"
+    assert call["headers"]["x-aster-tag-role"] == "designer" and call["headers"]["x-aster-tag-generation"] == "2"
     assert call["headers"]["authorization"] == "Bearer t"
-    report = reef.reports[0]["body"]
+    report = aster.reports[0]["body"]
     assert report_id == "rep-1" and report["references"] == ["rec-1"] and report["score"] == 0.5
     assert report["metadata"] == {"generation": 2, "role": "designer"}, "the role tells a processor the report apart"
 
 
 def test_the_responses_designer_sends_instructions_and_typed_input_and_joins_the_output_text() -> None:
-    reef = StandInReef()
+    aster = StandInAster()
     messages = [*designer_messages(request()), {"role": "assistant", "content": "a draft"}]
     try:
-        designer = ReefDesigner(reef_url=reef.url, api="responses", request_options={"reasoning": {"effort": "low"}})
+        designer = AsterDesigner(aster_url=aster.url, api="responses", request_options={"reasoning": {"effort": "low"}})
         answer = designer.answer(messages, scenario="spade", model="m", tags={"role": "designer"})
         designer.answer(messages[1:2], scenario="spade", model="m", tags={})
     finally:
-        reef.close()
+        aster.close()
     assert answer.text == "ls" and answer.record_id == "rec-1"
-    call = reef.inferences[0]
-    assert call["path"] == "/v1/responses" and call["headers"]["x-reef-tag-role"] == "designer"
+    call = aster.inferences[0]
+    assert call["path"] == "/v1/responses" and call["headers"]["x-aster-tag-role"] == "designer"
     assert call["body"] == {
         "reasoning": {"effort": "low"},
         "model": "m",
@@ -237,33 +237,33 @@ def test_the_responses_designer_sends_instructions_and_typed_input_and_joins_the
             {"role": "assistant", "content": [{"type": "output_text", "text": "a draft"}]},
         ],
     }
-    assert "instructions" not in reef.inferences[1]["body"], "no system turn, no instructions"
+    assert "instructions" not in aster.inferences[1]["body"], "no system turn, no instructions"
 
 
 @pytest.mark.parametrize("api", ["openai", "responses"])
 def test_a_reply_without_text_is_an_empty_answer_with_its_receipt(api: str) -> None:
-    reef = StandInReef(reply="")
+    aster = StandInAster(reply="")
     try:
-        answer = ReefDesigner(reef_url=reef.url, api=api).answer(
+        answer = AsterDesigner(aster_url=aster.url, api=api).answer(
             designer_messages(request()), scenario="spade", model="m", tags={}
         )
     finally:
-        reef.close()
+        aster.close()
     assert answer.text == "" and answer.record_id == "rec-1"
     with pytest.raises(DesignerReplyError, match="empty"):
         parse_harbor_reply(answer.text)
 
 
 def test_a_refused_designer_call_is_a_designer_error() -> None:
-    reef = StandInReef(refuse_inference=True)
+    aster = StandInAster(refuse_inference=True)
     try:
-        designer = ReefDesigner(reef_url=reef.url)
+        designer = AsterDesigner(aster_url=aster.url)
         with pytest.raises(DesignerError, match=r"refused \(401\)"):
             designer.answer(designer_messages(request()), scenario="spade", model="m", tags={})
     finally:
-        reef.close()
+        aster.close()
     with pytest.raises(DesignerError, match="timeout_s"):
-        ReefDesigner(reef_url="http://127.0.0.1:1", timeout_s=0)
+        AsterDesigner(aster_url="http://127.0.0.1:1", timeout_s=0)
 
 
 def test_designer_wraps_shared_inputs_and_retains_legacy_target_calls() -> None:

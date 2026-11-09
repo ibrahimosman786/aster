@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from recipes.tttd.examples.tttd.harness.run_controller import (
-    ReefTrainingStatusClient,
+    AsterTrainingStatusClient,
     ScenarioTrainingFailure,
     ScenarioTrainingStatus,
     SearchHarness,
@@ -171,7 +171,7 @@ def test_commit_waits_until_the_new_checkpoint_serves(tmp_path) -> None:
             _status(0, "v0"),  # initial restore check
             _status(0, "v0"),  # step 0 precondition
             _status(1, "v0"),  # the job ended; its checkpoint does not serve yet
-            _status(1, "v1"),  # Reef activated the job's checkpoint
+            _status(1, "v1"),  # Aster activated the job's checkpoint
         ],
         events,
     )
@@ -232,7 +232,7 @@ def test_a_state_that_names_an_engine_load_id_is_refused(tmp_path) -> None:
 
 
 @pytest.mark.unit
-def test_resume_fails_closed_when_reef_and_archive_steps_disagree(tmp_path) -> None:
+def test_resume_fails_closed_when_aster_and_archive_steps_disagree(tmp_path) -> None:
     store = TTTDRunStateStore(tmp_path / "state.json", _identity())
     store.save_committed(next_step=1, served_artifact_id="v1", archive={"steps": [0]})
     controller = TTTDRunController(
@@ -300,8 +300,8 @@ def test_status_client_reads_authenticated_public_training_status() -> None:
         observed.update(url=request.full_url, authorization=request.get_header("Authorization"), timeout=timeout)
         return _Response()
 
-    status = ReefTrainingStatusClient(
-        "http://reef:8900/",
+    status = AsterTrainingStatusClient(
+        "http://aster:8900/",
         token="secret",
         timeout_s=7,
         opener=opener,
@@ -309,14 +309,14 @@ def test_status_client_reads_authenticated_public_training_status() -> None:
 
     assert status == _status(1, "v1")
     assert observed == {
-        "url": "http://reef:8900/reef/status",
+        "url": "http://aster:8900/aster/status",
         "authorization": "Bearer secret",
         "timeout": 7.0,
     }
 
 
 @pytest.mark.unit
-def test_controller_fails_fast_when_reef_discards_a_mixed_artifact_step(tmp_path) -> None:
+def test_controller_fails_fast_when_aster_discards_a_mixed_artifact_step(tmp_path) -> None:
     failure = ScenarioTrainingFailure(
         step=0,
         reason="mixed_artifact_ids",

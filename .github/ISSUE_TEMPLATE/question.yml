@@ -43,7 +43,7 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: Include the Reef version or commit and any relevant runtime, provider, model, OS, or accelerator details.
+      description: Include the Aster version or commit and any relevant runtime, provider, model, OS, or accelerator details.
     validations:
       required: true
 

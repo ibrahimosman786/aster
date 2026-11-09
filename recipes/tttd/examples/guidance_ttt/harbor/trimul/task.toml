@@ -5,9 +5,9 @@ name = "reef-eval/guidance-ttt-trimul"
 description = "Guidance-TTT search with a frozen executor and the trimul judge."
 [metadata]
 category = "autoresearch"
-author_name = "Reef"
+author_name = "Aster"
 difficulty = "hard"
-tags = ["reef", "guidance-ttt", "tttd", "discovery"]
+tags = ["aster", "guidance-ttt", "tttd", "discovery"]
 [agent]
 timeout_sec = 604800.0
 [verifier]

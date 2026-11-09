@@ -7,7 +7,7 @@ import json
 
 from recipes.beta.coral.bundle import build_result_bundle
 from recipes.beta.coral.journal import CallJournal, CallRecord
-from recipes.beta.coral.middleware import ReefGatewayMiddleware
+from recipes.beta.coral.middleware import AsterGatewayMiddleware
 from recipes.beta.coral.reporter import AttemptReport
 
 
@@ -108,8 +108,8 @@ def test_middleware_captures_release_and_usage(tmp_path):
                     "status": 200,
                     "headers": [
                         (b"content-type", b"application/json"),
-                        (b"x-reef-agent-record-id", b"rec-1"),
-                        (b"x-reef-artifact-id", b"rel-42"),
+                        (b"x-aster-agent-record-id", b"rec-1"),
+                        (b"x-aster-artifact-id", b"rel-42"),
                     ],
                 }
             )
@@ -123,7 +123,7 @@ def test_middleware_captures_release_and_usage(tmp_path):
             )
 
     journal = CallJournal(tmp_path / "journal.jsonl")
-    mw = ReefGatewayMiddleware(Downstream(), scenario="s", journal=journal)
+    mw = AsterGatewayMiddleware(Downstream(), scenario="s", journal=journal)
 
     async def run():
         async def receive():
@@ -155,7 +155,7 @@ def test_middleware_usage_from_final_sse_chunk(tmp_path):
         async def __call__(self, scope, receive, send):
             frames = (
                 'data: {"choices": [{"delta": {"content": "x"}}]}\n\n'
-                'data: {"choices": [], "reef": {"agent_record_id": "rec-s"}, '
+                'data: {"choices": [], "aster": {"agent_record_id": "rec-s"}, '
                 '"usage": {"prompt_tokens": 11, "completion_tokens": 4}}\n\n'
                 "data: [DONE]\n\n"
             )
@@ -169,7 +169,7 @@ def test_middleware_usage_from_final_sse_chunk(tmp_path):
             await send({"type": "http.response.body", "body": frames.encode()})
 
     journal = CallJournal(tmp_path / "journal.jsonl")
-    mw = ReefGatewayMiddleware(Downstream(), scenario="s", journal=journal)
+    mw = AsterGatewayMiddleware(Downstream(), scenario="s", journal=journal)
 
     async def run():
         async def receive():

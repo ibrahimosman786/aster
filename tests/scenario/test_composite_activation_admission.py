@@ -16,16 +16,16 @@ from tests.support.component_trainers import _TwoTrainerRecipe, component_files,
 from tests.support.runtime_stubs import StubInferenceRuntime
 from tests.support.samples_service import make_samples
 
-from reef.artifact import InMemoryRepositoryBackend
-from reef.artifact.components import ArtifactLayout, ComponentSpec, ScenarioComponents, TextFileTree
-from reef.artifact.files import ArtifactFiles
-from reef.artifact.sources import REFERENCE_FILE, DirectorySource, HuggingFaceRevision
-from reef.core.errors import CommitPending, ReefError, TrainingStartRefused
-from reef.dispatcher import Dispatcher
-from reef.dispatcher.errors import local_error_source
-from reef.execution.workers import SERVICE_COMPONENTS
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.sqlite import SQLiteScenarioStorage
+from aster.artifact import InMemoryRepositoryBackend
+from aster.artifact.components import ArtifactLayout, ComponentSpec, ScenarioComponents, TextFileTree
+from aster.artifact.files import ArtifactFiles
+from aster.artifact.sources import REFERENCE_FILE, DirectorySource, HuggingFaceRevision
+from aster.core.errors import CommitPending, AsterError, TrainingStartRefused
+from aster.dispatcher import Dispatcher
+from aster.dispatcher.errors import local_error_source
+from aster.execution.workers import SERVICE_COMPONENTS
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.sqlite import SQLiteScenarioStorage
 
 
 @dataclass(frozen=True)
@@ -405,7 +405,7 @@ def test_a_served_harness_binds_the_weights_served_now_and_leaves_the_active_rel
         active = scenario.current_snapshot()
         tip = scenario.repository.checkpoint_artifact
         artifact_id = component_id(scenario, first, HARNESS)
-        with pytest.raises(ReefError, match="answers only from the snapshot it has loaded"):
+        with pytest.raises(AsterError, match="answers only from the snapshot it has loaded"):
             scenario.serve(artifact_id, HARNESS)
 
         runtime.answers_each_artifact = True

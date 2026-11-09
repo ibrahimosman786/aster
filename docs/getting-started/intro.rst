@@ -6,7 +6,7 @@ harness and the model that harness calls. It records each request, its
 response, and the feedback about the response. Aster then use these signal to
 produce a better version of the model weights or of the agent's harness.
 
-.. figure:: ../assets/reef-overview-light.svg
+.. figure:: ../assets/aster-overview-light.svg
    :alt: Aster between the harness and the model: requests and feedback in, answers and a new harness tree back; inference and new weights to the model
 
    Aster serves the model, loads new weights into the engine, and sends a new

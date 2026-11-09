@@ -1,12 +1,12 @@
 """Tinker training in the control plane, served by engines on an inference component, end to end on CPU.
 
-The component (``python -m reef.inference.remote``) runs in its own process
+The component (``python -m aster.inference.remote``) runs in its own process
 with its own Ray session that declares two pretend GPUs, and starts the stub
 engine (``tests.support._stub_engine``). The test process is the control
 plane: it builds Tinker's training component and the serving runtime of its
 adapters as the HTTP service does and drives one
 TTTD step through the Dispatcher, then restarts. The Tinker SDK and the
-cookbook converter are faked unless ``REEF_TEST_TINKER_REAL=1`` and
+cookbook converter are faked unless ``ASTER_TEST_TINKER_REAL=1`` and
 ``TINKER_API_KEY`` are set, in which case the trainer, the checkpoint download
 and the PEFT conversion are real.
 """
@@ -26,18 +26,18 @@ from pathlib import Path
 
 import pytest
 
-from reef.dispatcher import Dispatcher
-from reef.inference.serving import AdapterServingRuntime
-from reef.service.assembly import connect_training_component
-from reef.service.deploy.orchestrator import resolve_deployment_config
-from reef.service.deploy.service_config import service_config_from_mapping
-from reef.train.jobs import JobLoopState
+from aster.dispatcher import Dispatcher
+from aster.inference.serving import AdapterServingRuntime
+from aster.service.assembly import connect_training_component
+from aster.service.deploy.orchestrator import resolve_deployment_config
+from aster.service.deploy.service_config import service_config_from_mapping
+from aster.train.jobs import JobLoopState
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MODEL = "Qwen/Qwen3-8B"
-REAL = os.environ.get("REEF_TEST_TINKER_REAL") == "1" and bool(os.environ.get("TINKER_API_KEY"))
+REAL = os.environ.get("ASTER_TEST_TINKER_REAL") == "1" and bool(os.environ.get("TINKER_API_KEY"))
 ENGINE = "tests.support._stub_engine:create_inference"
-TOKENS = {"REEF_REMOTE_CONTROL_TOKEN": "control-secret", "REEF_REMOTE_INFERENCE_TOKEN": "inference-secret"}
+TOKENS = {"ASTER_REMOTE_CONTROL_TOKEN": "control-secret", "ASTER_REMOTE_INFERENCE_TOKEN": "inference-secret"}
 SCENARIO = "erdos"
 
 FAKE_SDK = textwrap.dedent(
@@ -154,7 +154,7 @@ def write_fake_sdk(root: Path, model: str) -> Path:
 def served_call(version: str, index: int):
     """Rollout ``index``: a served call without tokens, as the inference service records it with the artifact
     ``version`` that answered."""
-    from reef.core import AgentRecord, RequestType
+    from aster.core import AgentRecord, RequestType
 
     return AgentRecord.create(
         scenario=SCENARIO,
@@ -186,22 +186,22 @@ def stop_process(process) -> None:
 @contextmanager
 def inference_component(tmp_path):
     """Run the component with the stub engine on a free loopback port; yield its URL and its control client."""
-    from reef.inference.remote.service import RemoteControl
+    from aster.inference.remote.service import RemoteControl
 
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
         port = probe.getsockname()[1]
     url = f"http://127.0.0.1:{port}"
     log_path = tmp_path / "component.log"
-    env = {key: value for key, value in os.environ.items() if not key.startswith(("REEF_", "RAY_"))}
+    env = {key: value for key, value in os.environ.items() if not key.startswith(("ASTER_", "RAY_"))}
     env.update(TOKENS, PYTHONPATH=os.pathsep.join([str(REPO_ROOT), env.get("PYTHONPATH", "")]))
-    command = [sys.executable, "-m", "reef.inference.remote", "--engine", ENGINE, "--host", "127.0.0.1"]
+    command = [sys.executable, "-m", "aster.inference.remote", "--engine", ENGINE, "--host", "127.0.0.1"]
     command += ["--port", str(port), "--work-dir", str(tmp_path / "remote-work"), "--ray-num-gpus", "2"]
     with log_path.open("w") as log:
         component = subprocess.Popen(
             command, cwd=REPO_ROOT, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True
         )
-    control = RemoteControl(url, TOKENS["REEF_REMOTE_CONTROL_TOKEN"])
+    control = RemoteControl(url, TOKENS["ASTER_REMOTE_CONTROL_TOKEN"])
     try:
         deadline = time.monotonic() + 120
         while True:
@@ -225,10 +225,10 @@ def control_plane(tmp_path, monkeypatch, url, repository):
     ``repository`` is the artifact backend factory; a restart passes the same one, which holds the snapshots.
     """
     from recipes.tttd.recipe import TTTDRecipe
-    from reef.dispatcher import Dispatcher
-    from reef.storage.sql_coordination import open_coordination
-    from reef.storage.sqlite import SQLiteScenarioStorage
-    from reef.train.pipeline import PipelineConfig
+    from aster.dispatcher import Dispatcher
+    from aster.storage.sql_coordination import open_coordination
+    from aster.storage.sqlite import SQLiteScenarioStorage
+    from aster.train.pipeline import PipelineConfig
 
     if not REAL:
         monkeypatch.syspath_prepend(str(write_fake_sdk(tmp_path, MODEL)))
@@ -247,7 +247,7 @@ def control_plane(tmp_path, monkeypatch, url, repository):
             "model-path": MODEL,
             "backend": ENGINE,
             "num-gpus": 2,
-            "handler-factory": "reef.inference.sglang.chat.SGLangInferenceHandler",
+            "handler-factory": "aster.inference.sglang.chat.SGLangInferenceHandler",
             "remote": {"url": url},
         },
         "training": {
@@ -261,7 +261,7 @@ def control_plane(tmp_path, monkeypatch, url, repository):
         },
     }
     config, _ = resolve_deployment_config(raw, None, tmp_path / "serve.yaml")
-    assert [service["name"] for service in config["services"]] == ["reef"]
+    assert [service["name"] for service in config["services"]] == ["aster"]
     component, inference = connect_training_component(
         service_config_from_mapping(config), model_path=MODEL, default_parameters={}
     )
@@ -298,7 +298,7 @@ def loop_state(scenario) -> JobLoopState:
 
 def train_one_step(dispatcher, inference) -> None:
     """Feed one TTTD group through the Dispatcher and wait until the scenario commits the job's end."""
-    from reef.core import AgentRecord, RequestType
+    from aster.core import AgentRecord, RequestType
 
     scenario = dispatcher.get_or_create_scenario(SCENARIO)
     # The staleness check keeps only data of the artifact that the scenario serves.
@@ -355,13 +355,13 @@ def wait_for_serving(dispatcher: Dispatcher, inference: AdapterServingRuntime) -
 
 @pytest.mark.integration
 def test_tinker_trains_in_the_control_plane_and_serves_on_an_inference_component(tmp_path, monkeypatch):
-    from reef.artifact import InMemoryRepositoryBackend
+    from aster.artifact import InMemoryRepositoryBackend
 
     pytest.importorskip("ray")  # the component process starts its own Ray session
     # The default start is the component's untrained adapter artifact, which the component writes when it starts.
     repository = InMemoryRepositoryBackend.factory(directory=tmp_path / "repository")
     for key in list(os.environ):
-        if key.startswith(("REEF_", "RAY_")) and key != "REEF_TEST_TINKER_REAL":
+        if key.startswith(("ASTER_", "RAY_")) and key != "ASTER_TEST_TINKER_REAL":
             monkeypatch.delenv(key)
     with inference_component(tmp_path) as (url, control):
         with control_plane(tmp_path, monkeypatch, url, repository) as (dispatcher, _, inference):

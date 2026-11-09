@@ -4,8 +4,8 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from reef.train.slime_backend.distill.objective import restricted_divergence, token_importance_weights
-from reef.train.slime_backend.vocab_parallel import gather_log_probs_at_ids, native_topk_ids
+from aster.train.slime_backend.distill.objective import restricted_divergence, token_importance_weights
+from aster.train.slime_backend.vocab_parallel import gather_log_probs_at_ids, native_topk_ids
 
 
 @pytest.mark.unit
@@ -64,7 +64,7 @@ def test_student_support_survives_teacher_packing_and_duplicate_sequences(monkey
     from types import SimpleNamespace
 
     from recipes.sdpo.slime import SdpoAlgorithm, SdpoSettings
-    from reef.train.slime_backend.distill import teacher
+    from aster.train.slime_backend.distill import teacher
 
     mpu = SimpleNamespace(
         get_context_parallel_world_size=lambda: 1,
@@ -136,7 +136,7 @@ def test_student_support_survives_teacher_packing_and_duplicate_sequences(monkey
 
 @pytest.mark.unit
 def test_selected_ids_follow_the_packing_schedule():
-    from reef.train.slime_backend.distill.teacher import TeacherTopKAtSelectedIds
+    from aster.train.slime_backend.distill.teacher import TeacherTopKAtSelectedIds
 
     callback = TeacherTopKAtSelectedIds([[0, 1], [2]], [torch.zeros(1, 1, dtype=torch.long)] * 3)
     with pytest.raises(ValueError, match="packing schedule"):

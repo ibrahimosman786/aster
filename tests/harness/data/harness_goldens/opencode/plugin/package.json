@@ -1,5 +1,5 @@
 {
-  "name": "reef-harness",
+  "name": "aster-harness",
   "type": "module",
   "main": "index.ts"
 }

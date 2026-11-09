@@ -1,4 +1,4 @@
-"""The attempt watcher: CORAL's on-disk attempt records -> one reef report each.
+"""The attempt watcher: CORAL's on-disk attempt records -> one aster report each.
 
 Covers the real-runtime integration surface — attempt JSON layouts (single- and
 multi-island), terminal-state filtering, budget classes, reference claiming at
@@ -71,14 +71,14 @@ def _journal_with(tmp_path, *entries):
     return journal
 
 
-class FakeReef:
+class FakeAster:
     """Capture reports; optionally fail with a transport or HTTP error."""
 
     def __init__(self):
         self.reports = []
         self.fail_with = None
 
-    def __call__(self, reef_url, report, *, token=None, timeout=30.0):
+    def __call__(self, aster_url, report, *, token=None, timeout=30.0):
         if self.fail_with is not None:
             error, self.fail_with = self.fail_with, None
             raise error
@@ -87,8 +87,8 @@ class FakeReef:
 
 
 @pytest.fixture()
-def fake_reef(monkeypatch):
-    fake = FakeReef()
+def fake_aster(monkeypatch):
+    fake = FakeAster()
     monkeypatch.setattr("recipes.beta.coral.watcher.report_attempt", fake)
     return fake
 
@@ -97,7 +97,7 @@ def _watcher(tmp_path, journal, **kwargs):
     return AttemptWatcher(
         coral_dir=tmp_path / ".coral",
         journal=journal,
-        reef_url="http://reef",
+        aster_url="http://aster",
         scenario="s",
         run_id="run-1",
         token="tok",
@@ -132,7 +132,7 @@ def test_archived_attempts_are_ignored(tmp_path):
     assert read_finalized_attempts(coral_dir) == []
 
 
-def test_reports_each_finalized_attempt_once_with_its_references(tmp_path, fake_reef):
+def test_reports_each_finalized_attempt_once_with_its_references(tmp_path, fake_aster):
     journal = _journal_with(
         tmp_path,
         ("agent-1", PARENT_A[:12], "rec-1"),
@@ -151,10 +151,10 @@ def test_reports_each_finalized_attempt_once_with_its_references(tmp_path, fake_
     assert report.run_id == "run-1"
     # second poll: nothing new
     assert watcher.poll_once() == []
-    assert len(fake_reef.reports) == 1
+    assert len(fake_aster.reports) == 1
 
 
-def test_consecutive_attempts_from_the_same_parent_do_not_share_references(tmp_path, fake_reef):
+def test_consecutive_attempts_from_the_same_parent_do_not_share_references(tmp_path, fake_aster):
     # A revert: two attempts by one agent, both from PARENT_A. The first
     # claims the records journaled so far; the second gets only the later ones.
     journal = _journal_with(tmp_path, ("agent-1", PARENT_A[:12], "rec-1"))
@@ -180,7 +180,7 @@ def test_consecutive_attempts_from_the_same_parent_do_not_share_references(tmp_p
     assert second.references == ("rec-2",)
 
 
-def test_grader_error_and_tune_attempts_are_skipped_terminally(tmp_path, fake_reef):
+def test_grader_error_and_tune_attempts_are_skipped_terminally(tmp_path, fake_aster):
     journal = _journal_with(tmp_path)
     _write_attempt(
         tmp_path / ".coral",
@@ -192,46 +192,46 @@ def test_grader_error_and_tune_attempts_are_skipped_terminally(tmp_path, fake_re
     _write_attempt(tmp_path / ".coral", COMMIT_2, metadata={"budget_class": "tune"})
     watcher = _watcher(tmp_path, journal)
     assert watcher.poll_once() == []
-    assert fake_reef.reports == []
+    assert fake_aster.reports == []
     # skips are terminal: still nothing on the next poll
     assert watcher.poll_once() == []
 
 
-def test_state_survives_restart_no_duplicate_reports(tmp_path, fake_reef):
+def test_state_survives_restart_no_duplicate_reports(tmp_path, fake_aster):
     journal = _journal_with(tmp_path, ("agent-1", PARENT_A[:12], "rec-1"))
     _write_attempt(tmp_path / ".coral", COMMIT_1, parent=PARENT_A)
     _watcher(tmp_path, journal).poll_once()
-    assert len(fake_reef.reports) == 1
+    assert len(fake_aster.reports) == 1
 
     # a fresh watcher (crash + restart) sees the persisted state
     restarted = _watcher(tmp_path, journal)
     assert restarted.poll_once() == []
-    assert len(fake_reef.reports) == 1
+    assert len(fake_aster.reports) == 1
 
 
-def test_transport_error_is_retried_next_poll(tmp_path, fake_reef):
+def test_transport_error_is_retried_next_poll(tmp_path, fake_aster):
     journal = _journal_with(tmp_path, ("agent-1", PARENT_A[:12], "rec-1"))
     _write_attempt(tmp_path / ".coral", COMMIT_1, parent=PARENT_A)
     watcher = _watcher(tmp_path, journal)
 
-    fake_reef.fail_with = OSError("connection refused")
+    fake_aster.fail_with = OSError("connection refused")
     assert watcher.poll_once() == []
-    assert fake_reef.reports == []
+    assert fake_aster.reports == []
 
     (report,) = watcher.poll_once()  # retried, references intact
     assert report.references == ("rec-1",)
 
 
-def test_http_rejection_raises_loudly(tmp_path, fake_reef):
+def test_http_rejection_raises_loudly(tmp_path, fake_aster):
     journal = _journal_with(tmp_path)
     _write_attempt(tmp_path / ".coral", COMMIT_1)
     watcher = _watcher(tmp_path, journal)
-    fake_reef.fail_with = urllib.error.HTTPError("http://reef", 409, "conflict", None, None)
+    fake_aster.fail_with = urllib.error.HTTPError("http://aster", 409, "conflict", None, None)
     with pytest.raises(urllib.error.HTTPError):
         watcher.poll_once()
 
 
-def test_unscored_real_attempt_is_still_reported(tmp_path, fake_reef):
+def test_unscored_real_attempt_is_still_reported(tmp_path, fake_aster):
     # A real attempt that crashed carries no score; the report records the
     # outcome (the processor decides what trains).
     journal = _journal_with(tmp_path)
@@ -240,7 +240,7 @@ def test_unscored_real_attempt_is_still_reported(tmp_path, fake_reef):
     assert report.score is None and report.status == "crashed"
 
 
-def test_run_drains_once_after_stop(tmp_path, fake_reef):
+def test_run_drains_once_after_stop(tmp_path, fake_aster):
     import threading
 
     journal = _journal_with(tmp_path, ("agent-1", PARENT_A[:12], "rec-1"))
@@ -249,4 +249,4 @@ def test_run_drains_once_after_stop(tmp_path, fake_reef):
     stop.set()  # loop body never runs; the final drain still must
     _write_attempt(tmp_path / ".coral", COMMIT_1, parent=PARENT_A)
     watcher.run(stop, interval_s=0.01)
-    assert len(fake_reef.reports) == 1
+    assert len(fake_aster.reports) == 1

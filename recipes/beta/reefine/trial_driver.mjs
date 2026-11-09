@@ -109,7 +109,7 @@ async function startSession(reason = "startup") {
     compaction: { enabled: false }, retry: { enabled: false } });
   const runtime = await ModelRuntime.create({ authPath: join(agentDir, "trial-auth.json"),
     modelsPath: null, refreshOnCreate: false });
-  runtime.registerProvider("reef-trial", {
+  runtime.registerProvider("aster-trial", {
     baseUrl: `http://127.0.0.1:${server.address().port}/v1`, apiKey: "trial-local",
     api: "openai-completions",
     models: [{ id: "trial", name: "trial", reasoning: false, input: ["text"],
@@ -140,7 +140,7 @@ async function startSession(reason = "startup") {
     }
   }
   const created = await createAgentSession({ cwd, agentDir, modelRuntime: runtime,
-    model: runtime.getModel("reef-trial", "trial"), resourceLoader: loader, settingsManager: settings,
+    model: runtime.getModel("aster-trial", "trial"), resourceLoader: loader, settingsManager: settings,
     sessionManager: SessionManager.inMemory(cwd), thinkingLevel: "off",
     sessionStartEvent: { type: "session_start", reason } });
   session = created.session;

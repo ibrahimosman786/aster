@@ -12,26 +12,26 @@ from aiohttp import ClientResponse
 from aiohttp.test_utils import TestClient
 from tests.support.runtime_stubs import RecordingComponent
 
-from reef.artifact import DefaultStart, InMemoryRepositoryBackend
-from reef.artifact.repository import RepositoryBackendFactory
-from reef.artifact.sources import ArtifactSources
-from reef.dispatcher import Dispatcher
-from reef.recipe import Recipe
-from reef.record2sample import NoSamples
-from reef.sample2job import Sample2Job
-from reef.service.data_service import DataWorker, data_jobs
-from reef.service.data_transfer import ArchiveWriters
-from reef.service.task_import import DataScenarioStorage
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.sql_data import SQLiteDataStore
-from reef.storage.sqlite import SQLiteScenarioStorage
-from reef.storage.tasks import LocalTaskFileStore
-from reef.train import JobData, Trainer
-from reef.train.jobs import JobLoop
-from reef.train.pipeline import TrainingPipeline
+from aster.artifact import DefaultStart, InMemoryRepositoryBackend
+from aster.artifact.repository import RepositoryBackendFactory
+from aster.artifact.sources import ArtifactSources
+from aster.dispatcher import Dispatcher
+from aster.recipe import Recipe
+from aster.record2sample import NoSamples
+from aster.sample2job import Sample2Job
+from aster.service.data_service import DataWorker, data_jobs
+from aster.service.data_transfer import ArchiveWriters
+from aster.service.task_import import DataScenarioStorage
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.sql_data import SQLiteDataStore
+from aster.storage.sqlite import SQLiteScenarioStorage
+from aster.storage.tasks import LocalTaskFileStore
+from aster.train import JobData, Trainer
+from aster.train.jobs import JobLoop
+from aster.train.pipeline import TrainingPipeline
 
 TOKEN = "upload-test-token"
-HEADERS = {"x-reef-scenario": "s", "Authorization": f"Bearer {TOKEN}"}
+HEADERS = {"x-aster-scenario": "s", "Authorization": f"Bearer {TOKEN}"}
 
 
 def atif(text: str) -> dict[str, Any]:
@@ -44,7 +44,7 @@ def atif(text: str) -> dict[str, Any]:
 
 
 #: The data route of the owner of scenario ``s``, which is ``s`` itself.
-DATA = "/reef/namespaces/s/data"
+DATA = "/aster/namespaces/s/data"
 
 
 def trajectory_lines(*item_ids: str) -> bytes:

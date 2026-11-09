@@ -1,4 +1,4 @@
-"""Stream single rollouts of many problems through Reef, N in flight, the paper's way.
+"""Stream single rollouts of many problems through Aster, N in flight, the paper's way.
 
 SAO (arXiv:2607.07508, §4.1) trains with a batch of 128 rollouts and a group
 size of 1: every rollout in a step comes from a different prompt, and a rollout
@@ -8,7 +8,7 @@ rollouts of one problem, one optimizer step each) and is meant as a smoke
 test. This driver is the paper's shape at the two-node budget of serve-30b.yaml: it
 keeps ``IN_FLIGHT`` requests open at all times, each on a problem drawn from a
 training pool, grades each completion with the same strict rule the Harbor
-verifier uses, and reports the score against that rollout's receipt. Reef
+verifier uses, and reports the score against that rollout's receipt. Aster
 trains whenever ``training.config.global_batch_size`` reports have accumulated.
 
 Problems come from a JSONL file with ``problem_idx``, ``problem`` and ``gold``
@@ -53,14 +53,14 @@ import urllib.request
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from pathlib import Path
 
-from reef_client import ReefClient, ReefClientError
+from reef_client import AsterClient, AsterClientError
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from harness.grader import answers_equal, extract_answer
 
 SERVICE_URL = "http://127.0.0.1:8900"
-TOKEN = "reef-local"
+TOKEN = "aster-local"
 SCENARIO = "sao-smoke"
 RECIPE = "sao"
 
@@ -78,7 +78,7 @@ MAX_FAILURE_STREAK = 24
 FAILURE_PAUSE_S = 60
 INSTRUCTION_SUFFIX = "\n\nPut your final answer within \\boxed{}."
 #: A failed request, or a completion without the fields the grader reads; the prompt is retried later.
-ROLLOUT_FAILURES = (ReefClientError, OSError, KeyError, IndexError, TypeError)
+ROLLOUT_FAILURES = (AsterClientError, OSError, KeyError, IndexError, TypeError)
 
 records_lock = threading.Lock()
 
@@ -112,7 +112,7 @@ def problem_order(problems: list[dict], budget: int) -> list[dict]:
 def artifacts() -> list[dict] | None:
     """The scenario's artifacts, newest first, or None while the service cannot answer."""
     request = urllib.request.Request(
-        f"{SERVICE_URL}/reef/scenarios/{SCENARIO}/artifacts", headers={"Authorization": f"Bearer {TOKEN}"}
+        f"{SERVICE_URL}/aster/scenarios/{SCENARIO}/artifacts", headers={"Authorization": f"Bearer {TOKEN}"}
     )
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
@@ -126,7 +126,7 @@ def training_step_count() -> int | None:
 
     The stream activates nothing and sets no training start, so each commit of the scenario is a training step.
     """
-    request = urllib.request.Request(f"{SERVICE_URL}/reef/status", headers={"Authorization": f"Bearer {TOKEN}"})
+    request = urllib.request.Request(f"{SERVICE_URL}/aster/status", headers={"Authorization": f"Bearer {TOKEN}"})
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
             payload = json.loads(response.read())
@@ -145,7 +145,7 @@ def serving_artifact() -> str | None:
 class TrainerPacer:
     """Hold new submissions while more than AHEAD batches are out beyond the trainer.
 
-    Reef drops rollouts that exceed pipeline.record2sample.config.max_staleness, and the driver
+    Aster drops rollouts that exceed pipeline.record2sample.config.max_staleness, and the driver
     cannot see that, so an idle trainer (no progress for STALL_S) releases one
     batch of credit; otherwise a burst of dropped rollouts would deadlock.
     """
@@ -195,7 +195,7 @@ def wait_for_training(expected: int) -> None:
     raise TimeoutError(f"Only {trained}/{expected} steps trained within {TRAIN_DRAIN_TIMEOUT_S}s")
 
 
-def one_rollout(client: ReefClient, model: str, problem: dict, position: int) -> dict:
+def one_rollout(client: AsterClient, model: str, problem: dict, position: int) -> dict:
     started = time.time()
     artifact_id = serving_artifact()
     response, receipt = client.inference_with_record(
@@ -242,10 +242,10 @@ def one_rollout(client: ReefClient, model: str, problem: dict, position: int) ->
 def main() -> None:
     problems = load_problems()
     order = problem_order(problems, BUDGET)
-    client = ReefClient(SERVICE_URL, token=TOKEN, timeout_s=7200)
+    client = AsterClient(SERVICE_URL, token=TOKEN, timeout_s=7200)
     # The inference routes serve only a scenario that exists: create it before the first rollout.
-    client.post("/reef/scenarios", SCENARIO, {"name": SCENARIO})
-    model = os.environ.get("SAO_MODEL_NAME", "reef")  # the name run.py sends; Reef's SGLang serves it
+    client.post("/aster/scenarios", SCENARIO, {"name": SCENARIO})
+    model = os.environ.get("SAO_MODEL_NAME", "aster")  # the name run.py sends; Aster's SGLang serves it
     pacer = TrainerPacer(PROGRESS_FILE)
     print(
         f"pool={len(problems)} problems, budget={BUDGET}, in_flight={IN_FLIGHT}, max_tokens={MAX_TOKENS}", flush=True

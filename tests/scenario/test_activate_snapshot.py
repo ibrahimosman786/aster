@@ -6,9 +6,9 @@ from pathlib import Path
 
 from tests.support.runtime_stubs import StubInferenceRuntime
 
-from reef.artifact import Artifact
-from reef.artifact.components import ComponentSpec, ScenarioComponents
-from reef.scenario.binding import activate_snapshot
+from aster.artifact import Artifact
+from aster.artifact.components import ComponentSpec, ScenarioComponents
+from aster.scenario.binding import activate_snapshot
 
 WEIGHTS = ScenarioComponents({"weights": ComponentSpec(kind="model_adapter")})
 

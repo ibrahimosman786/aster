@@ -1,8 +1,8 @@
 """Differential check of recipes/gepa against upstream GEPA, iteration by iteration.
 
-Upstream's ``gepa.optimize`` and the Reef method run the same synthetic task
+Upstream's ``gepa.optimize`` and the Aster method run the same synthetic task
 with deterministic scoring and a deterministic reflection model, from the
-same seed. The Reef side runs whole steps on the real backend: a fake pi
+same seed. The Aster side runs whole steps on the real backend: a fake pi
 binary answers each problem with a token that its rules and the problem
 encode, the step's evaluation scores the validation set, and the compare
 policy on the mean decides. Every draw upstream makes must land in the same
@@ -33,11 +33,11 @@ from gepa.core.state import GEPAState
 from recipes.gepa import GEPA, Feedback, GEPASettings
 from recipes.gepa.archive import Archive
 from recipes.gepa.method import ARCHIVE_FILE, archive_for_step
-from reef.evaluation.harness import ComparePolicy
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tree import HarnessTree
-from reef.train.harness_backend.state import HarnessState
-from reef.train.types import JobData
+from aster.evaluation.harness import ComparePolicy
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tree import HarnessTree
+from aster.train.harness_backend.state import HarnessState
+from aster.train.types import JobData
 
 TRAIN = [{"input": f"train problem {i}", "answer": "### 1"} for i in range(45)]
 VAL = [{"input": f"validation problem {i}", "answer": "### 1"} for i in range(45)]
@@ -77,7 +77,7 @@ def feedback(task: str, output: str, score: float) -> str:
     return "correct" if score >= 1.0 else f"wrong for {task}"
 
 
-class ReefFeedback(Feedback):
+class AsterFeedback(Feedback):
     def feedback(self, task: str, output: str, score: float) -> str:
         return feedback(task, output, score)
 
@@ -136,7 +136,7 @@ class Reflector(ModelBinding):
         return reflect(messages[0]["content"])
 
 
-def run_reef(tmp_path: Path, iterations: int) -> tuple[Archive, dict[int, dict[str, Any]]]:
+def run_aster(tmp_path: Path, iterations: int) -> tuple[Archive, dict[int, dict[str, Any]]]:
     """``iterations`` steps on the backend, and the plan the driver drew for each iteration.
 
     Before each step the driver draws the iteration's plan from the committed
@@ -158,7 +158,7 @@ def run_reef(tmp_path: Path, iterations: int) -> tuple[Archive, dict[int, dict[s
     validation = tuple(example["input"] for example in VAL)
     recipe = harness_recipe(
         tmp_path,
-        GEPA(settings, ReefFeedback()),
+        GEPA(settings, AsterFeedback()),
         seed=HarnessTree({"rules.md": SEED_TEXT}),
         score=lambda task, result: score_of(result.trajectory[-1]["content"]),
         tasks=validation,
@@ -209,7 +209,7 @@ def run_reef(tmp_path: Path, iterations: int) -> tuple[Archive, dict[int, dict[s
 
 def test_the_method_walks_upstreams_exact_trajectory(tmp_path: Path) -> None:
     result, log, iterations = run_upstream(tmp_path / "upstream", budget=400)
-    archive, plans = run_reef(tmp_path, iterations)
+    archive, plans = run_aster(tmp_path, iterations)
 
     # The same candidates, in the same order, from the same parents, with
     # the same validation means.

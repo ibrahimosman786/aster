@@ -12,17 +12,17 @@ from typing import Any
 import pytest
 from tests.support.chat_templates import CharTemplate
 
-from reef.core import AgentRecord, RequestType
-from reef.core.chat_rendering import TeacherRequest, rendered_job_data
-from reef.core.plugins import PluginConfigError
-from reef.core.reports import TeacherContextReport
-from reef.core.trajectories import source_record_id
-from reef.record2sample.distill import DistillSamples, DistillSettings
-from reef.record2sample.samples import recorded_response
-from reef.sample2job import DistillJobData
-from reef.train import PipelineContext
-from reef.train.pipeline import TrainingPipeline
-from reef.train.types import JobData
+from aster.core import AgentRecord, RequestType
+from aster.core.chat_rendering import TeacherRequest, rendered_job_data
+from aster.core.plugins import PluginConfigError
+from aster.core.reports import TeacherContextReport
+from aster.core.trajectories import source_record_id
+from aster.record2sample.distill import DistillSamples, DistillSettings
+from aster.record2sample.samples import recorded_response
+from aster.sample2job import DistillJobData
+from aster.train import PipelineContext
+from aster.train.pipeline import TrainingPipeline
+from aster.train.types import JobData
 
 QUESTION = "What is the boiling point of water?"
 REPLY = "About 90 degrees."

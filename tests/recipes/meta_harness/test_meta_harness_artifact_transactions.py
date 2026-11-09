@@ -8,12 +8,12 @@ from tests.support.git_lfs import fake_git_lfs
 from tests.support.harness_methods import IMPROVED, SEED, QueueChat, meta_harness_recipe, proposal_reply
 from tests.support.harness_service import checkpoint_result, report_once
 
-from reef.artifact import GitLFSRepositoryBackend, InMemoryRepositoryBackend
-from reef.artifact.artifact import Artifact, ArtifactConflict, ArtifactPublicationError
-from reef.dispatcher import Dispatcher
-from reef.storage.commit_history import CommitHistoryScenarioStore
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.sqlite import SQLiteScenarioStorage
+from aster.artifact import GitLFSRepositoryBackend, InMemoryRepositoryBackend
+from aster.artifact.artifact import Artifact, ArtifactConflict, ArtifactPublicationError
+from aster.dispatcher import Dispatcher
+from aster.storage.commit_history import CommitHistoryScenarioStore
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.sqlite import SQLiteScenarioStorage
 
 __all__ = ["fake_git_lfs"]
 

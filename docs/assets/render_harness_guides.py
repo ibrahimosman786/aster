@@ -3,10 +3,10 @@
 
 Writes, each in a light and a dark file:
 
-- reef-overview-*.svg: Reef between the harness and the model, for the
+- aster-overview-*.svg: Aster between the harness and the model, for the
   introduction;
 - harness-tutorial-overview-*.svg: what runs on your machine and what runs in
-  Reef, for the harness tutorial;
+  Aster, for the harness tutorial;
 - harness-method-step-*.svg: one training step from the method's view, for
   "Write a harness method";
 - harness-adapter-modes-*.svg: the three ways one adapter.yaml runs an agent,
@@ -69,23 +69,23 @@ def method_step(theme: str, fonts) -> str:
         fonts,
         STEP_W,
         STEP_H,
-        "One training step from the method's view. Reef writes the workspace: a copy of the head in harness, "
-        "the step's material, and the method's state from the last step. Reef calls step(context) once; the "
+        "One training step from the method's view. Aster writes the workspace: a copy of the head in harness, "
+        "the step's material, and the method's state from the last step. Aster calls step(context) once; the "
         "method reads the workspace, calls the services, and writes the candidate tree, its state and its output. "
-        "Reef then checks the candidate and evaluates it; a selected candidate is a snapshot, which the activation "
+        "Aster then checks the candidate and evaluates it; a selected candidate is a snapshot, which the activation "
         "rule serves or holds for a person.",
         "One training step, from the method's view",
         "Numbers 5 to 8 are the steps of the architecture figure in Evolve your harness.",
-        [("you write", "machine"), ("Reef", "reef"), ("files", "store")],
+        [("you write", "machine"), ("Aster", "aster"), ("files", "store")],
     )
     left, middle, right = STEP_X
     zone_bottom = STEP_ROWS[-1] + BOX_H + 20
     o.append(zone(p, left - 16, 96, left + STEP_COL + 16, zone_bottom, "store", p["tint"]))
-    o.append(cap(left, 120, "the workspace Reef writes", p["store"]))
+    o.append(cap(left, 120, "the workspace Aster writes", p["store"]))
     o.append(zone(p, middle - 16, 96, middle + STEP_COL + 16, zone_bottom, "machine", p["tint"]))
     o.append(cap(middle, 120, "your method", p["machine"]))
     o.append(zone(p, right - 16, 96, right + STEP_COL + 16, zone_bottom, "store", p["tint"]))
-    o.append(cap(right, 120, "what Reef reads back", p["store"]))
+    o.append(cap(right, 120, "what Aster reads back", p["store"]))
 
     inputs = [
         ("harness/", "a copy of the head tree"),
@@ -102,7 +102,7 @@ def method_step(theme: str, fonts) -> str:
     for row, (title, line) in zip(STEP_ROWS, outputs, strict=True):
         o.append(card(p, right, row + 8, STEP_COL, "store", title, line))
     o.append(card(p, middle, STEP_ROWS[0] + 8, STEP_COL, "machine", "Method", "`step(context)", number=5))
-    o.append(card(p, middle, STEP_ROWS[-1] + 8, STEP_COL, "reef", "Services", "`models · check · evaluate"))
+    o.append(card(p, middle, STEP_ROWS[-1] + 8, STEP_COL, "aster", "Services", "`models · check · evaluate"))
 
     # The workspace goes into the method; what the method writes comes back out.
     middle_y = [row + 8 + BOX_H // 2 for row in STEP_ROWS]
@@ -122,12 +122,12 @@ def method_step(theme: str, fonts) -> str:
     o.append(write(service_x + 26, STEP_ROWS[1] + 46, "context.services", MONO, p["muted"], mono=True))
 
     # After step returns: the check, the evaluation and the activation rule, right to left.
-    o.append(zone(p, 40, BAND_TOP, STEP_W - 40, BAND_TOP + 140, "reef", p["band"]))
-    o.append(cap(56, BAND_TOP + 24, "after step returns, Reef runs", p["reef"]))
+    o.append(zone(p, 40, BAND_TOP, STEP_W - 40, BAND_TOP + 140, "aster", p["band"]))
+    o.append(cap(56, BAND_TOP + 24, "after step returns, Aster runs", p["aster"]))
     band_row = BAND_TOP + 44
-    o.append(card(p, right, band_row, STEP_COL, "reef", "Check", "`validate_tree", number=6))
-    o.append(card(p, middle, band_row, STEP_COL, "reef", "Evaluation", "`compare · floor · none", number=7))
-    o.append(card(p, left, band_row, STEP_COL, "reef", "Activation rule", "serve or hold", number=8))
+    o.append(card(p, right, band_row, STEP_COL, "aster", "Check", "`validate_tree", number=6))
+    o.append(card(p, middle, band_row, STEP_COL, "aster", "Evaluation", "`compare · floor · none", number=7))
+    o.append(card(p, left, band_row, STEP_COL, "aster", "Activation rule", "serve or hold", number=8))
     o.append(path(p, [(right + STEP_COL // 2, zone_bottom), (right + STEP_COL // 2, band_row)]))
     o.append(write(right + STEP_COL // 2 + 12, zone_bottom + 26, "the candidate", MONO, p["muted"], mono=True))
     o.append(path(p, [(right, band_row + BOX_H // 2), (middle + STEP_COL, band_row + BOX_H // 2)]))
@@ -161,20 +161,20 @@ def adapter_modes(theme: str, fonts) -> str:
         fonts,
         MODES_W,
         MODES_H,
-        "One adapter.yaml, three ways an agent runs. Reef renders the harness tree with the adapter. For an "
+        "One adapter.yaml, three ways an agent runs. Aster renders the harness tree with the adapter. For an "
         "evaluation run, the rendered tree is the agent's whole configuration in a fresh root, and run.task "
-        "runs one prompt. For a Harbor task, Reef installs the pinned agent in the task's container, copies the "
+        "runs one prompt. For a Harbor task, Aster installs the pinned agent in the task's container, copies the "
         "rendered tree in, tasks run.task with the task's instruction, and the task's verifier scores it. On a "
         "person's machine, the agent's own command installs the rendered tree as its plugin, beside the person's own "
         "configuration, the client runs the agent with run.layer, and sends the changed files back.",
         "One adapter.yaml, three ways an agent runs",
-        "Reef renders the same tree for each; the adapter's sections say how the agent starts.",
-        [("your machine", "machine"), ("Reef", "reef"), ("files", "store")],
+        "Aster renders the same tree for each; the adapter's sections say how the agent starts.",
+        [("your machine", "machine"), ("Aster", "aster"), ("files", "store")],
     )
     tree_x, adapter_x = MODES_X[0], MODES_X[1]
     o.append(card(p, tree_x, 104, TREE_W, "store", "Harness tree", "`rules.md · skills/ · config/"))
-    o.append(card(p, adapter_x, 104, MODES_X[2] + MODES_COL - adapter_x, "reef", "Adapter", "", dashed=True))
-    o.append(write(adapter_x + 104, 104 + 33, "reef/harness/adapters/<agent>/", MONO, p["ink"], mono=True))
+    o.append(card(p, adapter_x, 104, MODES_X[2] + MODES_COL - adapter_x, "aster", "Adapter", "", dashed=True))
+    o.append(write(adapter_x + 104, 104 + 33, "aster/harness/adapters/<agent>/", MONO, p["ink"], mono=True))
     o.append(
         write(
             adapter_x + 18,
@@ -190,8 +190,8 @@ def adapter_modes(theme: str, fonts) -> str:
 
     modes = [
         (
-            "reef",
-            "evaluation run, in Reef",
+            "aster",
+            "evaluation run, in Aster",
             [
                 ("Run root", "the rendered tree, nothing else"),
                 ("Run", "`run.task, {task} = an instruction"),
@@ -200,7 +200,7 @@ def adapter_modes(theme: str, fonts) -> str:
             "`dirs · model · run.task · sessions",
         ),
         (
-            "reef",
+            "aster",
             "Harbor task, in its container",
             [
                 ("Task container", "Harbor starts it with Docker"),
@@ -250,7 +250,7 @@ def adapter_modes(theme: str, fonts) -> str:
         write(
             40,
             MODES_H - 20,
-            "The middle column needs an npm install: Reef installs the agent in each task's container.",
+            "The middle column needs an npm install: Aster installs the agent in each task's container.",
             BODY,
             p["muted"],
         )
@@ -259,46 +259,46 @@ def adapter_modes(theme: str, fonts) -> str:
     return "\n".join(o)
 
 
-# Reef between the harness and the model: three boxes in a column, narrow enough to read at page width.
+# Aster between the harness and the model: three boxes in a column, narrow enough to read at page width.
 OVERVIEW_W, OVERVIEW_H = 640, 536
 OVERVIEW_BOX = 560
 OVERVIEW_ROWS = (104, 264, 424)
 
 
-def reef_overview(theme: str, fonts) -> str:
+def aster_overview(theme: str, fonts) -> str:
     p = THEMES[theme]
     o = svg(
         p,
         fonts,
         OVERVIEW_W,
         OVERVIEW_H,
-        "Reef between the harness and the model. The harness sends requests and feedback to Reef, and gets answers "
-        "and a new harness tree back. Reef sends inference to the model, and loads new weights into it.",
-        "Where Reef runs",
+        "Aster between the harness and the model. The harness sends requests and feedback to Aster, and gets answers "
+        "and a new harness tree back. Aster sends inference to the model, and loads new weights into it.",
+        "Where Aster runs",
         "Between the harness and the model; it changes both.",
-        [("the harness", "machine"), ("Reef", "reef"), ("the model", "store")],
+        [("the harness", "machine"), ("Aster", "aster"), ("the model", "store")],
     )
     x = 40
     boxes = [
         ("machine", "The harness", "control loop, prompts, skills, tools"),
-        ("reef", "Reef", "serves, records, trains, evolves"),
+        ("aster", "Aster", "serves, records, trains, evolves"),
         ("store", "The model", "local engine or hosted API"),
     ]
     for row, (kind, title, line) in zip(OVERVIEW_ROWS, boxes, strict=True):
         o.append(card(p, x, row, OVERVIEW_BOX, kind, title, line))
-    harness, reef, model = OVERVIEW_ROWS
+    harness, aster, model = OVERVIEW_ROWS
     arrow_x, label_x = x + 60, x + 96
-    o.append(pair(p, arrow_x, harness + BOX_H, reef))
-    middle = (harness + BOX_H + reef) // 2
+    o.append(pair(p, arrow_x, harness + BOX_H, aster))
+    middle = (harness + BOX_H + aster) // 2
     o.append(write(label_x, middle - 4, "requests and feedback", BODY, p["ink"]))
     o.append(write(label_x, middle + 16, "answers and a new harness tree", BODY, p["muted"]))
-    o.append(path(p, [(arrow_x, reef + BOX_H), (arrow_x, model)]))
-    o.append(write(label_x, (reef + BOX_H + model) // 2 + 5, "inference and new weights", BODY, p["ink"]))
+    o.append(path(p, [(arrow_x, aster + BOX_H), (arrow_x, model)]))
+    o.append(write(label_x, (aster + BOX_H + model) // 2 + 5, "inference and new weights", BODY, p["ink"]))
     o.append("</svg>")
     return "\n".join(o)
 
 
-# What runs where in the harness tutorial: your machine on the left, Reef on the right.
+# What runs where in the harness tutorial: your machine on the left, Aster on the right.
 TUTORIAL_W, TUTORIAL_H = 1044, 364
 TUTORIAL_BOX = 330
 
@@ -311,11 +311,11 @@ def harness_tutorial_overview(theme: str, fonts) -> str:
         TUTORIAL_W,
         TUTORIAL_H,
         "What runs where. On your machine, your agent keeps your own settings, rules and skills, and reef-client "
-        "installs and syncs Reef's version. It sends model calls and changed files to Reef, and gets answers and new "
-        "versions back. In Reef, a method proposes a new version, and the snapshots keep every version in Git.",
+        "installs and syncs Aster's version. It sends model calls and changed files to Aster, and gets answers and new "
+        "versions back. In Aster, a method proposes a new version, and the snapshots keep every version in Git.",
         "What runs where",
-        "reef-client sits beside your agent; the method and the snapshots run in Reef.",
-        [("your machine", "machine"), ("Reef", "reef"), ("files", "store")],
+        "reef-client sits beside your agent; the method and the snapshots run in Aster.",
+        [("your machine", "machine"), ("Aster", "aster"), ("files", "store")],
     )
     top = 100
     left, right = 56, TUTORIAL_W - 56 - TUTORIAL_BOX
@@ -323,11 +323,11 @@ def harness_tutorial_overview(theme: str, fonts) -> str:
     zone_bottom = rows[-1] + BOX_H + 20
     o.append(zone(p, left - 16, top, left + TUTORIAL_BOX + 16, zone_bottom, "machine", p["tint"]))
     o.append(cap(left, top + 26, "your machine", p["machine"]))
-    o.append(zone(p, right - 16, top, right + TUTORIAL_BOX + 16, zone_bottom, "reef", p["tint"]))
-    o.append(cap(right, top + 26, "Reef", p["reef"]))
+    o.append(zone(p, right - 16, top, right + TUTORIAL_BOX + 16, zone_bottom, "aster", p["tint"]))
+    o.append(cap(right, top + 26, "Aster", p["aster"]))
     o.append(card(p, left, rows[0], TUTORIAL_BOX, "machine", "Your agent", "with your own settings, rules and skills"))
-    o.append(card(p, left, rows[1], TUTORIAL_BOX, "machine", "reef-client", "installs and syncs Reef's version"))
-    o.append(card(p, right, rows[0], TUTORIAL_BOX, "reef", "Method", "proposes a new version"))
+    o.append(card(p, left, rows[1], TUTORIAL_BOX, "machine", "reef-client", "installs and syncs Aster's version"))
+    o.append(card(p, right, rows[0], TUTORIAL_BOX, "aster", "Method", "proposes a new version"))
     o.append(card(p, right, rows[1], TUTORIAL_BOX, "store", "Releases", "every version, in Git"))
     start, end = left + TUTORIAL_BOX + 16, right - 16
     center, middle = (start + end) // 2, (top + zone_bottom) // 2
@@ -340,7 +340,7 @@ def harness_tutorial_overview(theme: str, fonts) -> str:
 
 
 FIGURES = {
-    "reef-overview": reef_overview,
+    "aster-overview": aster_overview,
     "harness-tutorial-overview": harness_tutorial_overview,
     "harness-method-step": method_step,
     "harness-adapter-modes": adapter_modes,
@@ -349,7 +349,7 @@ FIGURES = {
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--font-cache", type=Path, default=Path.home() / ".cache" / "reef-fonts")
+    parser.add_argument("--font-cache", type=Path, default=Path.home() / ".cache" / "aster-fonts")
     args = parser.parse_args()
     fonts = font_files(args.font_cache)
     for name, figure in FIGURES.items():

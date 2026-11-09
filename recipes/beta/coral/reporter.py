@@ -1,6 +1,6 @@
-"""Report finalized CORAL attempts to Reef as training signal.
+"""Report finalized CORAL attempts to Aster as training signal.
 
-One ``POST /reef/report`` per attempt: the grader score, the attempt's
+One ``POST /aster/report`` per attempt: the grader score, the attempt's
 captured inference references, the CORAL coordinates in metadata, and a
 deterministic client-supplied id so grader re-runs dedup server-side.
 """
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class AttemptReport:
-    """The reef-facing projection of one finalized CORAL attempt."""
+    """The aster-facing projection of one finalized CORAL attempt."""
 
     scenario: str
     agent_id: str
@@ -59,13 +59,13 @@ class AttemptReport:
 
 
 def report_attempt(
-    reef_url: str,
+    aster_url: str,
     report: AttemptReport,
     *,
     token: str | None = None,
     timeout: float = 30.0,
 ) -> dict[str, Any]:
-    """POST one report; returns reef's acknowledgement.
+    """POST one report; returns aster's acknowledgement.
 
     Raises ``urllib.error.HTTPError`` on rejection — a conflicting resend
     (same client id, different payload) is a bug worth failing loudly on.
@@ -73,12 +73,12 @@ def report_attempt(
     body = report.payload()
     headers = {
         "Content-Type": "application/json",
-        "x-reef-scenario": report.scenario,
+        "x-aster-scenario": report.scenario,
     }
     if token:
         headers["Authorization"] = f"Bearer {token}"
     request = urllib.request.Request(
-        reef_url.rstrip("/") + "/reef/report",
+        aster_url.rstrip("/") + "/aster/report",
         data=json.dumps(body).encode("utf-8"),
         headers=headers,
         method="POST",

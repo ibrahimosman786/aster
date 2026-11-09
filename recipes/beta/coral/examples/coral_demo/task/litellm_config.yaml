@@ -1,17 +1,17 @@
-# CORAL gateway upstreams for the Reef TTT example: exactly one model, the
-# Reef-served policy. Agents ask for "reef-policy"; LiteLLM forwards to the
-# Reef service's OpenAI-compatible /v1. run.py exports both environment
-# references before the gateway initializes (REEF_API_BASE from --reef-url,
-# REEF_TOKEN from --reef-token).
+# CORAL gateway upstreams for the Aster TTT example: exactly one model, the
+# Aster-served policy. Agents ask for "aster-policy"; LiteLLM forwards to the
+# Aster service's OpenAI-compatible /v1. run.py exports both environment
+# references before the gateway initializes (ASTER_API_BASE from --aster-url,
+# ASTER_TOKEN from --aster-token).
 model_list:
-  - model_name: reef-policy
+  - model_name: aster-policy
     litellm_params:
-      model: openai/reef-policy
-      api_base: os.environ/REEF_API_BASE
-      api_key: os.environ/REEF_TOKEN
+      model: openai/aster-policy
+      api_base: os.environ/ASTER_API_BASE
+      api_key: os.environ/ASTER_TOKEN
 
 litellm_settings:
   drop_params: true
-  # Surface the upstream's response headers (prefixed) so the reef layer can
-  # capture the x-reef-agent-record-id / x-reef-artifact-id receipts.
+  # Surface the upstream's response headers (prefixed) so the aster layer can
+  # capture the x-aster-agent-record-id / x-aster-artifact-id receipts.
   return_response_headers: true

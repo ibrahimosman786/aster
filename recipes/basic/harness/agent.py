@@ -1,12 +1,12 @@
-"""The smallest Harbor agent that talks to a Reef service.
+"""The smallest Harbor agent that talks to an Aster service.
 
-One model call per trial: the task instruction goes to Reef's
-``/v1/chat/completions`` (Reef records it and returns a receipt), the
+One model call per trial: the task instruction goes to Aster's
+``/v1/chat/completions`` (Aster records it and returns a receipt), the
 completion is written to the path the instruction names, and the receipt
 lands in the Harbor agent context. Harbor runs the verifier after ``run()``
 returns and ends the trial by writing ``result.json`` next to the agent's log
 directory; a watcher thread waits for that file and posts the verifier reward
-back to Reef (``harness.report``), closing the loop without a runner-side step.
+back to Aster (``harness.report``), closing the loop without a runner-side step.
 """
 
 import asyncio
@@ -20,13 +20,13 @@ from typing import Any
 from harbor.agents.base import BaseAgent
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
-from reef_client import ReefClient
+from reef_client import AsterClient
 
 from .report import post_report
 
-#: The Reef ``run.sh`` starts from ``external-provider.yaml``.
+#: The Aster ``run.sh`` starts from ``external-provider.yaml``.
 SERVICE_URL = "http://127.0.0.1:8900"
-TOKEN = "reef-local"
+TOKEN = "aster-local"
 #: This workload's isolated lane.
 SCENARIO = "basic-arithmetic"
 #: Where the basic task's instruction says to put the answer
@@ -35,11 +35,11 @@ ANSWER_PATH = "/workspace/answer.txt"
 
 
 class HarborAgent(BaseAgent):
-    """A one-shot Harbor agent whose single model call is recorded by Reef."""
+    """A one-shot Harbor agent whose single model call is recorded by Aster."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._client = ReefClient(SERVICE_URL, token=TOKEN, timeout_s=300)
+        self._client = AsterClient(SERVICE_URL, token=TOKEN, timeout_s=300)
         # Harbor runs the verifier after run() returns, so the reward arrives
         # in the trial's result.json. Watch from construction: a run() that
         # fails before recording a receipt still gets its reward reported.
@@ -51,17 +51,17 @@ class HarborAgent(BaseAgent):
 
     @staticmethod
     def name() -> str:
-        return "reef-basic"
+        return "aster-basic"
 
     def version(self) -> str | None:
         return None
 
     async def setup(self, environment: BaseEnvironment) -> None:
         """Create the scenario if it does not exist yet: the inference routes serve only a scenario that exists."""
-        await asyncio.to_thread(self._client.post, "/reef/scenarios", SCENARIO, {"name": SCENARIO})
+        await asyncio.to_thread(self._client.post, "/aster/scenarios", SCENARIO, {"name": SCENARIO})
 
     async def run(self, instruction: str, environment: BaseEnvironment, context: AgentContext) -> None:
-        response, receipt = await asyncio.to_thread(self._ask_reef, instruction)
+        response, receipt = await asyncio.to_thread(self._ask_aster, instruction)
         answer = response["choices"][0]["message"]["content"]
 
         result = await environment.exec(f"printf %s {shlex.quote(answer)} > {ANSWER_PATH}")
@@ -69,11 +69,11 @@ class HarborAgent(BaseAgent):
             raise RuntimeError(f"writing {ANSWER_PATH} failed: {result.stderr}")
 
         # The receipt: report.py grades the verifier reward against it. Its record names the artifact that answered.
-        context.metadata = {**(context.metadata or {}), "reef": {"agent_record_ids": [receipt]}}
+        context.metadata = {**(context.metadata or {}), "aster": {"agent_record_ids": [receipt]}}
         context.n_input_tokens = response["usage"]["prompt_tokens"]
         context.n_output_tokens = response["usage"]["completion_tokens"]
 
-    def _ask_reef(self, instruction: str) -> tuple[dict[str, Any], str]:
+    def _ask_aster(self, instruction: str) -> tuple[dict[str, Any], str]:
         return self._client.inference_with_record(
             SCENARIO,
             "/v1/chat/completions",
@@ -87,4 +87,4 @@ class HarborAgent(BaseAgent):
             time.sleep(1)
         result = json.loads(result_path.read_text(encoding="utf-8"))
         post_report(result, client=self._client, scenario=SCENARIO)
-        self.logger.info("reported verifier reward %s to reef", result["verifier_result"]["rewards"]["reward"])
+        self.logger.info("reported verifier reward %s to aster", result["verifier_result"]["rewards"]["reward"])

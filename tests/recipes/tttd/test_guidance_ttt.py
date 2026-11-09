@@ -18,7 +18,7 @@ if str(REPO_ROOT) not in sys.path:
 from recipes.tttd.examples.guidance_ttt.harness import (
     ExecutionBackend,
     OpenAICompatibleExecutionClient,
-    ReefGuidanceTTTHarness,
+    AsterGuidanceTTTHarness,
     TaskContract,
     gpt_oss_120b_backend,
     openrouter_glm_5_2_backend,
@@ -73,7 +73,7 @@ class _LengthScorer(Scorer):
         return VerificationResult(score, score, True, "valid", "accepted", {"code": code})
 
 
-class _ReefClient:
+class _AsterClient:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self.inferences: list[dict] = []
@@ -186,10 +186,10 @@ def test_one_step_links_only_guidance_receipts_and_skips_executor_on_bad_format(
         groups_per_step=2,
         rollouts_per_group=2,
     )
-    reef = _ReefClient()
+    aster = _AsterClient()
     executor = _ExecutionClient()
-    harness = ReefGuidanceTTTHarness(
-        reef,
+    harness = AsterGuidanceTTTHarness(
+        aster,
         executor,
         library,
         scenario="guidance-smoke",
@@ -205,23 +205,23 @@ def test_one_step_links_only_guidance_receipts_and_skips_executor_on_bad_format(
     results = harness.run_step(0)
 
     assert len(results) == 4
-    assert len(reef.inferences) == 4
-    assert len(reef.reports) == 4
+    assert len(aster.inferences) == 4
+    assert len(aster.reports) == 4
     assert len(executor.requests) == 3
     assert sum(result.guidance_format_ok for result in results) == 3
-    assert {tuple(report["references"]) for report in reef.reports} == {
+    assert {tuple(report["references"]) for report in aster.reports} == {
         ("receipt-0",),
         ("receipt-1",),
         ("receipt-2",),
         ("receipt-3",),
     }
-    assert {report["metadata"]["comparison_set"] for report in reef.reports} == {
+    assert {report["metadata"]["comparison_set"] for report in aster.reports} == {
         "tttd-step-0-group-0",
         "tttd-step-0-group-1",
     }
-    assert all(report["metadata"]["algorithm"] == "ttt-discover" for report in reef.reports)
-    assert all(report["metadata"]["prompt_mode"] == "summary_only" for report in reef.reports)
-    assert all("#include <iostream>" not in request["messages"][1]["content"] for request in reef.inferences)
+    assert all(report["metadata"]["algorithm"] == "ttt-discover" for report in aster.reports)
+    assert all(report["metadata"]["prompt_mode"] == "summary_only" for report in aster.reports)
+    assert all("#include <iostream>" not in request["messages"][1]["content"] for request in aster.inferences)
     assert all("#include" in request.user for request in executor.requests)
 
     snapshot = library.snapshot()
@@ -440,10 +440,10 @@ def _wait(statuses, commits=_job_commits, *, timeout_s: float = 1, expected_roll
 
 
 def test_training_wait_returns_the_checkpoint_once_the_job_ended() -> None:
-    running = _reef_status(scenario_step=1, training_job={"job_id": "job-1"})
-    ended = _reef_status(scenario_step=3, finished_jobs=1, served_artifact_id="artifact-1")
+    running = _aster_status(scenario_step=1, training_job={"job_id": "job-1"})
+    ended = _aster_status(scenario_step=3, finished_jobs=1, served_artifact_id="artifact-1")
 
-    outcome = _wait([_reef_status(), running, ended])
+    outcome = _wait([_aster_status(), running, ended])
 
     assert outcome == TrainingJobOutcome(
         job_id="job-1",
@@ -455,7 +455,7 @@ def test_training_wait_returns_the_checkpoint_once_the_job_ended() -> None:
 
 
 def test_training_wait_fails_on_a_failed_job_or_the_wrong_rollout() -> None:
-    ended = _reef_status(scenario_step=3, finished_jobs=1)
+    ended = _aster_status(scenario_step=3, finished_jobs=1)
 
     with pytest.raises(RuntimeError, match="job-1 failed: RuntimeError: out of memory"):
         _wait([ended], lambda: _job_commits(end_event="failed", error="RuntimeError: out of memory"))
@@ -464,7 +464,7 @@ def test_training_wait_fails_on_a_failed_job_or_the_wrong_rollout() -> None:
 
 
 def test_training_wait_fails_when_tttd_reports_the_expected_step_failure() -> None:
-    failed = _reef_status(
+    failed = _aster_status(
         failed_steps=[
             {
                 "step": 1,
@@ -481,9 +481,9 @@ def test_training_wait_fails_when_tttd_reports_the_expected_step_failure() -> No
         _wait([failed], expected_rollout_id=1)
 
 
-def test_training_wait_fails_on_reef_training_error() -> None:
+def test_training_wait_fails_on_aster_training_error() -> None:
     """Issue #344: a failure before the job must not look like a step still in progress."""
-    body = _reef_status(error="guidance-run: RuntimeError: failed before the training job was submitted")
+    body = _aster_status(error="guidance-run: RuntimeError: failed before the training job was submitted")
 
     with pytest.raises(RuntimeError, match="failed before the training job was submitted"):
         _wait([body], timeout_s=0.01)
@@ -497,12 +497,12 @@ def test_training_wait_deadline_is_not_a_builtin_timeout(monkeypatch) -> None:
     )
 
     with pytest.raises(GuidanceTrainingTimeoutError, match="rollout 11 did not complete after 1s") as raised:
-        _wait([_reef_status(scenario_step=1, training_job={"job_id": "job-1"})], expected_rollout_id=11)
+        _wait([_aster_status(scenario_step=1, training_job={"job_id": "job-1"})], expected_rollout_id=11)
 
     assert not isinstance(raised.value, TimeoutError)
 
 
-def _reef_status(
+def _aster_status(
     *,
     error: str | None = None,
     failed_steps: list[dict] | None = None,
@@ -526,14 +526,14 @@ def _reef_status(
     }
 
 
-def test_status_progress_reads_reef_over_http(monkeypatch) -> None:
+def test_status_progress_reads_aster_over_http(monkeypatch) -> None:
     from recipes.tttd.examples.guidance_ttt.harness import run_controller
 
     commits = _job_commits()
     pages = {
-        "/reef/status": {"error": None, "scenarios": {}},
-        "/reef/scenarios/guidance-run/commits?after_step=0&limit=100": {"commits": commits[:2], "next_after_step": 2},
-        "/reef/scenarios/guidance-run/commits?after_step=2&limit=100": {
+        "/aster/status": {"error": None, "scenarios": {}},
+        "/aster/scenarios/guidance-run/commits?after_step=0&limit=100": {"commits": commits[:2], "next_after_step": 2},
+        "/aster/scenarios/guidance-run/commits?after_step=2&limit=100": {
             "commits": commits[2:],
             "next_after_step": None,
         },
@@ -558,12 +558,12 @@ def test_status_progress_reads_reef_over_http(monkeypatch) -> None:
         return Response(pages[request.full_url.removeprefix("http://127.0.0.1:8900")])
 
     monkeypatch.setattr(run_controller.urllib.request, "urlopen", urlopen)
-    progress = StatusTrainingProgress("http://127.0.0.1:8900/", "guidance-run", token="reef-local")
+    progress = StatusTrainingProgress("http://127.0.0.1:8900/", "guidance-run", token="aster-local")
 
     # A scenario the status does not list yet has not trained.
     assert progress.position() == TrainingPosition(0, 0, None)
     assert progress.commits_after(0) == commits
-    assert seen == [("Bearer reef-local", 30.0)] * 3
+    assert seen == [("Bearer aster-local", 30.0)] * 3
 
     with pytest.raises(ValueError, match="training timeout"):
         StatusTrainingProgress("http://127.0.0.1:8900", "guidance-run", timeout_s=0)
@@ -781,7 +781,7 @@ def test_harbor_agent_runs_one_committed_step_and_submits_the_best_candidate(
     class _Progress(TrainingProgress):
         def __init__(self, *args, **kwargs) -> None:
             assert args == ("http://127.0.0.1:8900", "guidance-smoke")
-            assert kwargs["token"] == "reef-local"
+            assert kwargs["token"] == "aster-local"
 
         def position(self) -> TrainingPosition:
             return TrainingPosition(0, 0, None)
@@ -813,7 +813,7 @@ def test_harbor_agent_runs_one_committed_step_and_submits_the_best_candidate(
 
     monkeypatch.setattr(agent_module, "prepare_seed", lambda config, scorer: SEED)
     agent = object.__new__(agent_module.HarborAgent)
-    agent._client = _ReefClient()
+    agent._client = _AsterClient()
     agent.model_name = "Qwen/Qwen3-8B"
     agent.logger = logging.getLogger("guidance-test")
     environment = _Environment()
@@ -834,11 +834,11 @@ def test_harbor_agent_runs_one_committed_step_and_submits_the_best_candidate(
     submitted = base64.b64decode(environment.commands[0].split()[2]).decode()
     assert "#include <iostream>" in submitted
     assert "/workspace/solution.cpp" in environment.commands[0]
-    reef = context.metadata["reef"]
-    assert reef["agent_record_ids"] == ["receipt-1"]
-    assert (reef["start_step"], reef["next_step"]) == (0, 1)
-    assert reef["step_summaries"][0]["sampled_rollouts"] == 2
-    assert reef["step_summaries"][0]["well_formed_guidance"] == 1
+    aster = context.metadata["aster"]
+    assert aster["agent_record_ids"] == ["receipt-1"]
+    assert (aster["start_step"], aster["next_step"]) == (0, 1)
+    assert aster["step_summaries"][0]["sampled_rollouts"] == 2
+    assert aster["step_summaries"][0]["well_formed_guidance"] == 1
     resumed = GuidanceRunStateStore(
         tmp_path / "guidance-run", _identity(groups_per_step=1, rollouts_per_group=2, guidance_max_tokens=64)
     ).load()
@@ -852,11 +852,11 @@ def test_executor_outage_does_not_become_a_zero_reward(tmp_path: Path) -> None:
         def complete(self, request):
             raise ExecutorUnavailableError("HTTP 402")
 
-    client = _ReefClient()
+    client = _AsterClient()
     library = prepare_library(
         seed_path=SEED, run_path=tmp_path / "library.json", groups_per_step=1, rollouts_per_group=2
     )
-    harness = ReefGuidanceTTTHarness(
+    harness = AsterGuidanceTTTHarness(
         client,
         UnavailableExecutor(),
         library,

@@ -1,8 +1,8 @@
 """ATIF fixtures shared by backend and recipe contract tests."""
 
-from reef.core import AgentRecord, RequestType
-from reef.core.trajectories import make_trajectory
-from reef.train.types import TrajectorySample
+from aster.core import AgentRecord, RequestType
+from aster.core.trajectories import make_trajectory
+from aster.train.types import TrajectorySample
 
 
 def policy_trajectory(

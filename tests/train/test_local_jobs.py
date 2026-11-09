@@ -13,13 +13,13 @@ import pytest
 from tests.support._trajectories import policy_trajectory
 from tests.support.job_data import job_data_ref
 
-from reef.artifact import DefaultStart
-from reef.core.job_data import JobData
-from reef.core.weight_layout import ArtifactFormat
-from reef.storage.durable_files import write_json
-from reef.train import local_jobs
-from reef.train.component import SavedCheckpoint, ScenarioRoot, TrainingJob
-from reef.train.local_jobs import CHECKPOINTS_FILE, JOB_FILE, RESULT_FILE, LocalJobComponent
+from aster.artifact import DefaultStart
+from aster.core.job_data import JobData
+from aster.core.weight_layout import ArtifactFormat
+from aster.storage.durable_files import write_json
+from aster.train import local_jobs
+from aster.train.component import SavedCheckpoint, ScenarioRoot, TrainingJob
+from aster.train.local_jobs import CHECKPOINTS_FILE, JOB_FILE, RESULT_FILE, LocalJobComponent
 
 WAIT_SECONDS = 5.0
 

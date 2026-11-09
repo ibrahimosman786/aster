@@ -26,22 +26,22 @@ from tests.support.runtime_stubs import StubTrainingComponent, runtime_bindings
 from tests.support.samples_service import make_samples
 from tests.support.serving import wait_for_serving
 
-from reef.artifact import InMemoryRepositoryBackend, SnapshotRef
-from reef.core import AgentRecord, RequestType
-from reef.core.errors import ReefError
-from reef.core.trajectories import source_record_id
-from reef.dispatcher import Dispatcher, local_workers
-from reef.recipe.base import Recipe
-from reef.storage.commit_history import CommitHistoryError, CommitHistoryScenarioStore
-from reef.storage.commits import CommitRecord, active_snapshot
-from reef.storage.job_data import read_job_data
-from reef.storage.samples import SAMPLE_KINDS, consumed_sample_id, stage_item_id
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.sqlite import SQLiteScenarioDatabase, SQLiteScenarioStorage
-from reef.train import Trainer
-from reef.train.component import SavedCheckpoint, TrainingJob
-from reef.train.jobs import JobLoop, JobLoopState
-from reef.train.pipeline import TrainingPipeline
+from aster.artifact import InMemoryRepositoryBackend, SnapshotRef
+from aster.core import AgentRecord, RequestType
+from aster.core.errors import AsterError
+from aster.core.trajectories import source_record_id
+from aster.dispatcher import Dispatcher, local_workers
+from aster.recipe.base import Recipe
+from aster.storage.commit_history import CommitHistoryError, CommitHistoryScenarioStore
+from aster.storage.commits import CommitRecord, active_snapshot
+from aster.storage.job_data import read_job_data
+from aster.storage.samples import SAMPLE_KINDS, consumed_sample_id, stage_item_id
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.sqlite import SQLiteScenarioDatabase, SQLiteScenarioStorage
+from aster.train import Trainer
+from aster.train.component import SavedCheckpoint, TrainingJob
+from aster.train.jobs import JobLoop, JobLoopState
+from aster.train.pipeline import TrainingPipeline
 
 
 def sample_record(
@@ -782,7 +782,7 @@ def test_recovery_rejects_a_gapped_log(tmp_path) -> None:
     second = build_training_dispatcher(
         RecordingComponent(), tmp_path, backend_factory, agent_record_dir=agent_record_dir
     )
-    with pytest.raises(ReefError, match="corrupt"):
+    with pytest.raises(AsterError, match="corrupt"):
         second.get_or_create_scenario("math")
 
 

@@ -5,9 +5,9 @@ import types
 
 import pytest
 
-from reef.execution.executor.placement import GpuBundles
-from reef.train.slime_backend import resources
-from reef.train.slime_backend.reef_adapters.arguments import SlimeArguments
+from aster.execution.executor.placement import GpuBundles
+from aster.train.slime_backend import resources
+from aster.train.slime_backend.aster_adapters.arguments import SlimeArguments
 
 
 @pytest.fixture
@@ -86,7 +86,7 @@ def test_the_driver_connects_once_reserves_slimes_placement_group_and_releases_i
         "namespace": "test",
         "runtime_env": {
             "env_vars": {"PYTHONPATH": "/repo", resources.DEPLOYMENT_ENV: owned._process_lease},
-            "worker_process_setup_hook": "reef.execution.executor.process_guard.install",
+            "worker_process_setup_hook": "aster.execution.executor.process_guard.install",
         },
     }
     with pytest.raises(RuntimeError, match="only be started once"):

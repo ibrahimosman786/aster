@@ -1,8 +1,8 @@
-"""Claude Code as the AutoEnvScaling author: Reef's pinned Claude Code in a cloud sandbox, signed in with OAuth.
+"""Claude Code as the AutoEnvScaling author: Aster's pinned Claude Code in a cloud sandbox, signed in with OAuth.
 
 :class:`ClaudeCodeAuthor` runs Claude Code headless (``claude -p``) on the inputs, rules and workspace that pi
 gets (:class:`~recipes.beta.autoenvscaling.author.AgentAuthor`). Claude Code sends every model call itself, straight
-to Anthropic, with the token in its process environment, so Reef records none of them: the task names its session
+to Anthropic, with the token in its process environment, so Aster records none of them: the task names its session
 and Claude Code's transcript instead of a model-call record. The agent checks its task with the ``task_check.py``
 command, which reaches a loopback gateway (:class:`CheckGateway`) that runs the checks and answers every model
 route with 404.
@@ -24,7 +24,7 @@ import time
 from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
 
-from reef_client.client import ReefClient
+from reef_client.client import AsterClient
 
 from recipes.beta.autoenvscaling.author import (
     AGENT_PROMPT,
@@ -49,13 +49,13 @@ from recipes.beta.autoenvscaling.author import (
 from recipes.beta.autoenvscaling.author_credentials import CredentialChecks, CredentialHeld, clean_run, scrubbed
 from recipes.beta.autoenvscaling.check_gateway import CheckGateway
 from recipes.beta.autoenvscaling.sources import SessionSource
-from reef.execution.sandbox.environment import execute
-from reef.execution.sandbox.process import ProgramExecutor, ProgramLaunchError, ProgramTimeout, SandboxUnavailable
-from reef.harness.adapters import get_adapter
-from reef.harness.tasks.vendor_install import AdapterProgram
-from reef.harness.tree import HarnessTree
-from reef.harness.tree.render import render_tree
-from reef.record2sample.generator.designer import SYSTEM_PROMPT
+from aster.execution.sandbox.environment import execute
+from aster.execution.sandbox.process import ProgramExecutor, ProgramLaunchError, ProgramTimeout, SandboxUnavailable
+from aster.harness.adapters import get_adapter
+from aster.harness.tasks.vendor_install import AdapterProgram
+from aster.harness.tree import HarnessTree
+from aster.harness.tree.render import render_tree
+from aster.record2sample.generator.designer import SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -78,10 +78,10 @@ RUN_VARIABLES = frozenset(
         "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB",
         "BASH_DEFAULT_TIMEOUT_MS",
         "BASH_MAX_TIMEOUT_MS",
-        "REEF_AUTHOR_URL",
-        "REEF_AUTHOR_DEADLINE_MS",
-        "REEF_AUTHOR_FINISH_SECONDS",
-        "REEF_AUTHOR_CHECK",
+        "ASTER_AUTHOR_URL",
+        "ASTER_AUTHOR_DEADLINE_MS",
+        "ASTER_AUTHOR_FINISH_SECONDS",
+        "ASTER_AUTHOR_CHECK",
     }
 )
 #: The most characters of Claude Code's own text that an error message keeps.
@@ -91,11 +91,11 @@ SESSION_ID = re.compile(r"[0-9A-Za-z-]+")
 # Appended to the agent's rules: task_check is a command here, not a tool.
 CLAUDE_CHECK_TEXT = """
 HOW TO CHECK:
-- task_check is a command: run `python3 "$REEF_AUTHOR_CHECK"` with Bash. It prints the check's result as JSON, then
+- task_check is a command: run `python3 "$ASTER_AUTHOR_CHECK"` with Bash. It prints the check's result as JSON, then
   your remaining time.
 - When it prints `state: running`, the check still runs: run the command it prints
-  (`python3 "$REEF_AUTHOR_CHECK" --wait <check_id>`) to wait for that check's result. While a check runs,
-  `python3 "$REEF_AUTHOR_CHECK"` also waits for it and starts no other check.
+  (`python3 "$ASTER_AUTHOR_CHECK" --wait <check_id>`) to wait for that check's result. While a check runs,
+  `python3 "$ASTER_AUTHOR_CHECK"` also waits for it and starts no other check.
 - When it prints "Finish now", stop with the best task you have in ./task/.
 """
 
@@ -138,9 +138,9 @@ def transcript_path(work_dir: Path, session_id: str) -> str:
 
 
 class ClaudeCodeAuthor(VariantAuthor):
-    """Reef's pinned Claude Code in a cloud sandbox, signed in with ``claude_token`` and asking for ``model``.
+    """Aster's pinned Claude Code in a cloud sandbox, signed in with ``claude_token`` and asking for ``model``.
 
-    Values: ``reef_url`` and ``token`` read the source sessions, and ``cache_dir`` keeps the repository snapshots.
+    Values: ``aster_url`` and ``token`` read the source sessions, and ``cache_dir`` keeps the repository snapshots.
     ``claude_token`` is a Claude Code OAuth token (it starts with ``sk-ant-oat``). One run lasts at most
     ``timeout_seconds`` (positive) and at most ``max_turns`` (positive) agent turns, Claude Code's ``--max-turns``.
     With ``has_behaviour_rule`` the rules include the behaviour rule.
@@ -152,7 +152,7 @@ class ClaudeCodeAuthor(VariantAuthor):
     def __init__(
         self,
         *,
-        reef_url: str,
+        aster_url: str,
         token: str | None,
         claude_token: str,
         model: str,
@@ -166,7 +166,7 @@ class ClaudeCodeAuthor(VariantAuthor):
             raise ValueError(f"the Claude Code token must be an OAuth token, which starts with {TOKEN_PREFIX}")
         if not model or timeout_seconds <= 0 or max_turns < 1:
             raise ValueError("the Claude Code author needs a model, a positive timeout and positive turns")
-        self.reef = ReefClient(reef_url, token=token, timeout_s=RECORD_READ_TIMEOUT_SECONDS)
+        self.aster = AsterClient(aster_url, token=token, timeout_s=RECORD_READ_TIMEOUT_SECONDS)
         self.claude_token = claude_token
         self.model = model
         self.executor = executor
@@ -210,13 +210,13 @@ class ClaudeCodeAuthor(VariantAuthor):
         variant: TaskVariant | None = None,
     ) -> AuthoredTask:
         """Claude Code's task from ``source``, or with ``variant`` a variant of its parent; ``tags`` go unused,
-        since Reef records none of its model calls.
+        since Aster records none of its model calls.
 
         Raises :class:`CredentialHeld` when the task holds the token: the task is not admitted.
         """
         inputs = work_dir / "inputs"
         task_dir = work_dir / "workspace" / "task"
-        write_inputs(self.reef, source, work_dir, variant)
+        write_inputs(self.aster, source, work_dir, variant)
         try:
             shutil.copytree(repository_snapshot(source, self.cache_dir), inputs / "repo", symlinks=True)
             tools = AgentTools(work_dir, CredentialChecks(checks, token=self.claude_token))
@@ -291,10 +291,10 @@ class ClaudeCodeAuthor(VariantAuthor):
                 "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB": "1",
                 "BASH_DEFAULT_TIMEOUT_MS": BASH_TIMEOUT_MS,
                 "BASH_MAX_TIMEOUT_MS": BASH_TIMEOUT_MS,
-                "REEF_AUTHOR_URL": gateway.base_url,
-                "REEF_AUTHOR_DEADLINE_MS": str(int((time.time() + self.timeout_seconds) * 1000)),
-                "REEF_AUTHOR_FINISH_SECONDS": str(FINISH_SECONDS),
-                "REEF_AUTHOR_CHECK": str(work_dir / "tools" / "task_check.py"),
+                "ASTER_AUTHOR_URL": gateway.base_url,
+                "ASTER_AUTHOR_DEADLINE_MS": str(int((time.time() + self.timeout_seconds) * 1000)),
+                "ASTER_AUTHOR_FINISH_SECONDS": str(FINISH_SECONDS),
+                "ASTER_AUTHOR_CHECK": str(work_dir / "tools" / "task_check.py"),
             }
         )
         argv = [

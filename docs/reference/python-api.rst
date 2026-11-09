@@ -41,7 +41,7 @@ Start with Recipe and add only what the method actually needs.
 +---------------------------------------------+--------------------------------------------------+------------------------------+
 
 Method code should depend only on what this page documents. Anything else under
-``reef.`` is an implementation detail and may change.
+``aster.`` is an implementation detail and may change.
 
 Backend and runtime contracts
 -----------------------------
@@ -65,8 +65,8 @@ there is no aggregate runtime:
 
 .. code:: python
 
-   from reef.inference.interfaces import InferenceBackend, InferenceRuntime
-   from reef.train.component import JobStatus, SavedCheckpoint, TrainingComponent, TrainingJob
+   from aster.inference.interfaces import InferenceBackend, InferenceRuntime
+   from aster.train.component import JobStatus, SavedCheckpoint, TrainingComponent, TrainingJob
 
 A ``TrainingComponent`` runs bounded training jobs (see `Training jobs and
 components`_). An ``InferenceRuntime`` executes requests, owns admission, and
@@ -78,24 +78,24 @@ serve. ``InferenceEngine`` names the operations one engine actor offers, which
 ``AsterSGLangEngine`` and ``AsterVLLMEngine`` implement. The engine supervision
 hooks an inference integration also implements (``InferenceEngineGroup``,
 ``InferenceMonitor``, ``EngineHealthChecks``, ``EngineHealthTarget``) live in
-``reef/inference/recovery.py``, next to the objects that drive them.
+``aster/inference/recovery.py``, next to the objects that drive them.
 Implementations inherit the corresponding interface and provide every abstract
 operation. SGLang's ``SGLangInferenceBackend`` inherits ``InferenceBackend``
 through ``EngineInferenceBackend``. ``InferenceService`` in
-``reef/inference/deployment.py`` owns engine start and shutdown. It also requires
+``aster/inference/deployment.py`` owns engine start and shutdown. It also requires
 explicit inheritance; inference factory discovery rejects objects that only
 happen to expose similarly named methods.
 
 Two other extension points have separate names and purposes:
 
-- ``reef.train.jobs.JobLoop`` is how a ``Trainer`` trains: ``Trainer.build``
+- ``aster.train.jobs.JobLoop`` is how a ``Trainer`` trains: ``Trainer.build``
   takes it as ``job_loop`` (see `Training jobs and components`_), and a
   trainer without one trains nothing. Every training step is a job of a
   training component; the harness recipe's ``HarnessTrainingComponent``
-  (``reef.train.harness_backend.component``) runs each harness step's
+  (``aster.train.harness_backend.component``) runs each harness step's
   ``HarnessBackend`` as one job, in the training service.
   The trainer's job size is its sample-to-job stage's ``job_samples``.
-- ``reef.inference.interfaces.InferenceHandler`` executes one buffered or streaming
+- ``aster.inference.interfaces.InferenceHandler`` executes one buffered or streaming
   request. Its ``artifact`` argument is an ``InferenceArtifact``: the component
   ``artifact_id``, an optional ``local_path``, and ``require_token_runtime_load_ids``.
   Handlers receive no repository or snapshot locator. Runtime and recipe objects
@@ -134,10 +134,10 @@ artifact returns it as ``engine``. It must not start an engine. While an
 engine is ``"starting"``, ``engine_detail(served)`` can give one short line
 for a person, which the status returns as ``engine_detail``, and
 ``engine_steps(served)`` its ``start`` and ``load`` phases as
-``reef.inference.interfaces.StartupSteps`` (RFC #1283).
+``aster.inference.interfaces.StartupSteps`` (RFC #1283).
 
 While an ``InferenceRuntime`` serves an artifact, it can report the phase of
-its startup with ``reef.inference.startup.report_startup(phase, detail,
+its startup with ``aster.inference.startup.report_startup(phase, detail,
 estimate_seconds=...)``: ``prepare`` (deploy, convert or quantize), ``start``
 (a machine and the weights) or ``load`` (GPU memory, kernels, warm-up). The
 serving worker adds each report to the serving work's progress for that
@@ -147,7 +147,7 @@ phase or its detail changes. Outside a serving work, the call does nothing.
 A runtime that serves several models declares a serving field that chooses the
 model of each artifact (`Serving settings <http-api.rst#serving-settings>`__).
 It reads an artifact's training starts with
-``reef.artifact.artifact.training_starts_of``, nearest first, so that a training
+``aster.artifact.artifact.training_starts_of``, nearest first, so that a training
 artifact can use the setting of its start.
 
 Streaming handlers return ``InferenceStream``; its ``record_response`` and
@@ -171,23 +171,23 @@ Recipe
 
 .. code:: python
 
-   from reef.recipe import Recipe, WeightTrainingRecipe, config_field
-   from reef.recipe.harness import HarnessEvolutionRecipe
-   from reef.recipe.sft import SFTRecipe
+   from aster.recipe import Recipe, WeightTrainingRecipe, config_field
+   from aster.recipe.harness import HarnessEvolutionRecipe
+   from aster.recipe.sft import SFTRecipe
 
 A recipe is one frozen dataclass configuring the serving and evolution behavior
 for every scenario in a deployment.
 
 .. code:: text
 
-   Recipe                       record-only by default   reef.recipe
+   Recipe                       record-only by default   aster.recipe
    ├── WeightTrainingRecipe     training component, inference runtime, objective
-   │   ├── SFTRecipe                                        reef.recipe.sft
+   │   ├── SFTRecipe                                        aster.recipe.sft
    │   ├── SAORecipe                                        recipes.sao.recipe
    │   ├── TTTDRecipe                                       recipes.tttd.recipe
    │   ├── SDFTRecipe                                       recipes.sdft.recipe
    │   └── OpenClawRLRecipe                                 recipes.openclawrl.recipe
-   └── HarnessEvolutionRecipe   harness tree + task runs reef.recipe.harness
+   └── HarnessEvolutionRecipe   harness tree + task runs aster.recipe.harness
        └── ReefineRecipe (beta)                           recipes.beta.reefine
 
 A harness method is a ``Method`` that ``HarnessEvolutionRecipe`` runs, not a
@@ -267,7 +267,7 @@ Common members
 |                                                   |                             | refused at build               |
 +---------------------------------------------------+-----------------------------+--------------------------------+
 | ``serving_status()``                              | ``Mapping | None``          | runtime-wide state for         |
-|                                                   |                             | ``/reef/status``               |
+|                                                   |                             | ``/aster/status``               |
 +---------------------------------------------------+-----------------------------+--------------------------------+
 
 ``check_root_start(root)`` checks an item start before scenario registration.
@@ -280,7 +280,7 @@ as trainer construction. A refusal leaves the scenario unregistered.
 
 Every recipe may declare ``report_type``, the ``ReportBase`` subclass its
 reports parse as (``None`` keeps ingress open), and ``harness_adapter``, the
-adapter ``GET /reef/harness`` renders the recipe's harness artifacts for
+adapter ``GET /aster/harness`` renders the recipe's harness artifacts for
 (``None``, the default, for a recipe with no harness tree;
 ``HarnessEvolutionRecipe`` names ``evolution.adapter``).
 The scenario list names it for every scenario. Every recipe declares
@@ -326,7 +326,7 @@ parser, and an optional environment fallback:
 
 .. code:: python
 
-   clip_ratio: float = config_field(0.2, env="REEF_MY_METHOD_CLIP_RATIO")
+   clip_ratio: float = config_field(0.2, env="ASTER_MY_METHOD_CLIP_RATIO")
 
 Precedence is explicit configuration, then environment, then the default.
 ``from_environment()`` builds the recipe. On weight-training recipes,
@@ -340,7 +340,7 @@ Report
 
 .. code:: python
 
-   from reef.core.reports import ReportBase, ReportValidationError, ScoredRolloutReport, TeacherContextReport
+   from aster.core.reports import ReportBase, ReportValidationError, ScoredRolloutReport, TeacherContextReport
 
 ``ScoredRolloutReport`` is the shared score-only contract and
 ``TeacherContextReport`` the shared contract of the distilling recipes: a
@@ -396,7 +396,7 @@ Embed the service
 -----------------
 
 An application can run the complete Aster service in its own process.
-``reef.service.assembly.build_app`` makes the dispatcher and the HTTP app from
+``aster.service.assembly.build_app`` makes the dispatcher and the HTTP app from
 a ``ServiceConfig``. The app includes record retention, the inference routes,
 the evaluation token, readiness of local cycles, and cleanup.
 
@@ -404,8 +404,8 @@ the evaluation token, readiness of local cycles, and cleanup.
 
    from aiohttp import web
 
-   from reef.service.app import get_dispatcher
-   from reef.service.assembly import build_app
+   from aster.service.app import get_dispatcher
+   from aster.service.assembly import build_app
 
    app = build_app(settings, inference_handler=handler)
 
@@ -433,7 +433,7 @@ the evaluation token, readiness of local cycles, and cleanup.
 Scenario stores
 ---------------
 
-``RecordStore`` in ``reef.storage.records`` is the abstract base for appending,
+``RecordStore`` in ``aster.storage.records`` is the abstract base for appending,
 reading and auditing records. ``ScenarioStore`` composes a ``RecordStore`` with committed
 scenario state, settling each step and its record progress together. Recipes
 and trainers use the record interface; ``Scenario`` coordinates training and
@@ -443,7 +443,7 @@ artifact publication through its supplied scenario store.
 scenario and returns an ``AppendResult`` for each input. Conflicts roll back the
 batch; identical retries and evicted records follow ``append_result`` semantics.
 SQLite and PostgreSQL implement this with one write transaction. Other adapters
-must implement atomic batch append to support ``POST /reef/records/batch``;
+must implement atomic batch append to support ``POST /aster/records/batch``;
 the default raises ``NotImplementedError`` before writing. Single-record
 callers remain compatible with existing adapters.
 
@@ -457,11 +457,11 @@ bundled ``ItemRecordStore``, ``CommitHistoryScenarioStore``, and
 
    from pathlib import Path
 
-   from reef.dispatcher import Dispatcher
-   from reef.storage.sql_coordination import memory_coordination
-   from reef.storage.sqlite import SQLiteScenarioStorage
+   from aster.dispatcher import Dispatcher
+   from aster.storage.sql_coordination import memory_coordination
+   from aster.storage.sqlite import SQLiteScenarioStorage
 
-   storage = SQLiteScenarioStorage(Path(".reef/agent-record"))
+   storage = SQLiteScenarioStorage(Path(".aster/agent-record"))
    dispatcher = Dispatcher(
        recipe,
        repository_backend_factory,
@@ -500,8 +500,8 @@ Direct ``Scenario`` construction requires ``store=...``. Replace the former
 removed. ``CommitHistoryScenarioStore.commit_history`` is for backend diagnostics.
 
 The abstract bases ``ScenarioStore`` and ``ScenarioStorage`` are exported from
-``reef.storage.scenario``, alongside ``ScenarioSettings`` and ``ScenarioStoreConflict``.
-Concrete storage classes live under ``reef.storage``:
+``aster.storage.scenario``, alongside ``ScenarioSettings`` and ``ScenarioStoreConflict``.
+Concrete storage classes live under ``aster.storage``:
 ``commit_history.CommitHistoryScenarioStore`` accepts a ``RecordStore``, a
 ``TaskStorage`` (``tasks=``), and a ``CommitHistory``. The bundled record
 stores give their ``TaskStorage`` from ``task_storage()`` and their
@@ -630,7 +630,7 @@ A ``TaskStore`` holds published Harbor tasks, each in the ``train`` or
 ``eval`` split. A record-to-sample stage that generates tasks saves them in a
 task store before any rollout. Thus generation and rollout can recover
 independently after a restart. The contract and its values are in
-``reef.storage.tasks``.
+``aster.storage.tasks``.
 
 To open a store, call ``task_storage.open(name)``. Each record-to-sample stage
 uses its own ``name``.
@@ -649,7 +649,7 @@ trainer reads them as itself (``SampleStore.for_trainer``) from
 ``PipelineContext.samples``.
 
 The service takes a task item in the ``train`` split of a scenario
-(``POST /reef/namespaces/{owner}/data/tasks``) only when a trainer of the
+(``POST /aster/namespaces/{owner}/data/tasks``) only when a trainer of the
 scenario trains imported tasks (``Trainer.accepts_imported_tasks``). A sample-to-job stage that trains
 them sets the class attribute ``accepts_imported_tasks``. An upload to the
 ``eval`` split is open to every recipe, because an evaluation runs those
@@ -721,7 +721,7 @@ records and commits. Record retention does not delete tasks.
 Task file stores
 ~~~~~~~~~~~~~~~~
 
-A ``TaskFileStore`` (``reef.storage.tasks``) keeps the directories of the
+A ``TaskFileStore`` (``aster.storage.tasks``) keeps the directories of the
 published tasks, addressed by the digest of their files. The digest covers the
 directory name, and the path and bytes of each file. Thus a repeated save of
 the same files changes nothing. A deployment selects the store in
@@ -757,7 +757,7 @@ uses a ``LocalTaskFileStore`` in ``task-files`` under its directory.
 Data stores
 ~~~~~~~~~~~
 
-A ``DataStore`` (``reef.storage.data``) keeps the deployment's data items
+A ``DataStore`` (``aster.storage.data``) keeps the deployment's data items
 (RFC #1028). An item is ``(id, content, metadata)``. Its content never
 changes: the JSON object of a trajectory or a record, or the directory of a
 task, which the task file store keeps in the owner's partition. Its metadata
@@ -766,7 +766,7 @@ is a JSON object. Aster reads ``kind`` (``trajectory``, ``task`` or
 ``eval``) and, for a record or artifact, ``origin``
 (``{scenario, artifact_id}``). ``kind``, ``owner`` and ``origin`` never change. A deployment
 selects the store in ``storage.data_store``; ``SQLiteDataStore`` and
-``PostgresDataStore`` (``reef.storage.sql_data``) and ``MemoryDataStore`` are
+``PostgresDataStore`` (``aster.storage.sql_data``) and ``MemoryDataStore`` are
 built in. Every operation names one owner and reads or writes only its items.
 Every store links the record items of each owner into trajectories, as the
 record stores do. The SQL stores keep only the messages that each item adds;
@@ -809,7 +809,7 @@ stores`_).
        ``parent``, the nearest ancestor in its trajectory that is still
        stored (``None`` for a root), and ``entry_count``. A trajectory ends at
        a call that no stored call names as parent; its calls are
-       ``reef.core.trajectory_index.trajectory_calls`` of the path from the
+       ``aster.core.trajectory_index.trajectory_calls`` of the path from the
        root. Reports and unknown IDs are left out.
    * - ``groups(owner, *, kind, key, before=None, limit=1000)``
      - The ``ItemGroup`` values of the owner's items of ``kind`` by the string
@@ -829,7 +829,7 @@ The store checks the form of the metadata. The service checks that
 Segment stores
 ~~~~~~~~~~~~~~
 
-A ``SegmentStore`` (``reef.storage.segments``) keeps segments: immutable
+A ``SegmentStore`` (``aster.storage.segments``) keeps segments: immutable
 JSON Lines files, each in one partition. The SQL data stores use one
 partition per owner. A deployment selects the store in
 ``storage.segment_backend`` (see `Keep large content in segment files
@@ -880,7 +880,7 @@ uses Git LFS. A deployment selects a different backend in
 <../user-guide/operate.rst#choose-the-artifact-backend>`__).
 
 A backend plugin is a subclass of
-``reef.artifact.ConfigurableRepositoryBackendFactory``. Calling the factory
+``aster.artifact.ConfigurableRepositoryBackendFactory``. Calling the factory
 with a scenario name returns the ``RepositoryBackend`` of that scenario. The
 plugin implements one class method:
 
@@ -962,15 +962,15 @@ directory, ending with ``/``, in a scheme that ``ArtifactSources`` reads. The
 so that a scenario, also in another deployment, imports the snapshot from
 there. The default returns None.
 
-``tests/artifact/test_reef_artifacts.py`` and
-``tests/artifact/test_reef_git_lfs.py`` show the publication and recovery
+``tests/artifact/test_aster_artifacts.py`` and
+``tests/artifact/test_aster_git_lfs.py`` show the publication and recovery
 behavior that a backend must have. ``GitLFSRepositoryBackendFactory`` is the
 built-in plugin. Aster does not call a close method on a backend factory.
 
 Artifact imports
 ----------------
 
-``POST /reef/scenarios/{scenario}/artifacts`` imports a directory as a new
+``POST /aster/scenarios/{scenario}/artifacts`` imports a directory as a new
 artifact of one component (`Import an artifact
 <../user-guide/operate.rst#import-an-artifact>`__). A source reader opens the
 files that the URI names, the component's layout checks them where the source
@@ -978,11 +978,11 @@ keeps them, and then Aster stores a copy, or a reference to a Hugging Face
 revision that cannot change. Two contracts decide what an import accepts.
 
 A component's layout is the ``layout`` of its ``ComponentSpec``, an
-``reef.artifact.components.ArtifactLayout``. ``check(files)`` returns when ``files`` are
+``aster.artifact.components.ArtifactLayout``. ``check(files)`` returns when ``files`` are
 an artifact in the layout of the component's snapshots, and the remote weights
 that they name exist. Otherwise it raises ``ValueError``, and Aster answers
 HTTP 400 before it copies anything. ``None``, the default, means that the
-component takes no import. ``files`` is a ``reef.artifact.ArtifactFiles``. It
+component takes no import. ``files`` is a ``aster.artifact.ArtifactFiles``. It
 gives ``paths()``, and ``sha256(path)`` and ``read_bytes(path)`` for each path.
 Read only the files that the check needs: on an S3 prefix or a Hugging Face
 revision, each read downloads that file. The built-in recipes bind one:
@@ -998,7 +998,7 @@ revision, each read downloads that file. The built-in recipes bind one:
 After the layout, the snapshot's own admission check runs on what Aster stores,
 as at a training publication.
 
-A source reader is a subclass of ``reef.artifact.ArtifactSourceReader`` with
+A source reader is a subclass of ``aster.artifact.ArtifactSourceReader`` with
 two members:
 
 .. code:: python
@@ -1008,7 +1008,7 @@ two members:
 
    def open(self, uri: str) -> SourceFiles: ...
 
-``open`` returns the ``reef.artifact.SourceFiles`` that ``uri`` names, and
+``open`` returns the ``aster.artifact.SourceFiles`` that ``uri`` names, and
 reads at most a listing. Raise ``ValueError`` for a URI that names nothing the
 reader can read, and ``ArtifactSourceError`` when the source fails.
 ``SourceFiles`` adds three members to ``ArtifactFiles``:
@@ -1031,7 +1031,7 @@ component's layout says that its readers resolve one
 (``ArtifactLayout.resolves_references``; ``TrainingArtifactLayout`` does for releases
 that hold weight files). Then Aster stores only ``hf-reference.json``,
 ``{"uri": "hf://org/model", "version": "<commit>"}``, and
-``reef.artifact.read_reference(directory)`` reads it back. The built-in
+``aster.artifact.read_reference(directory)`` reads it back. The built-in
 serving runtimes load such a snapshot from the revision's snapshot, which
 Hugging Face downloads once into its cache. A runtime that loads models from
 the Hub can read the reference and download nothing.
@@ -1039,12 +1039,12 @@ the Hub can read the reference and download nothing.
 Record storage and audit
 ------------------------
 
-``reef.storage.records`` defines ``RecordStore``, record result and error types, and
+``aster.storage.records`` defines ``RecordStore``, record result and error types, and
 ``RecordRetention``. It has no dependency on scenario coordination, training,
-or concrete storage adapters. Both ``reef.RecordStore`` and
-``reef.storage.records.RecordStore`` refer to this abstract base.
+or concrete storage adapters. Both ``aster.RecordStore`` and
+``aster.storage.records.RecordStore`` refer to this abstract base.
 
-``reef.storage.record_items.ItemRecordStore`` is the ``RecordStore`` of one
+``aster.storage.record_items.ItemRecordStore`` is the ``RecordStore`` of one
 scenario over the data store (RFC #1219). It appends each record as its record
 item with the scenario's generation, and reads the record items that the
 scenario made, in item sequence order. ``SQLiteScenarioStorage`` and
@@ -1053,10 +1053,10 @@ scenario made, in item sequence order. ``SQLiteScenarioStorage`` and
 ``<directory>/data``, and the PostgreSQL storage in the schema
 ``<schema>_data``. Deployment assembly gives them the deployment's data store.
 
-``reef.storage.sql_records.SQLScenarioDatabase`` is the database of one
+``aster.storage.sql_records.SQLScenarioDatabase`` is the database of one
 scenario's state: its settings, and the transactions of its task, sample,
-evaluation and commit stores. ``reef.storage.sqlite.SQLiteScenarioDatabase`` and
-``reef.storage.postgres.PostgresScenarioDatabase`` supply the connections,
+evaluation and commit stores. ``aster.storage.sqlite.SQLiteScenarioDatabase`` and
+``aster.storage.postgres.PostgresScenarioDatabase`` supply the connections,
 schemas and conflict insertion. Install ``aster-infra[postgres]`` to enable the
 PostgreSQL driver.
 
@@ -1136,7 +1136,7 @@ in `Configuration <configuration.rst>`__.
 
 For embedded Python deployments, use
 ``dispatcher.prune_record_archives(RecordRetention(max_bytes=20 * 1024**3))``
-with ``RecordRetention`` imported from ``reef.storage.records``. This runs one
+with ``RecordRetention`` imported from ``aster.storage.records``. This runs one
 sweep over the dispatcher's data store and serializes it with scenario archival.
 ``Dispatcher`` construction does not start a maintenance task.
 ``create_app(dispatcher, ...)`` requires an existing dispatcher and accepts
@@ -1155,7 +1155,7 @@ Pipeline stages
 
 .. code:: python
 
-   from reef.record2sample import (
+   from aster.record2sample import (
        GroupDecision,
        JudgedSamples,
        RecordJudging,
@@ -1164,15 +1164,15 @@ Pipeline stages
        ReportSamples,
        SkippedReport,
    )
-   from reef.sample2job import DistillJobData, Sample2Job
+   from aster.sample2job import DistillJobData, Sample2Job
 
-A training pipeline (``reef.train.pipeline.TrainingPipeline``) turns durable
+A training pipeline (``aster.train.pipeline.TrainingPipeline``) turns durable
 records into typed job data through two stages. A recipe names a default class
 for each in ``pipeline_spec()`` (``PipelineSpec(record2sample=...,
 sample2job=...)``):
 
 - ``record2sample``: the record-to-sample stage
-  (``reef.record2sample.Record2Sample``). The pipeline pushes every record to
+  (``aster.record2sample.Record2Sample``). The pipeline pushes every record to
   it (``push``). It decides which records train and which train together: it
   forms record sets (``form``), groups reports, judges records, and ends
   records that can no longer train. ``form`` makes the samples of each set
@@ -1192,7 +1192,7 @@ sample2job=...)``):
   trajectory into its training sample. It must be pure, and it raises
   ``ValueError`` to skip the trajectory (see `Uploaded trajectories
   <../developer-guide/processors.rst#uploaded-trajectories>`__).
-- ``sample2job``: the sample-to-job stage (``reef.sample2job.Sample2Job``).
+- ``sample2job``: the sample-to-job stage (``aster.sample2job.Sample2Job``).
   Its ``make_job_data(samples, data_id)`` shapes the samples of the next job,
   in use order, into one job's data with the ID ``data_id``. The pipeline assigns the
   ID. Automatic job data gets ``<scenario>:data:<number>``. A request's
@@ -1218,8 +1218,8 @@ methods below; the sample-to-job stage receives the record-to-sample stage:
 
 ``config`` is the stage's config from the deployment's ``pipeline`` section;
 ``environ`` holds the environment the deployment was read with. A stage
-declares its keys in a frozen ``reef.core.plugins.PluginSettings`` subclass
-with ``reef.core.config.config_option`` fields and validation in
+declares its keys in a frozen ``aster.core.plugins.PluginSettings`` subclass
+with ``aster.core.config.config_option`` fields and validation in
 ``__post_init__``. In ``from_config``, parse the config with
 ``Settings.parse(config, plugin_class=cls)`` (``NoSettings`` for a stage
 without config) and give the settings object to the constructor. A bad config
@@ -1270,7 +1270,7 @@ With no ``grouping``, it trains every report by itself. With
 ``exclusive_sources=True``, a report that ends owns its inference records.
 A report references the last call of each trajectory that it scores;
 the stage expands each reference to the calls of its trajectory
-(``reef.core.trajectory_index``). No inference is in two record sets: a report
+(``aster.core.trajectory_index``). No inference is in two record sets: a report
 whose trajectory holds an inference of another report ends without training,
 and so does a stored report that lists calls inside one trajectory. A
 ``ReportGrouping`` runs in the record-to-sample stage and reads only records:
@@ -1376,9 +1376,9 @@ Task generation
 
 .. code:: python
 
-   from reef.core.tasks import HarborTask
-   from reef.recipe.generated_tasks import TaskGenerator, GeneratedTaskResult, TaskValidationResult
-   from reef.record2sample.generator import TaskGenerationRequest
+   from aster.core.tasks import HarborTask
+   from aster.recipe.generated_tasks import TaskGenerator, GeneratedTaskResult, TaskValidationResult
+   from aster.record2sample.generator import TaskGenerationRequest
 
 ``TaskGenerator`` is the plugin base class that a deployment names in
 ``pipeline.record2sample.config.generator``. Subclasses implement:
@@ -1393,7 +1393,7 @@ is optional. It receives the results of one earlier ``generate`` call, named by
 ``TaskGenerationRequest.generation``, possibly after later calls and after a
 restart. A second call for the same generation must have no effect. The
 default keeps nothing. The built-in generated-task recipe,
-``reef.recipe.generated_tasks:GeneratedTaskRecipe``, calls these methods.
+``aster.recipe.generated_tasks:GeneratedTaskRecipe``, calls these methods.
 See `Training pipeline <../developer-guide/processors.rst#task-generation-contract>`__
 for the round and its failure behavior.
 
@@ -1422,12 +1422,12 @@ when the recipe sends each case.
 non-empty explanation of a task defect. Failures to execute the checks raise
 exceptions instead.
 
-Migration: ``reef.train.processors.TaskGenerationProcessor`` is removed. Move
+Migration: ``aster.train.processors.TaskGenerationProcessor`` is removed. Move
 its ``generate`` and ``validate`` methods to a ``TaskGenerator`` subclass:
 
 - ``generate`` returns a tuple of ``HarborTask`` values instead of one task.
 - ``validate`` receives the ``HarborTask`` instead of a directory path.
-- Import ``TaskValidationResult`` from ``reef.recipe.generated_tasks``.
+- Import ``TaskValidationResult`` from ``aster.recipe.generated_tasks``.
 
 Name the class in ``pipeline.record2sample.config.generator`` and use the generated-task recipe. The recipe runs the tasks and trains, so the processor half of the method is
 not needed.
@@ -1438,7 +1438,7 @@ Job data
 .. code:: python
 
    from pathlib import Path
-   from reef.train.types import (
+   from aster.train.types import (
        TaskSample, Sample, JobData, TrajectorySample,
        trajectories, trajectory_groups,
    )
@@ -1468,7 +1468,7 @@ representation. The item checks the envelope; consumers validate the fields
 their algorithms require. Standard steps describe messages, tool calls and
 observations. Captured records use ATIF-v1.7, matching the pinned Harbor version.
 
-Aster-specific fields live inside ``trajectory.extra.reef``:
+Aster-specific fields live inside ``trajectory.extra.aster``:
 
 - ``reward`` and ``feedback`` hold the supplied or computed training signal;
 - ``source_agent_record_id`` identifies the primary source;
@@ -1523,20 +1523,20 @@ Both sample kinds may carry ``source_agent_record_ids``. These record derivation
 inputs; processor acknowledgement remains authoritative for consumption,
 including inputs removed by a recipe's existing group rules.
 
-The ``reef.core.trajectories`` helpers construct and consume ATIF:
+The ``aster.core.trajectories`` helpers construct and consume ATIF:
 ``make_trajectory(records, reward, feedback)`` converts the exchanges with
-``reef.core.atif_payloads``, as the record stores do, writes the last record's
+``aster.core.atif_payloads``, as the record stores do, writes the last record's
 ``tools`` as the agent's ``tool_definitions``, and retains original exchanges;
 ``recorded_payload`` / ``recorded_payloads`` project exchanges for harness
 methods, including external ATIF without captured records; and
 ``trajectory_reward`` reads a finite policy reward. ``SampleAssembly.build``
-(``reef.record2sample.assembly``) makes a report's sample. Without
+(``aster.record2sample.assembly``) makes a report's sample. Without
 ``accept_multi_turn_policy_samples``, the sample is the trajectory's last
 call: its earlier agent steps are ``is_copied_context: true``, and only the
 last reply trains. With it, the sample holds every call, and every reply
 trains. A task rollout of a training component uses
 ``make_policy_trajectory`` or ``make_multi_turn_policy_trajectory`` from
-``reef.record2sample.samples`` to keep the tensors that its engine
+``aster.record2sample.samples`` to keep the tensors that its engine
 returned. Both job data readers reject unsupported sample kinds
 instead of silently filtering mixed job data.
 
@@ -1561,7 +1561,7 @@ Serving returns no tokens and no log-probabilities. A training component
 renders each trajectory sample with its model's chat template, and computes
 the log-probabilities that its objective needs with the weights of the job's
 start. These are exact when ``max_staleness`` is 0 and an approximation above
-it. ``reef.core.chat_rendering`` holds the shared rendering:
+it. ``aster.core.chat_rendering`` holds the shared rendering:
 
 - ``ChatTemplate`` renders messages and tools to token IDs.
   ``TokenizerChatTemplate(tokenizer, template_kwargs)`` is the chat template of
@@ -1576,14 +1576,14 @@ it. ``reef.core.chat_rendering`` holds the shared rendering:
   is one ``RenderedTrajectory`` for each segment. It raises ``ValueError``
   when the trajectory has no trained step, or when the template does not
   render a turn after its own generation prompt.
-- ``TeacherRequest`` is the ``extra.reef.teacher`` value. Its
+- ``TeacherRequest`` is the ``extra.aster.teacher`` value. Its
   ``teacher_tokens`` is the rendered teacher prompt followed by the student's
   reply tokens verbatim, or the student's own tokens when it names no
   messages.
 - ``rendered_job_data(data, template)`` renders each trajectory sample that
   has no ``tokens``. A trajectory of several segments becomes one sample for
   each segment, with ``segment``: ``{"index": i, "count": n}`` in its
-  ``extra.reef.training``. It returns the job data and the positions of the
+  ``extra.aster.training``. It returns the job data and the positions of the
   samples that it leaves out: a sample that cannot render, that is longer
   than its ``max_tokens``, whose teacher sequence is longer than its teacher
   request allows, or that has a teacher and several segments. The Slime and Tinker components count them in the job
@@ -1593,8 +1593,8 @@ Training objective
 ------------------
 
 Each training backend owns its objectives: ``SlimeObjective`` in
-``reef.train.slime_backend.objectives`` and ``TinkerObjective`` in
-``reef.train.tinker_backend.objectives``. An objective
+``aster.train.slime_backend.objectives`` and ``TinkerObjective`` in
+``aster.train.tinker_backend.objectives``. An objective
 owns signal preparation over a job's full data and declares the backend's loss family.
 A job names it in its ``objective`` parameter, usually from the recipe's
 ``default_parameters()``: a registered name, or a dotted
@@ -1605,11 +1605,11 @@ service and training processes.
 
 .. code:: python
 
-   from reef.train.algos.helpers import next_steps
-   from reef.train.algos.signals import TrainingSignal
-   from reef.train.slime_backend.objectives import SlimeObjective
-   from reef.train.types import JobData, trajectories
-   from reef.core.trajectories import trajectory_reward
+   from aster.train.algos.helpers import next_steps
+   from aster.train.algos.signals import TrainingSignal
+   from aster.train.slime_backend.objectives import SlimeObjective
+   from aster.train.types import JobData, trajectories
+   from aster.core.trajectories import trajectory_reward
 
    class MyObjective(SlimeObjective):
        name = "my_method"
@@ -1629,7 +1629,7 @@ For a shared short name, decorate the class with ``@register_slime_objective``
 (or ``@register_tinker_objective``). The same function accepts an explicit
 instance. So that the name resolves where the module is not yet imported, a method
 package's public half calls ``register_objective_ref(name, "my_method.slime:MyObjective")``
-from ``reef.train.algos.registry``. Core never imports method packages. A built-in
+from ``aster.train.algos.registry``. Core never imports method packages. A built-in
 ``sft`` objective exists on each backend, and ``slime_dataset`` on Slime.
 
 The training component cuts each job's data into optimizer steps. The
@@ -1646,7 +1646,7 @@ objective set what the component may do with the job's data:
   computed once, which a clipped ratio tolerates.
 
 A job's optional ``scheduling`` parameter is a ``StepScheduling``
-(``reef.train.algos.schedule``) as an object:
+(``aster.train.algos.schedule``) as an object:
 
 .. container:: config
 
@@ -1663,8 +1663,8 @@ A job's optional ``scheduling`` parameter is a ``StepScheduling``
        pack the rollouts into packs of at most this many tokens (``training["tokens"]`` of each trajectory) before the steps are cut; one step then trains batch-size packs. A pack never splits a rollout, and a longer rollout is a pack of its own. ``shuffle`` and ``remainder`` apply to the packs.
 
 Each component parses a job's parameters into its own typed value:
-``reef.train.slime_backend.parameters.SlimeJobParameters`` and
-``reef.train.tinker_backend.parameters.TinkerJobParameters``. The parser raises
+``aster.train.slime_backend.parameters.SlimeJobParameters`` and
+``aster.train.tinker_backend.parameters.TinkerJobParameters``. The parser raises
 ``ValueError`` for an unknown key, when ``objective`` is missing or does not
 resolve, when ``scheduling`` has another key or a value out of range, and when the
 objective's ``validate_scheduling`` refuses the schedule: ``epochs > 1``
@@ -1673,7 +1673,7 @@ accept a job and again when they run it.
 ``TrainingComponent.parameters_schema(kind)`` returns the JSON Schema of those
 parameters for a sample kind, or None; the scenario contract serves it.
 
-``reef.train.algos.schedule.pack_rollouts(token_counts, packing_length)`` is
+``aster.train.algos.schedule.pack_rollouts(token_counts, packing_length)`` is
 the packing: best-fit decreasing, which puts each rollout, longest first, into
 the pack whose free tokens it fills most closely. The packs decide only which
 rollouts share a step. The loss and the micro-batches stay the component's.
@@ -1684,7 +1684,7 @@ The trainer gives them to its pipeline (``PipelineContext.job_parameters``).
 When a job's data is ready and no job runs, the pipeline's sample-to-job stage
 gives the job's parameters, ``Sample2Job.job_parameters(data)``: those of the
 kind of the data's samples, with the request's ``parameters``
-(``TrainingRequest.parameters``) merged in by ``reef.core.values.deep_merge``:
+(``TrainingRequest.parameters``) merged in by ``aster.core.values.deep_merge``:
 nested objects merge key by key, and every other value of the request wins. It refuses data that holds
 both kinds, and a kind that the recipe does not name when no request gives
 parameters. A kind that the recipe does not name never trains in ``auto``. Aster reads none of the parameters; it submits
@@ -1727,11 +1727,11 @@ skipped or fails.
 
 .. code:: python
 
-   from reef.evaluation.harness import TaskScorer, History, TaskCollector
-   from reef.harness.adapters import get_adapter
-   from reef.harness.adapters.parts import Format, Part, TreeLayout
-   from reef.harness.tree import HarnessTree, TreePatch
-   from reef.train.harness_backend import (
+   from aster.evaluation.harness import TaskScorer, History, TaskCollector
+   from aster.harness.adapters import get_adapter
+   from aster.harness.adapters.parts import Format, Part, TreeLayout
+   from aster.harness.tree import HarnessTree, TreePatch
+   from aster.train.harness_backend import (
        AgentMethod, AgentOutcome, Method, ModelCalls, Services, StepContext, Trace, Workspace,
    )
 
@@ -1778,7 +1778,7 @@ skipped or fails.
        ``write_output(summary="", notes=None, requires=())`` writes
        ``output/summary.md`` (the commit's ``method_summary``),
        ``output/notes.json`` (a JSON object, the commit's ``method_notes``)
-       and ``output/requires.json`` (``reef.core.requirements`` items, read on
+       and ``output/requires.json`` (``aster.core.requirements`` items, read on
        a request step only), and raises ``ValueError`` before writing when
        ``notes`` or ``requires`` is not valid
    * - ``TreeLayout``
@@ -1860,14 +1860,14 @@ skipped or fails.
    * - ``evaluation.metrics``
      - holds ``candidate_scores`` and ``current_scores`` under
        ``policy: compare`` and ``policy: floor``: ``RolloutScores``
-       (``reef.core.evaluation``) in JSON, one entry per task in task order
+       (``aster.core.evaluation``) in JSON, one entry per task in task order
        with the scores of its runs in run order, each a number or
        ``"failed"``; read them with ``RolloutScores.from_json``.
        ``current_scores`` is empty under ``floor``, which runs the candidate
        alone. Under ``policy: none``, which runs no task, it holds no
        score
 
-``reef.evaluation.harness`` holds the publication policies that
+``aster.evaluation.harness`` holds the publication policies that
 ``evolution.evaluation.policy`` names: ``ComparePolicy`` (``compare``, with
 ``statistic`` ``wins`` or ``mean`` and ``min_margin``), ``FloorPolicy``
 (``floor``, with ``floor_score``) and ``NoEvaluationPolicy`` (``none``). A
@@ -1878,7 +1878,7 @@ Candidate evaluation
 
 .. code:: python
 
-   from reef import CandidateEvaluationPlugin, EvaluationResult, SelectionDecision
+   from aster import CandidateEvaluationPlugin, EvaluationResult, SelectionDecision
 
 A harness recipe's plugin explicitly inherits ``CandidateEvaluationPlugin``,
 measures a candidate tree, and decides whether the search keeps it. ``CandidateEvaluator`` and
@@ -1913,7 +1913,7 @@ Activation rule
 
 .. code:: python
 
-   from reef.core.activation import ActivationRule, MadeArtifact
+   from aster.core.activation import ActivationRule, MadeArtifact
 
 Training makes artifacts and never activates one. A scenario's
 ``ActivationRule`` decides whether an artifact serves:
@@ -1936,7 +1936,7 @@ The committer asks ``activates`` when a training step publishes an artifact.
 The commit record's ``activated`` keeps what the rule decided. The artifact
 evaluation service asks ``activates_evaluated`` when an evaluation finishes,
 and then activates the artifact. The built-in rules are
-``reef.evaluation.activation``'s ``AlwaysActivate``, ``NeverActivate`` and
+``aster.evaluation.activation``'s ``AlwaysActivate``, ``NeverActivate`` and
 ``EvaluatedActivation``. The deployment names a rule in its ``activation``
 section (`Configuration <configuration.rst#the-activation-section>`__). A rule
 of your own inherits ``ActivationRule``. Aster builds it from its config with
@@ -1947,7 +1947,7 @@ Scenario components
 
 .. code:: python
 
-   from reef.artifact.components import ComponentSpec, ScenarioComponents, TextFileTree
+   from aster.artifact.components import ComponentSpec, ScenarioComponents, TextFileTree
 
 ``Recipe.build_components(scenario)`` returns the components that every
 snapshot of the scenario binds. ``WeightTrainingRecipe`` declares a
@@ -2038,15 +2038,15 @@ Automatic weight training waits while the selected artifact has no matching
 served route. Manual training does not wait, since a request names its samples.
 Deployments without inference keep their existing training behavior.
 Startup status is available through the inference service's
-``GET /reef/scenarios/{scenario}/inference/status`` route.
+``GET /aster/scenarios/{scenario}/inference/status`` route.
 
-``reef.inference.serving`` holds the two runtimes for saved weights, both over an
+``aster.inference.serving`` holds the two runtimes for saved weights, both over an
 ``InferenceBackend``:
 
 * ``AdapterServingRuntime`` serves each scenario its own PEFT adapter on one
   base model. A snapshot holds the adapter in ``adapter/``. At most
   ``adapter_capacity`` adapters stay resident.
-  ``reef.inference.residency.AdapterResidencyManager`` evicts a leaked
+  ``aster.inference.residency.AdapterResidencyManager`` evicts a leaked
   adapter first, then the oldest-activated adapter that is no scenario's
   current one.
 * ``FullWeightServingRuntime`` serves one scenario's full Hugging Face
@@ -2069,7 +2069,7 @@ Each runtime passes a snapshot's directory as a ``WeightFiles`` value, with
 the ``"adapter"`` or ``"full"`` layout, to
 ``InferenceBackend.load_weight_files``, under a new runtime load ID that every
 engine then reports. The runtime kind ``remote_serving``
-(``reef.inference.remote.runtime``) builds one of them over the engines of an
+(``aster.inference.remote.runtime``) builds one of them over the engines of an
 inference component, as the artifact format says: ``AdapterServingRuntime``
 for ``adapter`` releases, ``FullWeightServingRuntime`` for ``full`` ones.
 ``serving_engine_config`` builds the engines' input from the ``inference``
@@ -2090,29 +2090,29 @@ Weight recipes hold ``training_component: TrainingComponent`` and
 A training deployment's component factory returns the ``TrainingComponent``
 alone; a serving factory returns an ``InferenceRuntime``.
 ``TrainingComponentFactory`` and ``build_training_component`` in
-``reef.train.component`` define and build the first; ``RuntimeFactory`` and
-``RuntimeRegistry`` in ``reef.inference.registry`` define and build the second.
+``aster.train.component`` define and build the first; ``RuntimeFactory`` and
+``RuntimeRegistry`` in ``aster.inference.registry`` define and build the second.
 The HTTP service builds the training component first, then the serving
-runtime that ``reef.service.deploy.serving.serving_runtime_config`` describes
+runtime that ``aster.service.deploy.serving.serving_runtime_config`` describes
 from the ``inference`` settings and the component's ``artifact_format``.
 
 Each side owns its contracts. The inference contracts are the modules at the
-root of ``reef.inference``: ``interfaces`` (inference contracts and runtime
+root of ``aster.inference``: ``interfaces`` (inference contracts and runtime
 load IDs), ``deployment`` (the inference service contracts), ``registry``
 (runtime factories), ``serving`` (the saved-weight serving runtimes),
 ``residency`` (adapter residency) and ``recovery`` (engine supervision).
-``reef.train.component`` holds the training component contract. Values that both sides read
-are in ``reef.core.weight_layout`` (``ArtifactFormat``, ``WeightFiles``,
-``ArtifactWeights``). ``reef.execution.executor`` contains worker transports.
+``aster.train.component`` holds the training component contract. Values that both sides read
+are in ``aster.core.weight_layout`` (``ArtifactFormat``, ``WeightFiles``,
+``ArtifactWeights``). ``aster.execution.executor`` contains worker transports.
 Concrete integrations live with their owners:
-``SlimeTrainingComponent`` in ``reef.train.slime_backend.component``,
-``TinkerTrainingComponent`` in ``reef.train.tinker_backend.component``, and
-``SGLangInferenceBackend`` in ``reef.inference.sglang.backend``.
+``SlimeTrainingComponent`` in ``aster.train.slime_backend.component``,
+``TinkerTrainingComponent`` in ``aster.train.tinker_backend.component``, and
+``SGLangInferenceBackend`` in ``aster.inference.sglang.backend``.
 
 Training jobs and components
 ----------------------------
 
-``reef.train.component`` defines bounded training jobs. A ``TrainingJob`` has
+``aster.train.component`` defines bounded training jobs. A ``TrainingJob`` has
 these fields:
 
 - ``job_id`` and ``backend``, the name of the training component.
@@ -2211,7 +2211,7 @@ job starts from, a ``artifact_path`` that Aster publishes and serving loads, and
 the backend's ``metrics``. A finished job without checkpoints trained nothing,
 for example because its objective skipped the job's data.
 
-``reef.train.local_jobs.LocalJobComponent`` is the base of the built-in
+``aster.train.local_jobs.LocalJobComponent`` is the base of the built-in
 components. It keeps one directory per job (``job.json``,
 ``checkpoints.json``, and ``result.json`` once the job ended). It runs one job
 at a time in a worker thread, and it resumes unfinished jobs after a restart.
@@ -2219,7 +2219,7 @@ A subclass implements ``check_job(job)`` and ``run(job, directory)``. It must
 call ``start_jobs()`` once it can train. Until then no job runs, including
 the jobs that a restart left.
 
-``reef.train.jobs.JobLoop`` is the control plane's side. It holds the
+``aster.train.jobs.JobLoop`` is the control plane's side. It holds the
 trainer's one training component. It returns the result that the trainer
 commits:
 
@@ -2278,7 +2278,7 @@ snapshot raises ``ValueError``, and Aster refuses the request with HTTP 400.
 Tinker integration
 ------------------
 
-``reef.train.tinker_backend.launch.TinkerDeployment`` implements the optional
+``aster.train.tinker_backend.launch.TinkerDeployment`` implements the optional
 ``tinker`` backend as an ``InProcessTrainingDeployment``. Its
 ``component_factory`` builds, from ``TinkerConfig`` and only after deployment
 selection, a ``TinkerTrainingComponent``. Each job
@@ -2290,32 +2290,32 @@ is both the start of a later job and the snapshot Aster publishes. A job of
 Harbor tasks also takes ``rollout``, the rollouts of each task.
 
 ``TinkerDeployment.default_serving`` is ``trainer``: its
-``trainer_serving_config`` selects ``reef.inference.tinker.TinkerInferenceRuntime``
+``trainer_serving_config`` selects ``aster.inference.tinker.TinkerInferenceRuntime``
 (runtime kind ``tinker``), which reads each snapshot's
 ``tinker-checkpoint.json`` manifest and samples from the immutable sampler it
 names. A snapshot holds that manifest alone, so the component's
 ``artifact_format`` is ``None``. Aster's engines can still serve the adapters
 (``inference.serving: engines``): ``TinkerDeployment.engine_weights`` names
-``reef.tinker.weights.TinkerSamplerWeights``, which downloads the adapter at
+``aster.tinker.weights.TinkerSamplerWeights``, which downloads the adapter at
 each snapshot's ``sampler_path`` and converts it into a PEFT adapter.
 Train-from works: the component imports the snapshot's manifest as a start.
 
-``TrainingDeployment`` (``reef.train.deployment``) is a training backend's
+``TrainingDeployment`` (``aster.train.deployment``) is a training backend's
 deployment definition. ``default_serving`` (``engines`` unless the backend
 says otherwise) is the serving of a deployment that names none and sets no
 engine setting, and ``trainer_serving_config(settings)`` the runtime config
 of the backend's own serving, or ``None`` without one.
 ``engine_weights(settings)`` is an ``EngineWeights`` for a backend whose
 snapshots hold no weight files: the ``ArtifactFormat`` that Aster's engines load
-and the ``ArtifactWeights`` plugin (``reef.core.weight_layout``) that gives each
+and the ``ArtifactWeights`` plugin (``aster.core.weight_layout``) that gives each
 snapshot's files. The default is ``None``: engines cannot serve such
 releases. ``ArtifactWeightFiles``, the default plugin, reads a snapshot's own files. ``requires_local_model``
 defaults to true; hosted integrations set it to false to preserve remote
 model identifiers during deployment resolution.
 
-Methods implement ``TinkerLoss`` from ``reef.train.tinker_backend.losses``
+Methods implement ``TinkerLoss`` from ``aster.train.tinker_backend.losses``
 and register it with ``register_loss_family_ref(name, "package.module:CLASS",
-backend="tinker")`` from ``reef.train.algos.registry``, the same table that
+backend="tinker")`` from ``aster.train.algos.registry``, the same table that
 holds their Slime reference. ``loss_fn`` names the Tinker built-in loss the
 family trains with; ``inputs(rows, base_logprobs, kl_coef=...)`` returns that
 function's token-aligned ``loss_fn_inputs``, one dictionary per row; and

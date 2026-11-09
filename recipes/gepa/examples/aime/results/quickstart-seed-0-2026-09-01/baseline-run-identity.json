@@ -14,12 +14,12 @@
   "pins": {
     "gepa_commit": "92dadfffbe98c8ecf508179a1cab09c1bb85cd32",
     "pi_version": "0.84.2",
-    "reef_base_commit": "6a5c88f0dceaa5113b3fcf75c87385e0bb3d6253",
-    "reef_source_commit": "1748a3a2c3e9952482ad64e31a74bf82109a7d3d"
+    "aster_base_commit": "6a5c88f0dceaa5113b3fcf75c87385e0bb3d6253",
+    "aster_source_commit": "1748a3a2c3e9952482ad64e31a74bf82109a7d3d"
   },
-  "reef_heldout_workers": 16,
-  "reef_skip_perfect_score": true,
-  "reef_workers": 32,
+  "aster_heldout_workers": 16,
+  "aster_skip_perfect_score": true,
+  "aster_workers": 32,
   "reference_skip_perfect_score": true,
   "reference_workers": 10,
   "reflection_model": "gpt-5-2025-08-07",

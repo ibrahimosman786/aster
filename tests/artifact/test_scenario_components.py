@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from reef.artifact import Artifact
-from reef.artifact.components import ENTRIES_FILE, AcceptAnyArtifact, ComponentSpec, ScenarioComponents, TextFileTree
-from reef.recipe.base import Recipe
+from aster.artifact import Artifact
+from aster.artifact.components import ENTRIES_FILE, AcceptAnyArtifact, ComponentSpec, ScenarioComponents, TextFileTree
+from aster.recipe.base import Recipe
 
 
 def test_recipe_default_components_are_empty() -> None:
@@ -42,7 +42,7 @@ def test_text_file_tree_ignores_repository_bookkeeping(tmp_path) -> None:
     root = tmp_path / "artifact"
     root.mkdir()
     (root / "rules.md").write_text("rule", encoding="utf-8")
-    (root / "reef-artifact.json").write_text("{}", encoding="utf-8")
+    (root / "aster-artifact.json").write_text("{}", encoding="utf-8")
     (root / ".gitattributes").write_text("* text", encoding="utf-8")
     assert TextFileTree().read_files(Artifact.local(root)) == {"rules.md": "rule"}
 

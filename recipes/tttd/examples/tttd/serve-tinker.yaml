@@ -4,10 +4,10 @@
 # count are the reduced integration smoke the recipe page describes.
 # TTTD_STATE_DIR is the absolute root all durable state hangs off.
 
-reef:
+aster:
   host: 127.0.0.1
   port: 8900
-  token: reef-local
+  token: aster-local
   run-dir: ${TTTD_STATE_DIR}/stack
   # The in-process Tinker runtime saves the initial checkpoint and fetches
   # tokenizer files before /healthz answers.

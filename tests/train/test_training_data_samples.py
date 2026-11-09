@@ -10,20 +10,20 @@ import pytest
 from tests.support._trajectories import policy_trajectory, recorded_trajectory
 from tests.support.samples import made_task
 
-from reef.core import AgentRecord, RequestType
-from reef.core.training_request import TrainingRequest
-from reef.core.trajectories import (
+from aster.core import AgentRecord, RequestType
+from aster.core.training_request import TrainingRequest
+from aster.core.trajectories import (
     make_trajectory,
     recorded_payload,
     recorded_payloads,
     source_record_id,
     trajectory_reward,
 )
-from reef.inference.interfaces import InferenceStream
-from reef.service.streaming import stream_record
-from reef.train.algos.schedule import StepScheduling
-from reef.train.slime_backend.reef_adapters.preparation import prepare_slime_job
-from reef.train.types import JobData, TaskSample, TrajectorySample, trajectories, trajectory_groups
+from aster.inference.interfaces import InferenceStream
+from aster.service.streaming import stream_record
+from aster.train.algos.schedule import StepScheduling
+from aster.train.slime_backend.aster_adapters.preparation import prepare_slime_job
+from aster.train.types import JobData, TaskSample, TrajectorySample, trajectories, trajectory_groups
 
 
 def captured_trajectory(record_id="inference-1", reward=1.0):
@@ -53,7 +53,7 @@ def atif_item():
                 {"step_id": 1, "source": "user", "message": "Solve the task."},
                 {"step_id": 2, "source": "agent", "message": "The answer is 42."},
             ],
-            "extra": {"reef": {"reward": 1.0, "feedback": "correct"}, "external": {"keep": True}},
+            "extra": {"aster": {"reward": 1.0, "feedback": "correct"}, "external": {"keep": True}},
         }
     )
 
@@ -83,7 +83,7 @@ def test_algorithms_consume_json_roundtripped_atif_with_identical_payloads(algor
     assert loaded.samples[0].training["artifact_id"] == "weights-1"
 
 
-def test_harness_projection_reads_external_atif_without_reef_records():
+def test_harness_projection_reads_external_atif_without_aster_records():
     item = atif_item()
     payload = recorded_payload(item)
     assert payload["messages"] == [{"role": "user", "content": "Solve the task."}]
@@ -173,7 +173,7 @@ def test_existing_algorithms_reject_tasks_without_consuming_or_changing_state(al
 def test_policy_backend_reports_missing_training_data_without_inventing_tokens():
     item = atif_item()
     prepared = prepare_slime_job(JobData("plain", (item,)), "sao", {}, SCHEDULING, step_size=STEP_SIZE)
-    from reef.train.slime_backend.data_builder import to_slime_rollout_data
+    from aster.train.slime_backend.data_builder import to_slime_rollout_data
 
     with pytest.raises(ValueError, match="training tensors"):
         to_slime_rollout_data(prepared.payload)
@@ -224,10 +224,10 @@ def test_request_only_batch_preserves_manual_training_contract():
 
 
 def test_report_processor_reserves_and_acknowledges_mixed_data_one_kind_per_job():
-    from reef.pipeline_context import PipelineContext
-    from reef.record2sample import ReportSamples
-    from reef.sample2job import Sample2Job
-    from reef.train.pipeline import TrainingPipeline
+    from aster.pipeline_context import PipelineContext
+    from aster.record2sample import ReportSamples
+    from aster.sample2job import Sample2Job
+    from aster.train.pipeline import TrainingPipeline
 
     class MixedTasks(ReportSamples):
         def make_sample(self, context):

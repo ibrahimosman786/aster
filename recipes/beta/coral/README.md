@@ -1,18 +1,18 @@
-# CORAL test-time training through Reef and Slime
+# CORAL test-time training through Aster and Slime
 
 **Status: beta.** CORAL TTT and its `coral_demo` example remain under
 `recipes/beta/coral/` until complete, reproducible learning results are
 published. The integration and smoke tests below validate the wiring; they
 do not establish learning performance. See
-[issue #422](https://github.com/Human-Agent-Society/reef/issues/422) for this
-classification and [issue #3](https://github.com/Human-Agent-Society/reef/issues/3)
+[issue #422](https://github.com/Human-Agent-Society/aster/issues/422) for this
+classification and [issue #3](https://github.com/Human-Agent-Society/aster/issues/3)
 for the experiment.
 
 Runs a real CORAL task with fully attributable inference: CORAL's own runtime
 (agent worktrees, gateway, grader daemon) drives coding-agent CLIs whose every
-call flows through Reef, evaluator scores return as training data, weights
+call flows through Aster, evaluator scores return as training data, weights
 update, and later attempts serve from the new revision. Implements
-[issue #3](https://github.com/Human-Agent-Society/reef/issues/3).
+[issue #3](https://github.com/Human-Agent-Society/aster/issues/3).
 
 Pinned upstream: [CORAL](https://github.com/Human-Agent-Society/CORAL) commit `0123dfb`.
 
@@ -25,13 +25,13 @@ npm install -g opencode-ai     # or any CORAL runtime CLI; select with --runtime
 ./run.sh
 ```
 
-`run.sh` boots the Reef training stack (`serve.yaml`: `CoralRecipe`, Qwen3-8B
+`run.sh` boots the Aster training stack (`serve.yaml`: `CoralRecipe`, Qwen3-8B
 LoRA), then `run.py` builds CORAL's `AgentManager` from the real task in
 `task/` — CORAL spawns its agent runtimes over `task/seed`, starts its LiteLLM
-gateway from `task/litellm_config.yaml` (whose only upstream is the Reef
+gateway from `task/litellm_config.yaml` (whose only upstream is the Aster
 service), and grades `coral eval` submissions with the packaged grader in
-`task/grader`. The reef correlation layer is spliced under the gateway before
-any agent spawns; an attempt watcher reports every finalized attempt to Reef
+`task/grader`. The aster correlation layer is spliced under the gateway before
+any agent spawns; an attempt watcher reports every finalized attempt to Aster
 for training. The run auto-stops at its attempt budget
 (`--max-attempts`) and writes `work/coral-demo/bundle.json`.
 
@@ -40,8 +40,8 @@ The adapter tests need neither GPU nor CORAL: `python -m pytest tests/test_coral
 ## Verifying without GPUs
 
 `examples/coral_demo/smoke/run_smoke.sh` runs `run.py` unmodified against the
-production Reef service with a canned inference backend
-(`smoke/echo_reef_service.py`) and a scriptable CORAL runtime
+production Aster service with a canned inference backend
+(`smoke/echo_aster_service.py`) and a scriptable CORAL runtime
 (`smoke/scripted_runtime.py`). Every wire interaction — worktrees, gateway
 key swap, header stamping, receipt capture into the journal, grader-daemon
 scoring in the grader venv, exactly-once reporting, the result bundle — is
@@ -57,26 +57,26 @@ CORAL AgentManager (real runtime: worktrees, agent CLIs, per-agent proxy keys,
    v
 CORAL gateway (identity: x-coral-agent-id, x-coral-session-id)
    v
-recipes.beta.coral.middleware      stamps x-reef-scenario + x-reef-tag-coral-{run,agent,commit},
-   v                          captures reef receipts -> journal
-LiteLLM -> reef serve         stores INFERENCE records with tags,
-   v                          answers with x-reef-agent-record-id / receipt SSE frame
+recipes.beta.coral.middleware      stamps x-aster-scenario + x-aster-tag-coral-{run,agent,commit},
+   v                          captures aster receipts -> journal
+LiteLLM -> aster serve         stores INFERENCE records with tags,
+   v                          answers with x-aster-agent-record-id / receipt SSE frame
 CORAL grader daemon finalizes the attempt (.coral/**/attempts/*.json)
    -> recipes.beta.coral.watcher: resolves the attempt's captured references,
-      POST /reef/report {score, references, metadata.coral}, exactly once
+      POST /aster/report {score, references, metadata.coral}, exactly once
    -> CoralGrouping groups siblings of one parent commit -> CoralJobData -> Slime LoRA step
    -> new revision served to the next attempts
 ```
 
-One discovery problem is one reef scenario; agent and worktree identity live in
+One discovery problem is one aster scenario; agent and worktree identity live in
 tags, so parallel agents share the evolving policy without fragmenting the
 scenario.
 
 ## Correlation model
 
-The `coral-agent`/`coral-commit` tags reef stores with each INFERENCE record
+The `coral-agent`/`coral-commit` tags aster stores with each INFERENCE record
 are the primary correlation key and survive any proxy behavior. The journal
-additionally captures reef's response receipts, so reports reference exact
+additionally captures aster's response receipts, so reports reference exact
 record ids; a stripped receipt degrades to tag-only correlation and is never
 fatal. Reports carry a deterministic client-supplied id, so a reporter retry
 or crash-replay dedups server-side.
@@ -108,7 +108,7 @@ From a report to a gradient:
 
 1. **Grouping.** The record-to-sample stage, `CoralSamples`, files each
    report under its `parent_hash` with `CoralGrouping`. A group is ready once
-   `group_size` scored siblings accrue. Reef then stores the group's samples,
+   `group_size` scored siblings accrue. Aster then stores the group's samples,
    and the group is fixed: later siblings of the same parent form a new
    group. The default is 4; the demo's `serve.yaml` sets 2:
 
@@ -120,7 +120,7 @@ From a report to a gradient:
    ```
 
    Parents that never accrue enough scored children never train. The barrier
-   is a recipe setting, not a CORAL invariant. Reef refuses `group-size` in
+   is a recipe setting, not a CORAL invariant. Aster refuses `group-size` in
    `recipe.config` and names its new place.
 2. **Sample assembly.** The report's ordered inference references become
    one ATIF trajectory. The training component renders it with the model's
@@ -143,7 +143,7 @@ From a report to a gradient:
 5. **The loop closes.** The step updates the served LoRA (the demo:
    Qwen3-8B, rank-32 LoRA on `linear_qkv`/`linear_proj`, trained with the
    old-policy log probs and a KL term against the base model, see
-   `examples/coral_demo/serve.yaml`). Reef serves the new revision, and
+   `examples/coral_demo/serve.yaml`). Aster serves the new revision, and
    later attempts both run on it and are attributed to it.
 
 The design rationale lives next to the code: `processor.py` (the stages,
@@ -156,15 +156,15 @@ reused), `serve.yaml` (deployment knobs).
 demo problem (implement a stable two-list merge, scored by fraction of checks
 passed) is deliberately small so the loop turns over quickly on a 2-GPU
 serving stack; swap in any CORAL task by editing `task/` — the wiring does not
-change. `task/litellm_config.yaml` is the one reef-specific piece: the
-gateway's only upstream is the Reef service, so the served policy is the
+change. `task/litellm_config.yaml` is the one aster-specific piece: the
+gateway's only upstream is the Aster service, so the served policy is the
 agents' only model.
 
 ## Known limitations
 
-- `attach_reef_adapter_to_agent_manager` splices under the middleware CORAL's
+- `attach_aster_adapter_to_agent_manager` splices under the middleware CORAL's
   manager builds internally. CORAL's gateway now exposes a `header_provider`
-  hook, but the reef layer also mirrors headers into request bodies and
+  hook, but the aster layer also mirrors headers into request bodies and
   captures response receipts — outside a request-header hook's reach — so the
   splice stays until CORAL grows a response-side hook.
 - LiteLLM builds a fresh upstream request, so the middleware mirrors the

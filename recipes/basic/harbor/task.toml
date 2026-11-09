@@ -1,10 +1,10 @@
 version = "1.0"
 
 [metadata]
-author_name = "Reef"
+author_name = "Aster"
 difficulty = "easy"
 category = "integration"
-tags = ["reef", "harbor", "arithmetic"]
+tags = ["aster", "harbor", "arithmetic"]
 
 [verifier]
 timeout_sec = 30.0

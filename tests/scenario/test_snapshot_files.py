@@ -13,16 +13,16 @@ import pytest
 from tests.support.harness_service import harness_repository, run_step
 from tests.support.harness_steps import COMPONENT, PI_SEED, changed_rules, harness_recipe
 
-from reef.artifact import Artifact, ArtifactConflict, ArtifactNotFound
-from reef.core.plugins import PluginReference
-from reef.dispatcher import Dispatcher
-from reef.evaluation.activation import NeverActivate
-from reef.harness.tree import TreePatch
-from reef.scenario.scenario import Scenario
-from reef.scenario.snapshot_files import ScenarioArtifactFiles
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.sqlite import SQLiteScenarioStorage
-from reef.train.backend import ArtifactTextFiles
+from aster.artifact import Artifact, ArtifactConflict, ArtifactNotFound
+from aster.core.plugins import PluginReference
+from aster.dispatcher import Dispatcher
+from aster.evaluation.activation import NeverActivate
+from aster.harness.tree import TreePatch
+from aster.scenario.scenario import Scenario
+from aster.scenario.snapshot_files import ScenarioArtifactFiles
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.sqlite import SQLiteScenarioStorage
+from aster.train.backend import ArtifactTextFiles
 
 MARKER = TreePatch(changed_rules("marker rules\n"))
 MARKED = PI_SEED.apply(MARKER)

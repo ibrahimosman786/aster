@@ -81,13 +81,13 @@ When an interface is missing, its meaning is unclear, or a trial behaves differe
 ## Integrate with the native interface
 
 Complete the user-facing path, not just the underlying action. Reuse the harness's existing command, status
-and result UI. Keep unrelated commands and behavior intact; avoid duplicate names and built-in or Reef command
+and result UI. Keep unrelated commands and behavior intact; avoid duplicate names and built-in or Aster command
 collisions.
 
 - Every new slash command must appear in the native `/` autocomplete dropdown alongside built-in commands,
   with a concise description. A command mentioned only in rules, a skill or a help message is not integrated.
 - For a repeatable prompt, write `commands/<id>.md` with YAML frontmatter containing `description`.
-  Reef renders it as a native pi prompt template. For executable behavior, use
+  Aster renders it as a native pi prompt template. For executable behavior, use
   `pi.registerCommand("<id>", { description, handler })` in an extension, as the API reference shows. Do not
   implement a slash command solely by intercepting text in an `input` hook or by building a separate menu.
 - Register extension commands when the extension loads, after the required `PI_OFFLINE` guard. Do not delay
@@ -113,9 +113,9 @@ Leave the array empty when the change needs nothing.
 
 ## Models beyond the chat model
 
-An extension reaches image, speech, embedding and decision models through Reef, at
-`process.env.REEF_SERVICE_URL` with Reef's scenario and token headers (see the Network section of
-`../scratch/reference/pi-extension-api.md`): no provider key, Reef adds it. Requests use the provider's own JSON
+An extension reaches image, speech, embedding and decision models through Aster, at
+`process.env.ASTER_SERVICE_URL` with Aster's scenario and token headers (see the Network section of
+`../scratch/reference/pi-extension-api.md`): no provider key, Aster adds it. Requests use the provider's own JSON
 format.
 
 <!-- provider -->
@@ -176,7 +176,7 @@ requirement. During the final reserved interval, stop exploration, save the file
 checks, then end the run. Do not start a nested agent to bypass an exhausted trial budget. An unfinished
 candidate is saved for diagnosis, not automatically published.
 
-- `harness_check` runs the tree through Reef's validation, as the evolve step will. Run it after every
+- `harness_check` runs the tree through Aster's validation, as the evolve step will. Run it after every
   change and fix what it refuses.
 - `harness_trial` runs the changed harness for real on a task you give it and shows what happened, including
   every image or speech call and the provider's error when one failed. A change you never tried is not done:
@@ -208,7 +208,7 @@ candidate is saved for diagnosis, not automatically published.
   `harness_trial` runs headless: it can exercise behavior but cannot verify an interactive dropdown. Inspect
   the native template or registration path too, and record in `design.md` which checks actually ran and which
   interactive checks remain unverified. Never claim a headless trial proved the menu works.
-- An extension must return before registering anything when `process.env.PI_OFFLINE` is set; Reef's own checks
+- An extension must return before registering anything when `process.env.PI_OFFLINE` is set; Aster's own checks
   run offline. A trial runs online, so your extension does run there.
 - Never write to the session's own stdout or stderr while it has a UI: the harness process owns the terminal, so
   `console.log`, `console.error` and `process.stdout.write` land inside a drawn frame and leave the person

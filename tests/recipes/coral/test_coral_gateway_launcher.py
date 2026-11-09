@@ -1,15 +1,15 @@
-"""Launcher splice: the reef layer goes under CORAL's middleware, not around it."""
+"""Launcher splice: the aster layer goes under CORAL's middleware, not around it."""
 
 from __future__ import annotations
 
 import pytest
 
 from recipes.beta.coral.gateway_launcher import (
-    attach_reef_adapter,
-    attach_reef_adapter_to_agent_manager,
-    insert_reef_layer,
+    attach_aster_adapter,
+    attach_aster_adapter_to_agent_manager,
+    insert_aster_layer,
 )
-from recipes.beta.coral.middleware import ReefGatewayMiddleware
+from recipes.beta.coral.middleware import AsterGatewayMiddleware
 
 
 async def downstream_app(scope, receive, send):
@@ -46,14 +46,14 @@ class FakeManager:
 
 def test_attach_splices_under_coral_and_keeps_register_agent_working(tmp_path):
     manager = FakeManager()
-    journal = attach_reef_adapter(manager, scenario="s", journal_path=tmp_path / "j.jsonl")
+    journal = attach_aster_adapter(manager, scenario="s", journal_path=tmp_path / "j.jsonl")
     manager.start()
 
     assert manager.started
     # the outer object is still CORAL's middleware (type checks keep passing)
     assert isinstance(manager._middleware, FakeCoralMiddleware)
-    # the reef layer sits underneath
-    assert isinstance(manager._middleware.app, ReefGatewayMiddleware)
+    # the aster layer sits underneath
+    assert isinstance(manager._middleware.app, AsterGatewayMiddleware)
     assert manager._middleware.app.journal is journal
     # and registration is untouched
     assert manager.register_agent("agent-1", tmp_path) == "sk-key"
@@ -65,9 +65,9 @@ def test_insert_is_idempotent(tmp_path):
 
     journal = CallJournal(tmp_path / "j.jsonl")
     middleware = FakeCoralMiddleware(app=downstream_app)
-    insert_reef_layer(middleware, scenario="s", journal=journal)
+    insert_aster_layer(middleware, scenario="s", journal=journal)
     first = middleware.app
-    insert_reef_layer(middleware, scenario="s", journal=journal)
+    insert_aster_layer(middleware, scenario="s", journal=journal)
     assert middleware.app is first
 
 
@@ -76,7 +76,7 @@ def test_insert_requires_a_started_middleware(tmp_path):
 
     journal = CallJournal(tmp_path / "j.jsonl")
     with pytest.raises(TypeError, match="started CoralGatewayMiddleware"):
-        insert_reef_layer(None, scenario="s", journal=journal)
+        insert_aster_layer(None, scenario="s", journal=journal)
 
 
 class FakeAgentManager:
@@ -100,17 +100,17 @@ class FakeAgentManager:
 
 def test_attach_to_agent_manager_splices_before_agents_spawn(tmp_path):
     manager = FakeAgentManager()
-    journal = attach_reef_adapter_to_agent_manager(manager, scenario="s", journal_path=tmp_path / "j.jsonl")
+    journal = attach_aster_adapter_to_agent_manager(manager, scenario="s", journal_path=tmp_path / "j.jsonl")
     manager.start_all()
 
     assert manager.agents_started
     assert isinstance(manager._gateway._middleware, FakeCoralMiddleware)
-    assert isinstance(manager._gateway._middleware.app, ReefGatewayMiddleware)
+    assert isinstance(manager._gateway._middleware.app, AsterGatewayMiddleware)
     assert manager._gateway._middleware.app.journal is journal
 
 
 def test_attach_to_agent_manager_fails_loudly_when_gateway_disabled(tmp_path):
     manager = FakeAgentManager(gateway_enabled=False)
-    attach_reef_adapter_to_agent_manager(manager, scenario="s", journal_path=tmp_path / "j.jsonl")
+    attach_aster_adapter_to_agent_manager(manager, scenario="s", journal_path=tmp_path / "j.jsonl")
     with pytest.raises(RuntimeError, match=r"agents\.gateway\.enabled"):
         manager.start_all()

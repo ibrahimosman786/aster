@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import pytest
 
-from reef.core.evaluation import CandidateEvaluationPlugin
-from reef.evaluation import EvaluationResult, RegressionCheckMixin, UpdateCandidate
+from aster.core.evaluation import CandidateEvaluationPlugin
+from aster.evaluation import EvaluationResult, RegressionCheckMixin, UpdateCandidate
 
 
 class CheckedPlugin(RegressionCheckMixin, CandidateEvaluationPlugin):

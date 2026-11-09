@@ -3,13 +3,13 @@
 Everything the method needs to know about AIME lives here, and nothing here
 knows about GEPA beyond its ``Feedback`` hook: ``gepa.yaml`` names the scorer
 as ``evolution.evaluation.scorer`` and the feedback as the method's
-``feedback``, and Reef calls them with a task prompt and a run result.
+``feedback``, and Aster calls them with a task prompt and a run result.
 The answer table is keyed by the prompt text because that is all a run
 carries - ``evolution.evaluation.tasks`` is a list of strings - so the splits
 are loaded once and indexed by problem statement.
 
 The upstream quickstart's scoring rule and its feedback wording are
-reproduced here rather than imported: this example exists to show the Reef
+reproduced here rather than imported: this example exists to show the Aster
 method matching GEPA's published numbers, so a runtime dependency on the
 package under comparison would defeat it. The original is
 ``gepa.adapters.default_adapter.ContainsAnswerEvaluator`` at the v0.1.2 tag
@@ -28,8 +28,8 @@ from dataclasses import dataclass, field
 from typing import Any, TypedDict, cast
 
 from recipes.gepa import Feedback
-from reef.evaluation.harness import TaskScorer
-from reef.harness.tasks.run import TaskResult
+from aster.evaluation.harness import TaskScorer
+from aster.harness.tasks.run import TaskResult
 
 # The Pi release the retained record ran and the example still targets; run.py
 # refuses any other binary version before it spends anything.
@@ -59,7 +59,7 @@ AIME_TEST_REVISION = "c94da77eb22bbd6439e62a323bec18493a421302"
 AIME_SPLIT_SIZES = {"train": 45, "validation": 45, "test": 150}
 AIME_DATASET_SHA256 = "74e81306a9a1debadd64c49a4ab3588615f7bb698b695a59c17c65dd3b895185"
 
-# The extra node that the multi-node variant (REEF_GEPA_MULTI=1) evolves
+# The extra node that the multi-node variant (ASTER_GEPA_MULTI=1) evolves
 # beside the seed's rules.md.
 SKILL_SEED = """# AIME solver
 
@@ -69,7 +69,7 @@ then put only the final value after `###` on the last answer line.
 SKILL_SEED_NAME = "aime-solver"
 
 #: Prompt text to expected answer string, and prompt text to the optional
-#: context the feedback hook quotes. Filled by :func:`load_aime_splits`; Reef
+#: context the feedback hook quotes. Filled by :func:`load_aime_splits`; Aster
 #: only ever passes tasks that came from those splits.
 ANSWERS: dict[str, str] = {}
 CONTEXTS: dict[str, dict[str, str]] = {}
@@ -116,7 +116,7 @@ class AIMEFeedback(Feedback):
 
 
 class AIMEExample(TypedDict, total=False):
-    """The subset of GEPA's AIME example schema that Reef consumes."""
+    """The subset of GEPA's AIME example schema that Aster consumes."""
 
     input: str
     answer: str

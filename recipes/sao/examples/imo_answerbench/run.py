@@ -3,9 +3,9 @@
 For each task, in order:
 
     solve  — reef-eval runs the task under our agent (six attempts, each an
-             inference through Reef)
+             inference through Aster)
     verify — Harbor's isolated verifier scores every attempt
-    learn  — the agent reports each score against its receipt; Reef's SAO
+    learn  — the agent reports each score against its receipt; Aster's SAO
              recipe trains on the rollouts, and the *next* task is served
              by the updated weights
 
@@ -28,13 +28,13 @@ from pathlib import Path
 
 from reef_eval import Lab
 
-MODEL = "reef"  # model name the agent sends; Reef's SGLang serves it
+MODEL = "aster"  # model name the agent sends; Aster's SGLang serves it
 
 #: The drain below reads the same deployment the agent talks to. Copied from
 #: harness/agent.py rather than imported, because the harness is installed on
 #: its own into reef-eval's environment while run.py stays host-side.
 SERVICE_URL = "http://127.0.0.1:8900"
-TOKEN = "reef-local"
+TOKEN = "aster-local"
 SCENARIO = "sao-smoke"
 ROLLOUTS = 6
 
@@ -59,7 +59,7 @@ def training_step_count() -> int | None:
     is terminal: the stack is gone or this loop is talking to something that
     is not its deployment, and waiting cannot change either.
     """
-    request = urllib.request.Request(f"{SERVICE_URL}/reef/status", headers={"Authorization": f"Bearer {TOKEN}"})
+    request = urllib.request.Request(f"{SERVICE_URL}/aster/status", headers={"Authorization": f"Bearer {TOKEN}"})
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
             payload = json.loads(response.read())
@@ -83,7 +83,7 @@ def wait_for_training(expected: int) -> None:
     while time.time() < deadline:
         trained = training_step_count()
         if trained == _SERVICE_GONE:
-            raise RuntimeError("The Reef service is not reachable during the training drain")
+            raise RuntimeError("The Aster service is not reachable during the training drain")
         if trained is not None and trained >= expected:
             print(f"    trained: {trained}/{expected} rollouts committed")
             return

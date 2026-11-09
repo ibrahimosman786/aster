@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from reef.train.slime_backend.reef_adapters.megatron.hf_arguments import explicit_flag_names, hf_architecture_arguments
+from aster.train.slime_backend.aster_adapters.megatron.hf_arguments import explicit_flag_names, hf_architecture_arguments
 
 
 def _dense_hf_config(**overrides):

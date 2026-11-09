@@ -6,7 +6,7 @@ self-contained: IBM Plex Sans and IBM Plex Mono are embedded, box highlights
 are CSS animations, and the moving dots are SMIL, so the drawing animates inside
 an <img> tag on GitHub and stays a readable static diagram wherever animation
 is off. The fonts are fetched from Google Fonts once and cached under
-~/.cache/reef-fonts (override with --font-cache).
+~/.cache/aster-fonts (override with --font-cache).
 """
 
 from __future__ import annotations
@@ -200,7 +200,7 @@ def render(theme: str, fonts) -> str:
         (
             f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" '
             f'width="{W}" height="{H}" viewBox="0 0 {W} {H}" role="img" '
-            f'aria-label="Reef architecture: a harness sends requests through a scenario to inference; '
+            f'aria-label="Aster architecture: a harness sends requests through a scenario to inference; '
             f"records match feedback to the interactions, the trainer runs the recipe, evaluation accepts "
             f'or rejects the candidate, and the accepted release serves the next request.">'
         ),
@@ -292,7 +292,7 @@ def render(theme: str, fonts) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--font-cache", type=Path, default=Path.home() / ".cache" / "reef-fonts")
+    parser.add_argument("--font-cache", type=Path, default=Path.home() / ".cache" / "aster-fonts")
     args = parser.parse_args()
     fonts = font_files(args.font_cache)
     for theme in THEMES:

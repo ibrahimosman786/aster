@@ -19,16 +19,16 @@ from tests.support.harness_steps import MODEL, PI_SEED, step_services
 
 from recipes.reasoning_bank import ReasoningBank
 from recipes.reasoning_bank.method import FOCUS
-from reef.core.job_data import TrajectorySample
-from reef.core.plugins import PluginConfigError
-from reef.harness.adapters import get_adapter
-from reef.harness.tasks.model_binding import ModelBindings
-from reef.harness.tree import HarnessTree, TreePatch, validate_tree
-from reef.recipe.config import recipe_config_from_file_layout
-from reef.recipe.harness import HarnessEvolutionRecipe
-from reef.record2sample.traces import InferenceSamples
-from reef.train.harness_backend import StepContext, Workspace
-from reef.train.harness_backend.workspace import StepOutput
+from aster.core.job_data import TrajectorySample
+from aster.core.plugins import PluginConfigError
+from aster.harness.adapters import get_adapter
+from aster.harness.tasks.model_binding import ModelBindings
+from aster.harness.tree import HarnessTree, TreePatch, validate_tree
+from aster.recipe.config import recipe_config_from_file_layout
+from aster.recipe.harness import HarnessEvolutionRecipe
+from aster.record2sample.traces import InferenceSamples
+from aster.train.harness_backend import StepContext, Workspace
+from aster.train.harness_backend.workspace import StepOutput
 
 PI = get_adapter("pi")
 EXAMPLE = Path(__file__).resolve().parents[3] / "recipes" / "reasoning_bank" / "examples" / "serve.yaml"

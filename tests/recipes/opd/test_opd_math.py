@@ -47,7 +47,7 @@ def test_evaluation_never_submits_training_reports(tmp_path) -> None:
             return {
                 "choices": [{"message": {"content": r"\boxed{42}"}, "finish_reason": "stop"}],
                 "usage": {"completion_tokens": 8},
-            }, {"x-reef-agent-record-id": "receipt"}
+            }, {"x-aster-agent-record-id": "receipt"}
 
         def get(self, path):
             assert path.endswith("/records/receipt")
@@ -89,14 +89,14 @@ class CampaignService:
             raise ConnectionError(f"Injected disconnect at {point}")
 
     def post(self, path, scenario, payload):
-        from reef_client import ReefClientError
+        from reef_client import AsterClientError
 
-        if path == "/reef/scenarios":
-            # Reef creates the scenario at its initial snapshot.
+        if path == "/aster/scenarios":
+            # Aster creates the scenario at its initial snapshot.
             self.created_scenarios.append(payload["name"])
             return {"scenario": payload["name"]}, {}
         if scenario not in self.created_scenarios:
-            raise ReefClientError(404, "No scenario")
+            raise AsterClientError(404, "No scenario")
         evaluation = payload["max_tokens"] == 4
         if evaluation and len(self.commits) == 1:
             self.fail_once("eval-1")
@@ -106,16 +106,16 @@ class CampaignService:
         return {
             "choices": [{"message": {"content": r"\boxed{42}"}, "finish_reason": "stop"}],
             "usage": {"completion_tokens": 3},
-        }, {"x-reef-agent-record-id": receipt}
+        }, {"x-aster-agent-record-id": receipt}
 
     def get(self, path):
         from urllib.parse import parse_qs, urlsplit
 
-        from reef_client import ReefClientError
+        from reef_client import AsterClientError
 
         if path.endswith("/artifacts"):
             if not self.created_scenarios:
-                raise ReefClientError(404, "No scenario")
+                raise AsterClientError(404, "No scenario")
             rows = [
                 {
                     "artifact_id": f"r{i}",
@@ -131,7 +131,7 @@ class CampaignService:
             self.fail_once("verify-1")
             after = int(parse_qs(urlsplit(path).query)["after_step"][0])
             return {"commits": self.commits[after : after + 1]}
-        assert path == "/reef/status"
+        assert path == "/aster/status"
         return {}
 
     def report(self, scenario, payload, *, references):
@@ -205,7 +205,7 @@ def test_campaign_resumes_without_retraining_or_resampling_finished_batches(monk
     from recipes.opd.examples.math import run
 
     service = CampaignService(failure)
-    monkeypatch.setattr(run, "ReefClient", lambda *args, **kwargs: service)
+    monkeypatch.setattr(run, "AsterClient", lambda *args, **kwargs: service)
     with pytest.raises(ConnectionError, match="Injected disconnect"):
         Campaign(campaign_args).run()
     campaign_args.resume = True
@@ -230,7 +230,7 @@ def test_resume_rejects_modified_data_before_any_service_call(monkeypatch, campa
     from recipes.opd.examples.math import run
 
     service = CampaignService()
-    monkeypatch.setattr(run, "ReefClient", lambda *args, **kwargs: service)
+    monkeypatch.setattr(run, "AsterClient", lambda *args, **kwargs: service)
     Campaign(campaign_args)
     campaign_args.resume = True
     campaign_args.eval_data.write_text('{"id":"different","prompt":"Changed","answer":"42"}\n')
@@ -243,9 +243,9 @@ def test_partial_collection_recovers_only_missing_samples_and_torn_last_line(mon
     from recipes.opd.examples.math import run
 
     service = CampaignService()
-    monkeypatch.setattr(run, "ReefClient", lambda *args, **kwargs: service)
+    monkeypatch.setattr(run, "AsterClient", lambda *args, **kwargs: service)
     # The inference routes answer only a scenario that exists; ``run`` creates it before the first sample.
-    service.post("/reef/scenarios", campaign_args.scenario, {"name": campaign_args.scenario})
+    service.post("/aster/scenarios", campaign_args.scenario, {"name": campaign_args.scenario})
     campaign = Campaign(campaign_args)
     questions = run.load_questions(campaign_args.eval_data)
     first = campaign.sample((questions[0], 0, True))
@@ -262,7 +262,7 @@ def test_resume_rejects_incomplete_historical_evaluation(monkeypatch, campaign_a
     from recipes.opd.examples.math import run
 
     service = CampaignService("report-2")
-    monkeypatch.setattr(run, "ReefClient", lambda *args, **kwargs: service)
+    monkeypatch.setattr(run, "AsterClient", lambda *args, **kwargs: service)
     with pytest.raises(ConnectionError):
         Campaign(campaign_args).run()
     path = campaign_args.output / "eval-0000.jsonl"
@@ -278,7 +278,7 @@ def test_resume_rejects_unrelated_committed_reports(monkeypatch, campaign_args):
     from recipes.opd.examples.math import run
 
     service = CampaignService("report-2")
-    monkeypatch.setattr(run, "ReefClient", lambda *args, **kwargs: service)
+    monkeypatch.setattr(run, "AsterClient", lambda *args, **kwargs: service)
     with pytest.raises(ConnectionError):
         Campaign(campaign_args).run()
     service.commits[0]["consumed_ids"][-1] = "unrelated-receipt"
@@ -294,7 +294,7 @@ def test_campaign_prevents_two_drivers_for_one_output(monkeypatch, campaign_args
     from recipes.opd.examples.math import run
 
     service = CampaignService()
-    monkeypatch.setattr(run, "ReefClient", lambda *args, **kwargs: service)
+    monkeypatch.setattr(run, "AsterClient", lambda *args, **kwargs: service)
     campaign = Campaign(campaign_args)
     with (campaign.output / ".driver.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -327,7 +327,7 @@ def test_baseline_eval_reuses_an_earlier_evaluation_and_samples_only_for_trainin
     from recipes.opd.examples.math import run
 
     service = CampaignService()
-    monkeypatch.setattr(run, "ReefClient", lambda *args, **kwargs: service)
+    monkeypatch.setattr(run, "AsterClient", lambda *args, **kwargs: service)
     earlier = tmp_path / "earlier-eval-0000.jsonl"
     rows = [
         {
@@ -367,7 +367,7 @@ def test_baseline_eval_reuses_an_earlier_evaluation_and_samples_only_for_trainin
     assert service.inference_calls == 4
     # A baseline for other seeds is refused before any request reaches a fresh scenario.
     fresh = CampaignService()
-    monkeypatch.setattr(run, "ReefClient", lambda *args, **kwargs: fresh)
+    monkeypatch.setattr(run, "AsterClient", lambda *args, **kwargs: fresh)
     earlier.write_text(json.dumps({**rows[0], "seed": 7}) + "\n" + json.dumps(rows[1]) + "\n")
     campaign_args.resume = False
     campaign_args.output = tmp_path / "results-2"

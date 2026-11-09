@@ -11,17 +11,17 @@ from sqlalchemy import Column, Integer, MetaData, String, Table, Text, inspect
 from tests.support.samples import made_task
 from tests.support.task_service_stubs import task_for
 
-from reef.artifact import SnapshotRef
-from reef.core.job_data import TaskSample, TrajectorySample
-from reef.core.tasks import write_harbor_task
-from reef.storage.commits import CommitRecord
-from reef.storage.data import DataStore, MemoryDataStore, NewItem
-from reef.storage.postgres import PostgresScenarioStorage
-from reef.storage.samples import SampleStore, consumed_sample_id, stage_item_id
-from reef.storage.scenario import ScenarioStore
-from reef.storage.sql_data import PostgresDataStore, SQLiteDataStore
-from reef.storage.sqlite import SQLiteScenarioStorage
-from reef.storage.tasks import LocalTaskFileStore
+from aster.artifact import SnapshotRef
+from aster.core.job_data import TaskSample, TrajectorySample
+from aster.core.tasks import write_harbor_task
+from aster.storage.commits import CommitRecord
+from aster.storage.data import DataStore, MemoryDataStore, NewItem
+from aster.storage.postgres import PostgresScenarioStorage
+from aster.storage.samples import SampleStore, consumed_sample_id, stage_item_id
+from aster.storage.scenario import ScenarioStore
+from aster.storage.sql_data import PostgresDataStore, SQLiteDataStore
+from aster.storage.sqlite import SQLiteScenarioStorage
+from aster.storage.tasks import LocalTaskFileStore
 
 
 def trajectory(text: str, **fields) -> TrajectorySample:

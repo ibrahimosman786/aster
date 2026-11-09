@@ -2,7 +2,7 @@
 
 This run used the bundled TTT-Discover harness and the Packing 32 judge in this
 repository. It completed 50 search and training steps. Each step generated
-eight groups of 64 programs with Qwen3-8B. Reef trained a rank-32 LoRA adapter
+eight groups of 64 programs with Qwen3-8B. Aster trained a rank-32 LoRA adapter
 after receiving the complete grid and served the updated adapter during the
 next step.
 
@@ -46,7 +46,7 @@ checkpoint, and PUCT archive.
 ## Run records
 
 W&B stored the training metrics under run
-[`030683efe2bfee9866d61cf3b654ef59`](https://wandb.ai/weianxie-massachusetts-institute-of-technology/reef/runs/030683efe2bfee9866d61cf3b654ef59).
+[`030683efe2bfee9866d61cf3b654ef59`](https://wandb.ai/weianxie-massachusetts-institute-of-technology/aster/runs/030683efe2bfee9866d61cf3b654ef59).
 The stored state contains one search trajectory, so this result does not
 estimate variance across seeds.
 

@@ -11,32 +11,32 @@ import pytest
 from tests.support.job_data import job_data_ref
 from tests.tinker_backend.test_spindle_full import BASE, MODEL, RELEASES, SPINDLE, Exporter, SpindleClient
 
-from reef.core.errors import DeployConfigError
-from reef.core.evaluation import RolloutScore, RolloutScores
-from reef.core.job_data import JobData, TaskSample, TrajectorySample
-from reef.tinker.sampling import SampleResult, TinkerSampler
-from reef.train.algos.schedule import StepScheduling
-from reef.train.algos.signals import TrainingSignal
-from reef.train.component import TrainingJob
-from reef.train.task_rollouts import ChatEndpoint, TaskJobRollouts
-from reef.train.tinker_backend import component as component_module
-from reef.train.tinker_backend.config import ScoreCentering, SpindleFullConfig
-from reef.train.tinker_backend.full import SpindleFullTrainingComponent
-from reef.train.tinker_backend.launch import spindle_full_settings
-from reef.train.tinker_backend.losses import (
+from aster.core.errors import DeployConfigError
+from aster.core.evaluation import RolloutScore, RolloutScores
+from aster.core.job_data import JobData, TaskSample, TrajectorySample
+from aster.tinker.sampling import SampleResult, TinkerSampler
+from aster.train.algos.schedule import StepScheduling
+from aster.train.algos.signals import TrainingSignal
+from aster.train.component import TrainingJob
+from aster.train.task_rollouts import ChatEndpoint, TaskJobRollouts
+from aster.train.tinker_backend import component as component_module
+from aster.train.tinker_backend.config import ScoreCentering, SpindleFullConfig
+from aster.train.tinker_backend.full import SpindleFullTrainingComponent
+from aster.train.tinker_backend.launch import spindle_full_settings
+from aster.train.tinker_backend.losses import (
     UNTRAINED_LOGPROB,
     CrossEntropyLoss,
     MatrixInput,
     ScoreCenteredLoss,
     TokenRow,
 )
-from reef.train.tinker_backend.objectives import (
+from aster.train.tinker_backend.objectives import (
     TinkerObjective,
     register_tinker_objective,
     unregister_tinker_objective,
 )
-from reef.train.tinker_backend.preparation import prepare_tinker_job
-from reef.train.tinker_backend.rollout import SamplerChat
+from aster.train.tinker_backend.preparation import prepare_tinker_job
+from aster.train.tinker_backend.rollout import SamplerChat
 
 CENTERING = ScoreCentering(top_k=2, min_tail_mass=1e-6, weight_low=1.0, weight_high=1.0)
 HEADS = {"topk_indices": [[7, 3, 4], [8, 1, 2]], "topk_log_probs": [[-0.1, -2.5, -3.0], [-0.2, -2.0, -4.0]]}
@@ -49,7 +49,7 @@ def trajectory(group: str = "g", reward: float = 1.0, **training: object) -> Tra
             "schema_version": "ATIF-v1.6",
             "agent": {"name": "a"},
             "steps": [{"step_id": 1}],
-            "extra": {"reef": {"training": values, "reward": reward}},
+            "extra": {"aster": {"training": values, "reward": reward}},
         },
         group_id=group,
     )

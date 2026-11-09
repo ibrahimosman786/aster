@@ -1,16 +1,16 @@
 """Per-session accept and style metrics of a GSM8K homework stream.
 
-Reef's training run logs loss and rewards; the judge service's verdict, whether
+Aster's training run logs loss and rewards; the judge service's verdict, whether
 the agent's first reply satisfies the student, lands per session in the reef-eval
-lab as ``verifier/final.json``, which Reef never sees. This script reads those
+lab as ``verifier/final.json``, which Aster never sees. This script reads those
 verdicts and turns them into the stream's learning curve, in two ways.
 
 While a stream runs (``run.sh`` starts it when ``WANDB_API_KEY`` is set), it
 tails the lab and logs one point per session into a run of the same W&B group
-as Reef's, so the accept and style curves sit beside the training curves::
+as Aster's, so the accept and style curves sit beside the training curves::
 
     uv run --no-project --with wandb results/learning_curve.py \\
-        --lab "$RUN_DIR/lab" --reef-url http://host:28900 --reef-token "$(cat token)"
+        --lab "$RUN_DIR/lab" --aster-url http://host:28900 --aster-token "$(cat token)"
 
 After a stream, it exports the same points to a CSV and draws the figure the
 README keeps, with no W&B involved::
@@ -230,8 +230,8 @@ def plot(rows: list[dict], path: Path, max_session: int | None = None) -> None:
     plt.close(figure)
 
 
-def scenario_of(reef_url: str, token: str) -> str | None:
-    request = urllib.request.Request(f"{reef_url}/reef/status", headers={"Authorization": f"Bearer {token}"})
+def scenario_of(aster_url: str, token: str) -> str | None:
+    request = urllib.request.Request(f"{aster_url}/aster/status", headers={"Authorization": f"Bearer {token}"})
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
             names = list(json.load(response).get("scenarios", {}))
@@ -243,10 +243,10 @@ def scenario_of(reef_url: str, token: str) -> str | None:
 def log_to_wandb(args: argparse.Namespace) -> int:
     scenario = args.scenario
     while scenario is None:
-        scenario = scenario_of(args.reef_url, args.reef_token)
+        scenario = scenario_of(args.aster_url, args.aster_token)
         if scenario is None:
             if args.once:
-                print("learning_curve: reef reports no scenario yet", file=sys.stderr)
+                print("learning_curve: aster reports no scenario yet", file=sys.stderr)
                 return 1
             time.sleep(args.poll_seconds)
 
@@ -296,9 +296,9 @@ def main() -> int:
     parser.add_argument("--csv", type=Path, help="export the per-session rows to this CSV and exit")
     parser.add_argument("--plot", type=Path, help="draw the learning curve to this PNG and exit")
     parser.add_argument("--max-session", type=int, default=None, help="last session index the figure shows")
-    parser.add_argument("--reef-url", help="Reef's URL, to find the scenario (logging mode)")
-    parser.add_argument("--reef-token", help="Reef's bearer token (logging mode)")
-    parser.add_argument("--project", default="reef")
+    parser.add_argument("--aster-url", help="Aster's URL, to find the scenario (logging mode)")
+    parser.add_argument("--aster-token", help="Aster's bearer token (logging mode)")
+    parser.add_argument("--project", default="aster")
     parser.add_argument("--entity", default=None)
     parser.add_argument("--group-prefix", default="openclawrl")
     parser.add_argument("--name", default=None, help="run name (default: <group-prefix>-eval-<scenario tail>)")
@@ -327,8 +327,8 @@ def main() -> int:
             print(f"learning_curve: wrote {args.plot}")
         return 0
 
-    if args.lab is None or (args.scenario is None and (args.reef_url is None or args.reef_token is None)):
-        parser.error("logging mode needs --lab and either --scenario or --reef-url with --reef-token")
+    if args.lab is None or (args.scenario is None and (args.aster_url is None or args.aster_token is None)):
+        parser.error("logging mode needs --lab and either --scenario or --aster-url with --aster-token")
     return log_to_wandb(args)
 
 

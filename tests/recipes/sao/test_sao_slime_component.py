@@ -15,12 +15,12 @@ from tests.support._trajectories import policy_trajectory
 from tests.support.job_data import job_data_ref
 from tests.support.slime_component import FakeTrainGroup, RecordingBatchProcessor, checkpoint_storage, finished
 
-from reef.train.component import JobStatus, TrainingJob
-from reef.train.slime_backend.component import SlimeJobRunner
-from reef.train.slime_backend.data_builder import to_slime_rollout_data
-from reef.train.slime_backend.loss_families import resolve_loss_family
-from reef.train.slime_backend.reef_adapters.arguments import SlimeArguments
-from reef.train.types import JobData
+from aster.train.component import JobStatus, TrainingJob
+from aster.train.slime_backend.component import SlimeJobRunner
+from aster.train.slime_backend.data_builder import to_slime_rollout_data
+from aster.train.slime_backend.loss_families import resolve_loss_family
+from aster.train.slime_backend.aster_adapters.arguments import SlimeArguments
+from aster.train.types import JobData
 
 
 def _sao_row(
@@ -34,7 +34,7 @@ def _sao_row(
     producing_artifact_id: str | None = "artifact-3",
     rollout_created_at: float | None = 1234.5,
 ) -> list[object]:
-    """One 8-element SAO row as emitted by Reef's remote handle."""
+    """One 8-element SAO row as emitted by Aster's remote handle."""
     tokens = [9, 1, 2, 3] if tokens is None else tokens
     loss_mask = [1, 1, 1] if loss_mask is None else loss_mask
     action_mask = list(loss_mask) if action_mask is None else action_mask
@@ -216,7 +216,7 @@ class SaoStack:
             num_critic_only_steps=critic_only_steps,
             decoupled_lr=None,
             score_centering=False,
-            reef_rollout_tensor_dtypes={},
+            aster_rollout_tensor_dtypes={},
         )
         self.actor = FakeTrainGroup(template, megatron_root=storage.megatron_root, rank_metrics=rank_metrics)
         self.actor.train_result = [{"values": [0.25]}]
@@ -326,7 +326,7 @@ def test_ten_valid_batches_warm_up_critic_before_first_actor_update(tmp_path, sa
 
 @pytest.mark.unit
 def test_a_sao_checkpoint_carries_the_backend_and_worker_metrics(tmp_path, sao_stacks) -> None:
-    # Slime is only a producer here: Reef records the checkpoint's metrics and decides who sees them.
+    # Slime is only a producer here: Aster records the checkpoint's metrics and decides who sees them.
     stack = sao_stacks(tmp_path, rank_metrics=[{"slime/lr": 1e-6}])
 
     metrics = checkpoint_metrics(stack.run())
@@ -430,7 +430,7 @@ def _install_slime_parser_stubs() -> None:
 
 
 def critic_prep_args(**overrides):
-    from reef.train.slime_backend.reef_adapters.arguments import SlimeArguments
+    from aster.train.slime_backend.aster_adapters.arguments import SlimeArguments
 
     values = {
         "megatron_config_path": None,
@@ -463,8 +463,8 @@ def critic_prep_args(**overrides):
 
 @pytest.mark.unit
 def test_prepare_critic_args_keeps_the_custom_advantage_path_and_pins_lambda() -> None:
-    from reef.train.slime_backend.reef_adapters.preflight import configure_critic_args_hook
-    from reef.train.slime_backend.reef_adapters.train_groups import prepare_critic_args
+    from aster.train.slime_backend.aster_adapters.preflight import configure_critic_args_hook
+    from aster.train.slime_backend.aster_adapters.train_groups import prepare_critic_args
 
     args = critic_prep_args()
     configure_critic_args_hook(args)
@@ -479,8 +479,8 @@ def test_prepare_critic_args_keeps_the_custom_advantage_path_and_pins_lambda() -
 
 @pytest.mark.unit
 def test_prepare_critic_args_starts_the_critic_from_an_init_checkpoint_until_it_has_its_own(tmp_path) -> None:
-    from reef.train.slime_backend.reef_adapters.preflight import configure_critic_args_hook
-    from reef.train.slime_backend.reef_adapters.train_groups import prepare_critic_args
+    from aster.train.slime_backend.aster_adapters.preflight import configure_critic_args_hook
+    from aster.train.slime_backend.aster_adapters.train_groups import prepare_critic_args
 
     critic_save, critic_init = tmp_path / "megatron-critic", tmp_path / "critic-init"
     critic_init.mkdir()
@@ -511,8 +511,8 @@ def test_prepare_critic_args_starts_the_critic_from_an_init_checkpoint_until_it_
 
 @pytest.mark.unit
 def test_prepare_critic_args_applies_the_critic_learning_rate() -> None:
-    from reef.train.slime_backend.reef_adapters.preflight import configure_critic_args_hook
-    from reef.train.slime_backend.reef_adapters.train_groups import prepare_critic_args
+    from aster.train.slime_backend.aster_adapters.preflight import configure_critic_args_hook
+    from aster.train.slime_backend.aster_adapters.train_groups import prepare_critic_args
 
     args = critic_prep_args(critic_lr=5e-6, lr=1e-6)
     configure_critic_args_hook(args)
@@ -524,8 +524,8 @@ def test_prepare_critic_args_applies_the_critic_learning_rate() -> None:
 
 @pytest.mark.unit
 def test_prepare_critic_args_inherits_the_policy_lr_when_unset() -> None:
-    from reef.train.slime_backend.reef_adapters.preflight import configure_critic_args_hook
-    from reef.train.slime_backend.reef_adapters.train_groups import prepare_critic_args
+    from aster.train.slime_backend.aster_adapters.preflight import configure_critic_args_hook
+    from aster.train.slime_backend.aster_adapters.train_groups import prepare_critic_args
 
     args = critic_prep_args(lr=1e-6)
     configure_critic_args_hook(args)
@@ -541,19 +541,19 @@ def test_prepare_critic_args_keeps_lora_for_the_critic() -> None:
     The critic is the policy's size; without adapters it would train every
     parameter and could not sit beside a LoRA actor of the same model.
     """
-    from reef.train.slime_backend.reef_adapters.preflight import configure_critic_args_hook
-    from reef.train.slime_backend.reef_adapters.slime_arguments import REEF_MODEL_PROVIDER_PATH
-    from reef.train.slime_backend.reef_adapters.train_groups import prepare_critic_args
+    from aster.train.slime_backend.aster_adapters.preflight import configure_critic_args_hook
+    from aster.train.slime_backend.aster_adapters.slime_arguments import ASTER_MODEL_PROVIDER_PATH
+    from aster.train.slime_backend.aster_adapters.train_groups import prepare_critic_args
 
-    # The state finalize_reef_slime_args leaves for a LoRA actor: alpha
-    # defaulted, Reef's provider installed, the user's provider chained.
+    # The state finalize_aster_slime_args leaves for a LoRA actor: alpha
+    # defaulted, Aster's provider installed, the user's provider chained.
     args = critic_prep_args(
         megatron_lora_rank=32,
         megatron_lora_alpha=32,
         megatron_lora_dropout=0.0,
         megatron_lora_target_modules=["linear_qkv", "linear_fc1"],
-        custom_model_provider_path=REEF_MODEL_PROVIDER_PATH,
-        reef_chained_model_provider_path=None,
+        custom_model_provider_path=ASTER_MODEL_PROVIDER_PATH,
+        aster_chained_model_provider_path=None,
     )
     configure_critic_args_hook(args)
     critic_args = prepare_critic_args(args)
@@ -561,14 +561,14 @@ def test_prepare_critic_args_keeps_lora_for_the_critic() -> None:
     assert critic_args.megatron_lora_rank == 32
     assert critic_args.megatron_lora_alpha == 32
     assert critic_args.megatron_lora_target_modules == ["linear_qkv", "linear_fc1"]
-    assert critic_args.custom_model_provider_path == REEF_MODEL_PROVIDER_PATH
+    assert critic_args.custom_model_provider_path == ASTER_MODEL_PROVIDER_PATH
 
 
 @pytest.mark.unit
 @pytest.mark.parametrize("provider", [None, "recipes.sao.examples.servelearnbench.long_context.provide_model"])
 def test_prepare_critic_args_without_lora_preserves_the_user_provider(provider) -> None:
-    from reef.train.slime_backend.reef_adapters.preflight import configure_critic_args_hook
-    from reef.train.slime_backend.reef_adapters.train_groups import prepare_critic_args
+    from aster.train.slime_backend.aster_adapters.preflight import configure_critic_args_hook
+    from aster.train.slime_backend.aster_adapters.train_groups import prepare_critic_args
 
     args = critic_prep_args(megatron_lora_rank=0, custom_model_provider_path=provider)
     configure_critic_args_hook(args)
@@ -582,23 +582,23 @@ def test_prepare_critic_args_without_lora_preserves_the_user_provider(provider) 
 
 @pytest.mark.unit
 @pytest.mark.parametrize("provider", [None, "my.provider:build"])
-def test_prepare_critic_args_without_lora_unwraps_only_the_reef_provider(provider) -> None:
-    from reef.train.slime_backend.reef_adapters.slime_arguments import REEF_MODEL_PROVIDER_PATH
-    from reef.train.slime_backend.reef_adapters.train_groups import prepare_critic_args
+def test_prepare_critic_args_without_lora_unwraps_only_the_aster_provider(provider) -> None:
+    from aster.train.slime_backend.aster_adapters.slime_arguments import ASTER_MODEL_PROVIDER_PATH
+    from aster.train.slime_backend.aster_adapters.train_groups import prepare_critic_args
 
     args = critic_prep_args(
-        custom_model_provider_path=REEF_MODEL_PROVIDER_PATH,
-        reef_chained_model_provider_path=provider,
+        custom_model_provider_path=ASTER_MODEL_PROVIDER_PATH,
+        aster_chained_model_provider_path=provider,
     )
     critic_args = prepare_critic_args(args)
 
     assert critic_args.custom_model_provider_path == provider
-    assert args.custom_model_provider_path == REEF_MODEL_PROVIDER_PATH
+    assert args.custom_model_provider_path == ASTER_MODEL_PROVIDER_PATH
 
 
 @pytest.mark.unit
 def test_prepare_critic_args_restores_from_the_critic_root_when_present(tmp_path) -> None:
-    from reef.train.slime_backend.reef_adapters.train_groups import prepare_critic_args
+    from aster.train.slime_backend.aster_adapters.train_groups import prepare_critic_args
 
     critic_root = tmp_path / "megatron-critic"
     critic_root.mkdir()
@@ -615,7 +615,7 @@ def test_prepare_critic_args_restores_from_the_critic_root_when_present(tmp_path
 
 @pytest.mark.unit
 def test_prepare_critic_args_first_boot_keeps_the_inherited_load_fallback(tmp_path) -> None:
-    from reef.train.slime_backend.reef_adapters.train_groups import prepare_critic_args
+    from aster.train.slime_backend.aster_adapters.train_groups import prepare_critic_args
 
     critic_root = tmp_path / "megatron-critic"  # no checkpoint tracker yet
 
@@ -632,8 +632,8 @@ def test_prepare_critic_args_first_boot_keeps_the_inherited_load_fallback(tmp_pa
 def test_megatron_config_critic_role_pins_lambda(tmp_path) -> None:
     # The --megatron-config-path role surgery must still apply SAO's
     # critic-role lambda policy even with a megatron config.
-    from reef.train.slime_backend.reef_adapters.preflight import configure_critic_args_hook
-    from reef.train.slime_backend.reef_adapters.train_groups import prepare_critic_args
+    from aster.train.slime_backend.aster_adapters.preflight import configure_critic_args_hook
+    from aster.train.slime_backend.aster_adapters.train_groups import prepare_critic_args
 
     _install_slime_parser_stubs()
     config_path = tmp_path / "megatron.yaml"
@@ -664,7 +664,7 @@ def _write_bytes(path: Path, size: int) -> None:
 def _critic_storage(tmp_path: Path, *, critic: bool = True, cap: int = 1000, free: int = 1000):
     from collections import namedtuple
 
-    from reef.train.slime_backend.reef_adapters.training_job.storage import CheckpointStorage, RetentionConfig
+    from aster.train.slime_backend.aster_adapters.training_job.storage import CheckpointStorage, RetentionConfig
 
     usage = namedtuple("Usage", "total used free")
     root = tmp_path / "checkpoints"
@@ -716,7 +716,7 @@ def test_storage_retention_deletes_the_critic_asset_with_its_pair(tmp_path) -> N
 
 @pytest.mark.unit
 def test_storage_complete_requires_the_critic_asset_when_configured(tmp_path) -> None:
-    from reef.train.slime_backend.reef_adapters.training_job.storage import CheckpointStorageError
+    from aster.train.slime_backend.aster_adapters.training_job.storage import CheckpointStorageError
 
     storage = _critic_storage(tmp_path)
 

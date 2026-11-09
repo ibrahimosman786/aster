@@ -2,7 +2,7 @@
 
 The reference (torch free) is the source of truth for the per-token
 divergences and the importance-sampling weight of
-``reef/train/slime_backend/distill/objective.py``. These tests run both on
+``aster/train/slime_backend/distill/objective.py``. These tests run both on
 the same inputs at tensor-parallel world size one, on CPU tensors, so they
 are cheap enough for the minimal CI gate that installs CPU torch; the
 sharded tests spawn four gloo ranks on the CPU. The teacher's weights are
@@ -21,15 +21,15 @@ torch = pytest.importorskip("torch")
 
 from tests.support.reference_algorithms import distill
 
-from reef.train.slime_backend.distill import DistillSettings
-from reef.train.slime_backend.distill.objective import (
+from aster.train.slime_backend.distill import DistillSettings
+from aster.train.slime_backend.distill.objective import (
     chunked_token_divergence,
     restricted_divergence,
     sampled_reverse_kl,
     sequence_importance_weight,
     token_divergence,
 )
-from reef.train.slime_backend.distill.teacher import (
+from aster.train.slime_backend.distill.teacher import (
     ACTOR_TAG,
     TEACHER_TAG,
     CurrentWeights,
@@ -38,7 +38,7 @@ from reef.train.slime_backend.distill.teacher import (
     mix_teacher_weights,
     teacher_weights,
 )
-from reef.train.slime_backend.vocab_parallel import gather_log_probs_at_ids, global_log_sum_exp, native_topk_ids
+from aster.train.slime_backend.vocab_parallel import gather_log_probs_at_ids, global_log_sum_exp, native_topk_ids
 
 _ROWS, _VOCAB = 5, 11
 _DIVERGENCES = ("forward", "reverse", "jsd")

@@ -30,7 +30,7 @@ export TTTD_TASK
 # paths from their own directories) and this machine's IP (the serving
 # engines bind to it, not to localhost).
 export TTTD_STATE_DIR="$PWD/work/$TTTD_TASK"
-export REEF_INFERENCE_HOST=$(hostname -I | awk '{print $1}')
+export ASTER_INFERENCE_HOST=$(hostname -I | awk '{print $1}')
 mkdir -p "$TTTD_STATE_DIR"
 
 # Download the model on first run (serve.yaml expects it at work/model).
@@ -38,13 +38,13 @@ if [ ! -f work/model/config.json ]; then
     huggingface-cli download Qwen/Qwen3-8B --local-dir work/model
 fi
 
-# Start the Reef training stack. The Harbor controller waits for the final
+# Start the Aster training stack. The Harbor controller waits for the final
 # durable training commit before this script exits and stops the stack.
-python3 -m reef serve -c "$PWD/serve.yaml" > "$TTTD_STATE_DIR/reef.log" 2>&1 &
-reef_pid=$!
+python3 -m aster serve -c "$PWD/serve.yaml" > "$TTTD_STATE_DIR/aster.log" 2>&1 &
+aster_pid=$!
 cleanup() {
-    kill "$reef_pid" 2>/dev/null || true
-    wait "$reef_pid" 2>/dev/null || true
+    kill "$aster_pid" 2>/dev/null || true
+    wait "$aster_pid" 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -52,9 +52,9 @@ trap cleanup EXIT
 # Fail with the service log instead of waiting forever if boot fails.
 ready_deadline=$((SECONDS + 3600))
 while ! curl -sf http://127.0.0.1:8900/healthz > /dev/null; do
-    if ! kill -0 "$reef_pid" 2>/dev/null || (( SECONDS >= ready_deadline )); then
-        tail -n 100 "$TTTD_STATE_DIR/reef.log" >&2
-        echo "run.sh: the Reef stack did not become ready" >&2
+    if ! kill -0 "$aster_pid" 2>/dev/null || (( SECONDS >= ready_deadline )); then
+        tail -n 100 "$TTTD_STATE_DIR/aster.log" >&2
+        echo "run.sh: the Aster stack did not become ready" >&2
         exit 1
     fi
     sleep 5

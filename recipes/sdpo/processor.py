@@ -23,16 +23,16 @@ from dataclasses import dataclass
 from typing import Any, Self
 
 from recipes.sdpo.report import SDPOReport
-from reef.core.chat_rendering import TeacherRequest
-from reef.core.config import config_option
-from reef.core.plugins import PluginConfigError
-from reef.core.trajectories import make_trajectory, trajectory_reward
-from reef.pipeline_context import PipelineContext
-from reef.record2sample import GroupDecision, Record2Sample, ReportContext, ReportGrouping, ReportSamples
-from reef.record2sample.assembly import SampleAssembly, SampleAssemblySettings
-from reef.record2sample.distill import student_call, student_sample
-from reef.sample2job import Sample2Job, Sample2JobSettings
-from reef.train.types import JobData, Sample, TrajectorySample, trajectories
+from aster.core.chat_rendering import TeacherRequest
+from aster.core.config import config_option
+from aster.core.plugins import PluginConfigError
+from aster.core.trajectories import make_trajectory, trajectory_reward
+from aster.pipeline_context import PipelineContext
+from aster.record2sample import GroupDecision, Record2Sample, ReportContext, ReportGrouping, ReportSamples
+from aster.record2sample.assembly import SampleAssembly, SampleAssemblySettings
+from aster.record2sample.distill import student_call, student_sample
+from aster.sample2job import Sample2Job, Sample2JobSettings
+from aster.train.types import JobData, Sample, TrajectorySample, trajectories
 
 #: The reference's reprompt strings (``sdpo.yaml`` at the pin), used verbatim.
 REPROMPT_TEMPLATE = "{prompt}{solution}{feedback}\n\nCorrectly solve the original question."

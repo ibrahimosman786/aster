@@ -246,10 +246,10 @@ class TestHarness:
         finally:
             sys.path.remove(str(REPO_ROOT))
 
-    def test_agent_requires_reef_url(self, harbor_runtime):
+    def test_agent_requires_aster_url(self, harbor_runtime):
         from recipes.openclawrl.examples.openclawrl.harness import HermesStreamAgent
 
-        with pytest.raises(ValueError, match="reef_url"):
+        with pytest.raises(ValueError, match="aster_url"):
             HermesStreamAgent(logs_dir=Path("/tmp"))
 
     def test_session_loop_drives_hermes_against_the_judge(self, harbor_runtime, monkeypatch):
@@ -292,7 +292,7 @@ class TestHarness:
                     )
                 return SimpleNamespace(return_code=0, stdout="", stderr="")
 
-        agent = HermesStreamAgent(logs_dir=Path("/tmp"), reef_url="http://127.0.0.1:1")
+        agent = HermesStreamAgent(logs_dir=Path("/tmp"), aster_url="http://127.0.0.1:1")
 
         class FakeShim:
             def shutdown(self):
@@ -309,7 +309,7 @@ class TestHarness:
             created.append((path, scenario, payload))
             return {"scenario": scenario}, {}
 
-        monkeypatch.setattr(agent_module.ReefClient, "post", create_scenario)
+        monkeypatch.setattr(agent_module.AsterClient, "post", create_scenario)
         monkeypatch.setattr(agent, "_start_shim", lambda _scenario, session: (stamped.append(session), FakeShim())[1])
         monkeypatch.setattr(agent, "_upstream_health", lambda: next(health))
         environment = FakeEnvironment()
@@ -319,9 +319,9 @@ class TestHarness:
         assert context.metadata["openclawrl"]["turns"] == 2
         assert context.metadata["openclawrl"]["failure"] is None
         assert context.metadata["openclawrl"]["scenario"].startswith("openclawrl-stream-")
-        # The harness creates its scenario on Reef before hermes makes its first call.
+        # The harness creates its scenario on Aster before hermes makes its first call.
         scenario = context.metadata["openclawrl"]["scenario"]
-        assert created == [("/reef/scenarios", scenario, {"name": scenario})]
+        assert created == [("/aster/scenarios", scenario, {"name": scenario})]
         # One position, one tagged conversation: the processor correlates on
         # this rather than on whatever transcript hermes resends.
         assert stamped == [f"{context.metadata['openclawrl']['scenario']}-s0"]

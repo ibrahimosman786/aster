@@ -14,7 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 BASELINE = ROOT / ".github" / "python-design-baseline.txt"
-DESIGN_ROOTS = (ROOT / "reef", ROOT / "recipes", ROOT / "tests")
+DESIGN_ROOTS = (ROOT / "aster", ROOT / "recipes", ROOT / "tests")
 REQUIRED_ROOTS = DESIGN_ROOTS
 UNSUPPRESSIBLE = {"PYD001", "PYD005"}
 PROTOCOL_IGNORED_DIRECTORIES = {
@@ -47,7 +47,7 @@ PROTOCOL_EXCLUDED_TREES = ("tests/harness/data/harness_goldens",)
 PROTOCOL_EXCLUDED_FILES = (
     "recipes/tttd/examples/tttd/harbor/circle_packing_*/environment/score.py",
     "recipes/tttd/examples/tttd/results/*/best_solution.py",
-    "recipes/meta_harness/results/reef_harness.py",
+    "recipes/meta_harness/results/aster_harness.py",
 )
 
 

@@ -60,7 +60,7 @@ def execute_program(
     if parent is not None:
         parent.mkdir(parents=True, exist_ok=True)
 
-    with tempfile.TemporaryDirectory(prefix="reef-tttd-program-", dir=parent) as temporary:
+    with tempfile.TemporaryDirectory(prefix="aster-tttd-program-", dir=parent) as temporary:
         root = Path(temporary)
         program_path = root / "program.py"
         result_path = root / "result.pkl"
@@ -159,7 +159,7 @@ except Exception:
     pass
 
 try:
-    spec = importlib.util.spec_from_file_location("reef_tttd_generated_program", {str(program_path)!r})
+    spec = importlib.util.spec_from_file_location("aster_tttd_generated_program", {str(program_path)!r})
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     kwargs = pickle.loads({serialized_kwargs!r})

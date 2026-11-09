@@ -1,23 +1,23 @@
-"""``reef check-artifacts`` finds the records that do not resolve to stored files."""
+"""``aster check-artifacts`` finds the records that do not resolve to stored files."""
 
 from pathlib import Path
 
 import pytest
 
-from reef.artifact import Artifact, ArtifactError
-from reef.artifact.git_lfs import GitLFSRepositoryBackend
-from reef.cli import main
-from reef.core.artifact_selection import ArtifactSelection
-from reef.core.snapshot import RootSource
-from reef.service.check_artifacts import check_scenario, repeated_artifacts
-from reef.storage.commits import (
+from aster.artifact import Artifact, ArtifactError
+from aster.artifact.git_lfs import GitLFSRepositoryBackend
+from aster.cli import main
+from aster.core.artifact_selection import ArtifactSelection
+from aster.core.snapshot import RootSource
+from aster.service.check_artifacts import check_scenario, repeated_artifacts
+from aster.storage.commits import (
     SCENARIO_METADATA_KEY,
     UNLOCATED_SNAPSHOT,
     CommitRecord,
     RecordProgress,
     scenario_metadata_for,
 )
-from reef.storage.sqlite import SQLiteScenarioStorage
+from aster.storage.sqlite import SQLiteScenarioStorage
 
 
 def stored_tree(directory: Path, text: str, metadata: dict | None = None) -> Artifact:
@@ -98,7 +98,7 @@ def test_artifacts_with_the_same_files_count_as_extra_model_loads(published, tmp
 
 
 def test_the_command_exits_with_the_check_result(tmp_path: Path, fake_git_lfs: None, capsys) -> None:
-    config = tmp_path / "reef.yaml"
+    config = tmp_path / "aster.yaml"
     config.write_text(
         "inference:\n"
         "  upstream_url: http://127.0.0.1:9\n"

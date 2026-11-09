@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from reef.execution.executor import ray_runtime
+from aster.execution.executor import ray_runtime
 
 
 class FakeRay:

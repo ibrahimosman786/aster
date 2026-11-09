@@ -1,15 +1,15 @@
-# The CORAL task the Reef test-time-training example runs. This is a real
+# The CORAL task the Aster test-time-training example runs. This is a real
 # CORAL task config (`coral validate task/` accepts it): CORAL's AgentManager
 # reads it, spawns real agent runtimes in git worktrees over ./seed, starts
 # its LiteLLM gateway from ./litellm_config.yaml (whose only upstream is the
-# Reef service), and grades `coral eval` submissions with ./grader via the
+# Aster service), and grades `coral eval` submissions with ./grader via the
 # grader daemon.
 #
 # run.py loads this file and overrides the run-scoped values (results_dir,
 # stop budget, agent count/runtime/model) from its command line.
 
 task:
-  name: "reef-ttt-demo"
+  name: "aster-ttt-demo"
   description: |
     Implement `merge_sorted(a, b)` in `solution.py`.
 
@@ -33,7 +33,7 @@ task:
 agents:
   count: 2
   runtime: opencode
-  model: openai/reef-policy
+  model: openai/aster-policy
   gateway:
     enabled: true
     port: 8091

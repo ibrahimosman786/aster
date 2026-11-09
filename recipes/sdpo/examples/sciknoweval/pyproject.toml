@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "reef-sdpo-sciknoweval-harness"
+name = "aster-sdpo-sciknoweval-harness"
 version = "0.1.0"
-description = "Harbor agent harness that runs the SDPO SciKnowEval stage against a Reef service"
+description = "Harbor agent harness that runs the SDPO SciKnowEval stage against an Aster service"
 requires-python = ">=3.12"
 dependencies = [
     "reef-client",

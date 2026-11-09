@@ -11,12 +11,12 @@ import pytest
 
 from recipes.beta.reefine.agent import AGENT_TOOLS, AGENT_TOOLS_PATH, launch_pi
 from recipes.beta.reefine.trial import trial_script
-from reef.execution.sandbox.process import LocalExecutor
-from reef.harness.adapters import get_adapter
-from reef.harness.tree import HarnessTree, render_tree
+from aster.execution.sandbox.process import LocalExecutor
+from aster.harness.adapters import get_adapter
+from aster.harness.tree import HarnessTree, render_tree
 
-REAL_PI = os.environ.get("REEF_REAL_PI_BINARY", "")
-pytestmark = pytest.mark.skipif(not REAL_PI, reason="REEF_REAL_PI_BINARY does not name a real pi binary")
+REAL_PI = os.environ.get("ASTER_REAL_PI_BINARY", "")
+pytestmark = pytest.mark.skipif(not REAL_PI, reason="ASTER_REAL_PI_BINARY does not name a real pi binary")
 
 CHAT_EXTENSION = """
 export default function(pi) {
@@ -143,9 +143,9 @@ def test_agent_restores_saved_progress_and_deadline_without_old_history(tmp_path
         }
     )
     env = {
-        "REEF_AGENT_URL": "http://127.0.0.1:1",
-        "REEF_AGENT_DEADLINE_MS": str(int(time.time() * 1000) + 30000),
-        "REEF_AGENT_FINISH_SECONDS": "60",
+        "ASTER_AGENT_URL": "http://127.0.0.1:1",
+        "ASTER_AGENT_DEADLINE_MS": str(int(time.time() * 1000) + 30000),
+        "ASTER_AGENT_FINISH_SECONDS": "60",
     }
     # The agent keeps its progress in the step's output/, beside the workspace.
     (tmp_path / "output").mkdir()

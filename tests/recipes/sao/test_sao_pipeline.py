@@ -1,4 +1,4 @@
-"""Reef-side SAO pipeline: recipe, processor, backend preparation, and a full
+"""Aster-side SAO pipeline: recipe, processor, backend preparation, and a full
 accept -> train -> commit loop against a stub training component.
 
 Everything here is torch/ray free so it runs in the minimal CI gate. The Slime
@@ -31,29 +31,29 @@ from tests.support.serving import wait_for_serving
 
 from recipes.sao import SAORecipe
 from recipes.sao.processor import SAOJobData, SAOSamples
-from reef.artifact import CachedRepositoryBackendFactory, InMemoryRepositoryBackend
-from reef.artifact.artifact import SnapshotRef
-from reef.core import AgentRecord, RequestType
-from reef.core.chat_rendering import rendered_job_data
-from reef.core.reports import ReportValidationError
-from reef.core.trajectories import source_record_id, trajectory_reward
-from reef.dispatcher import Dispatcher
-from reef.recipe.errors import RecipeConfigError
-from reef.recipe.registry import build_recipe, recipe_class_for
-from reef.record2sample.assembly import SampleAssemblySettings
-from reef.service.deploy.config_utils import interpolate_config_values
-from reef.storage.commits import CommitRecord
-from reef.storage.job_data import read_job_data
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.sqlite import SQLiteScenarioStorage
-from reef.train import PipelineContext, Trainer
-from reef.train.algos.schedule import StepScheduling
-from reef.train.component import SavedCheckpoint, TrainingJob
-from reef.train.jobs import JobLoop, JobLoopState
-from reef.train.pipeline import PipelineConfig, TrainingPipeline
-from reef.train.slime_backend.data_builder import to_slime_rollout_data
-from reef.train.slime_backend.reef_adapters.preparation import prepare_slime_job
-from reef.train.types import JobData
+from aster.artifact import CachedRepositoryBackendFactory, InMemoryRepositoryBackend
+from aster.artifact.artifact import SnapshotRef
+from aster.core import AgentRecord, RequestType
+from aster.core.chat_rendering import rendered_job_data
+from aster.core.reports import ReportValidationError
+from aster.core.trajectories import source_record_id, trajectory_reward
+from aster.dispatcher import Dispatcher
+from aster.recipe.errors import RecipeConfigError
+from aster.recipe.registry import build_recipe, recipe_class_for
+from aster.record2sample.assembly import SampleAssemblySettings
+from aster.service.deploy.config_utils import interpolate_config_values
+from aster.storage.commits import CommitRecord
+from aster.storage.job_data import read_job_data
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.sqlite import SQLiteScenarioStorage
+from aster.train import PipelineContext, Trainer
+from aster.train.algos.schedule import StepScheduling
+from aster.train.component import SavedCheckpoint, TrainingJob
+from aster.train.jobs import JobLoop, JobLoopState
+from aster.train.pipeline import PipelineConfig, TrainingPipeline
+from aster.train.slime_backend.data_builder import to_slime_rollout_data
+from aster.train.slime_backend.aster_adapters.preparation import prepare_slime_job
+from aster.train.types import JobData
 
 EXAMPLES = Path(__file__).resolve().parents[3] / "recipes" / "sao" / "examples"
 
@@ -120,10 +120,10 @@ def test_sao_recipe_resolves_by_dotted_reference() -> None:
 
 
 @pytest.mark.unit
-def test_sao_recipe_defaults_are_reef_side_only() -> None:
+def test_sao_recipe_defaults_are_aster_side_only() -> None:
     recipe = SAORecipe(**runtime_bindings())
 
-    # Objective defaults live with the Slime implementation. The Reef recipe
+    # Objective defaults live with the Slime implementation. The Aster recipe
     # owns only its stages.
     stages = recipe.stages()
     assert (stages.record2sample.plugin_class, stages.sample2job.plugin_class) == (SAOSamples, SAOJobData)
@@ -135,7 +135,7 @@ def test_sao_recipe_defaults_are_reef_side_only() -> None:
 
 
 @pytest.mark.unit
-def test_sao_recipe_reads_reef_side_config() -> None:
+def test_sao_recipe_reads_aster_side_config() -> None:
     recipe = SAORecipe.from_environment(
         {},
         config={
@@ -196,7 +196,7 @@ def test_sao_recipe_refuses_a_bad_stage_config_when_the_pipeline_builds(
 
 @pytest.mark.unit
 def test_sao_recipe_rejects_backend_objective_config() -> None:
-    from reef.recipe.errors import RecipeConfigError
+    from aster.recipe.errors import RecipeConfigError
 
     with pytest.raises(RecipeConfigError, match=r"training\.options"):
         SAORecipe.from_environment(
@@ -459,7 +459,7 @@ def test_dispatcher_runs_a_full_sao_train_step_per_rollout(tmp_path) -> None:
         assert [source_record_id(item) for item in read_job_data(job.data_dir).samples] == ["i1"]
         [payload] = component.payloads
         assert payload["loss"] == "sao"
-        # SAO defers advantages to the critic in the backend; reef ships none.
+        # SAO defers advantages to the critic in the backend; aster ships none.
         assert "advantages" not in payload
         assert trajectory_reward(read_job_data(job.data_dir).samples[0]) == pytest.approx(0.9)
     finally:

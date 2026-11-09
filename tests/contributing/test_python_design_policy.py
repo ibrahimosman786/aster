@@ -104,7 +104,7 @@ class TransportProtocol:
 @pytest.mark.parametrize(
     "relative",
     [
-        "reef/example.py",
+        "aster/example.py",
         "recipes/demo/examples/main.py",
         "tests/test_example.py",
         "tutorials/demo/main.py",
@@ -122,7 +122,7 @@ def test_protocol_ban_cannot_be_baselined(tmp_path, monkeypatch, capsys, relativ
     path.write_text("from typing_extensions import Protocol as Interface\n")
     baseline = tmp_path / "baseline.txt"
     baseline.write_text(f"PYD005|{relative}|<module>|Protocol\n")
-    roots = tuple(tmp_path / name for name in ("reef", "recipes", "tests"))
+    roots = tuple(tmp_path / name for name in ("aster", "recipes", "tests"))
     monkeypatch.setattr(policy, "ROOT", tmp_path)
     monkeypatch.setattr(policy, "BASELINE", baseline)
     monkeypatch.setattr(policy, "DESIGN_ROOTS", roots)
@@ -146,7 +146,7 @@ def test_protocol_ban_cannot_be_baselined(tmp_path, monkeypatch, capsys, relativ
         "dist/example.py",
         "recipes/tttd/examples/tttd/harbor/circle_packing_10/environment/score.py",
         "recipes/tttd/examples/tttd/results/run/best_solution.py",
-        "recipes/meta_harness/results/reef_harness.py",
+        "recipes/meta_harness/results/aster_harness.py",
         "tests/harness/data/harness_goldens/native/example.py",
     ],
 )
@@ -188,12 +188,12 @@ def test_protocol_ban_skips_ci_uv_dependencies_but_rejects_owned_source(
     dependency = tmp_path / cached_path
     dependency.parent.mkdir(parents=True)
     dependency.write_text("from typing import Protocol\n")
-    owned = tmp_path / "reef" / "owned.py"
+    owned = tmp_path / "aster" / "owned.py"
     owned.parent.mkdir()
     owned.write_text("from typing import Protocol\n")
     baseline = tmp_path / "baseline.txt"
     baseline.write_text("")
-    roots = tuple(tmp_path / name for name in ("reef", "recipes", "tests"))
+    roots = tuple(tmp_path / name for name in ("aster", "recipes", "tests"))
     monkeypatch.setattr(policy, "ROOT", tmp_path)
     monkeypatch.setattr(policy, "BASELINE", baseline)
     monkeypatch.setattr(policy, "DESIGN_ROOTS", roots)
@@ -201,7 +201,7 @@ def test_protocol_ban_skips_ci_uv_dependencies_but_rejects_owned_source(
 
     assert policy.main() == 1
     output = capsys.readouterr().out
-    assert "reef/owned.py:1: PYD005" in output
+    assert "aster/owned.py:1: PYD005" in output
     assert cached_path not in output
 
     owned.write_text("from abc import ABC\n")
@@ -221,7 +221,7 @@ def test_protocol_scope_does_not_expand_legacy_design_rules(tmp_path, monkeypatc
     )
     baseline = tmp_path / "baseline.txt"
     baseline.write_text("")
-    roots = tuple(tmp_path / name for name in ("reef", "recipes", "tests"))
+    roots = tuple(tmp_path / name for name in ("aster", "recipes", "tests"))
     monkeypatch.setattr(policy, "ROOT", tmp_path)
     monkeypatch.setattr(policy, "BASELINE", baseline)
     monkeypatch.setattr(policy, "DESIGN_ROOTS", roots)

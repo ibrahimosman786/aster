@@ -13,19 +13,19 @@ from tests.support._threshold_processor import threshold_pipeline
 from tests.support.runtime_stubs import StubTrainingComponent
 from tests.support.samples_service import make_samples
 
-from reef.artifact import Artifact, ArtifactPublicationError, DefaultStart, InMemoryRepositoryBackend
-from reef.core import AgentRecord, RequestType
-from reef.core.errors import CommitPending
-from reef.dispatcher import Dispatcher
-from reef.execution.workers import SERVICE_COMPONENTS
-from reef.recipe import Recipe
-from reef.scenario import Scenario
-from reef.storage.commit_history import CommitHistoryScenarioStore
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.sqlite import SQLiteScenarioStorage
-from reef.train import Trainer, TrainingCommit
-from reef.train.component import SavedCheckpoint, TrainingJob
-from reef.train.jobs import JobLoop
+from aster.artifact import Artifact, ArtifactPublicationError, DefaultStart, InMemoryRepositoryBackend
+from aster.core import AgentRecord, RequestType
+from aster.core.errors import CommitPending
+from aster.dispatcher import Dispatcher
+from aster.execution.workers import SERVICE_COMPONENTS
+from aster.recipe import Recipe
+from aster.scenario import Scenario
+from aster.storage.commit_history import CommitHistoryScenarioStore
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.sqlite import SQLiteScenarioStorage
+from aster.train import Trainer, TrainingCommit
+from aster.train.component import SavedCheckpoint, TrainingJob
+from aster.train.jobs import JobLoop
 
 
 class _LocalJobs(StubTrainingComponent):

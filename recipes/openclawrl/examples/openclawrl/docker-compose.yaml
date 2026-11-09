@@ -1,16 +1,16 @@
 # OpenClawRL owns PRM and user-model startup, health checks and GPU isolation.
-# Reef coordinates only its inference/training runtime. Task environments have
+# Aster coordinates only its inference/training runtime. Task environments have
 # separate Compose files under harbor-tasks/.
-# run.sh supplies image, paths and a per-run REEF_TOKEN.
+# run.sh supplies image, paths and a per-run ASTER_TOKEN.
 services:
-  reef:
-    image: ${REEF_IMAGE}
-    container_name: reef-openclawrl
+  aster:
+    image: ${ASTER_IMAGE}
+    container_name: aster-openclawrl
     depends_on:
       prm:
         condition: service_healthy
-    command: reef serve -c /workspace/Reef/${REEF_CONFIG}
-    # Host networking: the per-task containers reach reef on the machine's IP,
+    command: aster serve -c /workspace/Aster/${ASTER_CONFIG}
+    # Host networking: the per-task containers reach aster on the machine's IP,
     # and the serving engines bind to that same IP.
     network_mode: host
     ipc: host
@@ -25,13 +25,13 @@ services:
               capabilities: [gpu]
     volumes:
       - ${MODEL_DIR}:/root/models
-      - ${RUN_DIR}:/var/lib/reef
-      - ${REEF_ROOT}:/workspace/Reef
+      - ${RUN_DIR}:/var/lib/aster
+      - ${ASTER_ROOT}:/workspace/Aster
     environment:
-      # Optional external cluster; empty means Reef owns a local runtime.
+      # Optional external cluster; empty means Aster owns a local runtime.
       RAY_ADDRESS: ${RAY_ADDRESS:-}
-      REEF_TOKEN: ${REEF_TOKEN}
-      PYTHONPATH: /workspace/Reef:/root/Megatron-LM
+      ASTER_TOKEN: ${ASTER_TOKEN}
+      PYTHONPATH: /workspace/Aster:/root/Megatron-LM
       WANDB_API_KEY: ${WANDB_API_KEY:-}
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://127.0.0.1:28900/healthz"]
@@ -42,7 +42,7 @@ services:
       start_period: 30s
 
   prm:
-    image: ${REEF_IMAGE}
+    image: ${ASTER_IMAGE}
     command:
       - python
       - -m
@@ -75,7 +75,7 @@ services:
       start_period: 30s
 
   user-model:
-    image: ${REEF_IMAGE}
+    image: ${ASTER_IMAGE}
     command:
       - python
       - -m

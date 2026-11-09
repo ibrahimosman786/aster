@@ -17,13 +17,13 @@ from tests.slime_backend.test_slime_component import batch_for, parameters, work
 from tests.support.job_data import job_data_ref
 from tests.support.slime_component import finished
 
-from reef.core.job_data import JobData, TaskSample
-from reef.storage.durable_files import read_json, write_json
-from reef.train.component import TrainingJob
-from reef.train.local_jobs import JOB_FILE
-from reef.train.slime_backend import component as slime_component
-from reef.train.slime_backend import driver
-from reef.train.slime_backend.component import (
+from aster.core.job_data import JobData, TaskSample
+from aster.storage.durable_files import read_json, write_json
+from aster.train.component import TrainingJob
+from aster.train.local_jobs import JOB_FILE
+from aster.train.slime_backend import component as slime_component
+from aster.train.slime_backend import driver
+from aster.train.slime_backend.component import (
     DRIVER_FILE,
     DRIVER_RESULT_FILE,
     NO_ROLLOUT_ENGINES,
@@ -33,7 +33,7 @@ from reef.train.slime_backend.component import (
     SlimeTrainingComponent,
     settings_to_json,
 )
-from reef.train.slime_backend.rollout_group import SERVING_FILE
+from aster.train.slime_backend.rollout_group import SERVING_FILE
 
 SETTINGS = SlimeSettings(
     arguments=("--lr=1e-06",),
@@ -49,7 +49,7 @@ import json, sys
 from pathlib import Path
 directory = Path(sys.argv[1])
 settings = json.loads((directory / "driver.json").read_text())
-start = directory.parent.parent / "reef-starts" / "rollout_0"
+start = directory.parent.parent / "aster-starts" / "rollout_0"
 start.mkdir(parents=True)
 (start / "start.json").write_text(json.dumps(
     {"rollout_id": 0, "objective": None, "algorithm_state": {}, "schedule_state": None}))
@@ -80,7 +80,7 @@ def parsed(tmp_path, monkeypatch):
     monkeypatch.setattr(slime_component, "prepare_slime_arguments", prepare)
     monkeypatch.setattr(slime_component, "prepare_checkpoint_storage", lambda args, retention: None)
     # The LoRA module loads Megatron's LoRA stack; the component reads only whether the actor trains one.
-    lora = types.ModuleType("reef.train.slime_backend.reef_adapters.megatron.lora")
+    lora = types.ModuleType("aster.train.slime_backend.aster_adapters.megatron.lora")
     lora.megatron_lora_enabled = lambda args: False  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, lora.__name__, lora)
     return calls
@@ -228,8 +228,8 @@ class Runner:
 
 
 def job_directory(root: Path, data: JobData, rollout: bool) -> Path:
-    directory = root / "reef-jobs" / "job-0"
-    start = root / "reef-starts" / "base"
+    directory = root / "aster-jobs" / "job-0"
+    start = root / "aster-starts" / "base"
     start.mkdir(parents=True)
     SlimeStart(None, None, {}, None).write(start)
     job_parameters = {

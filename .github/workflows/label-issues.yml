@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   primary-area:
-    if: github.repository == 'Human-Agent-Society/reef'
+    if: github.repository == 'Human-Agent-Society/aster'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 2
     steps:

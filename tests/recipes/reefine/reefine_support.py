@@ -22,16 +22,16 @@ from typing import Any
 from tests.support.harness_steps import harness_backend, head_of
 
 from recipes.beta.reefine.answer import EXTENSION_ADAPTER, Answer, answer_request
-from reef.core.job_data import TrajectorySample
-from reef.core.training_request import TrainingRequest
-from reef.evaluation.harness import NoEvaluationPolicy
-from reef.harness.adapters import get_adapter
-from reef.harness.tasks.model_binding import ModelBinding, ModelBindings
-from reef.harness.tree import HarnessTree, ValidationResult, validate_tree
-from reef.train.harness_backend import AgentOutcome, Method, Services, Trace, Workspace
-from reef.train.harness_backend.calls import StepCalls
-from reef.train.harness_backend.state import HarnessState
-from reef.train.types import JobData, TrainingCommit
+from aster.core.job_data import TrajectorySample
+from aster.core.training_request import TrainingRequest
+from aster.evaluation.harness import NoEvaluationPolicy
+from aster.harness.adapters import get_adapter
+from aster.harness.tasks.model_binding import ModelBinding, ModelBindings
+from aster.harness.tree import HarnessTree, ValidationResult, validate_tree
+from aster.train.harness_backend import AgentOutcome, Method, Services, Trace, Workspace
+from aster.train.harness_backend.calls import StepCalls
+from aster.train.harness_backend.state import HarnessState
+from aster.train.types import JobData, TrainingCommit
 
 #: What marks the plan call's prompt, the first of a request's calls.
 PLAN_MARKER = '"needs_tool": true or false'
@@ -200,7 +200,7 @@ def step_workspace(
         step=1,
         tree=TREE,
         descriptor=get_adapter(adapter),
-        tasks=("[health] reply reef-ok",),
+        tasks=("[health] reply aster-ok",),
         repeats=0,
         task_directories=False,
         samples=samples,

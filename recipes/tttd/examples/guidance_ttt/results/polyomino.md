@@ -1,6 +1,6 @@
 # Polyomino case study: ordering pieces against the current skyline
 
-The Polyomino run started at `27.8105` and reached `89.7965` after 30 Reef
+The Polyomino run started at `27.8105` and reached `89.7965` after 30 Aster
 updates. At update 3, Guidance-TTT selected a parent scoring `80.1328` and
 produced the following guidance:
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate Reef's community-maintenance configuration."""
+"""Validate Aster's community-maintenance configuration."""
 
 from __future__ import annotations
 

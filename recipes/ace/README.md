@@ -1,13 +1,13 @@
 # ace
 
-ACE ([Agentic Context Engineering](https://arxiv.org/abs/2510.04618), Zhang et al.) as a Reef harness method.
+ACE ([Agentic Context Engineering](https://arxiv.org/abs/2510.04618), Zhang et al.) as an Aster harness method.
 ACE keeps a playbook: a list of short lessons, called bullets, that the agent reads in its context. After each
 task, a Reflector reads the trajectory and finds what went right or wrong. A Curator then turns that analysis
 into new bullets. Code, not a model, merges the new bullets into the playbook. The playbook grows by small
 additions, so it keeps detail instead of collapsing into a short summary.
 
 ACE needs no correct answer. The Reflector judges a trajectory from what happened in it, such as errors, failed
-commands and retries, and it uses a score or feedback only when the trace has one. In Reef, this method is a
+commands and retries, and it uses a score or feedback only when the trace has one. In Aster, this method is a
 small acceptance case for the method protocol: it learns from traces, keeps what it learns as method state and
 one block of `rules.md`, and runs no evaluation runs.
 
@@ -26,9 +26,9 @@ ace/
   examples/seed/         the deployment's first tree: a rules.md with base rules
 ```
 
-## How Reef runs ACE
+## How Aster runs ACE
 
-| ACE | Reef |
+| ACE | Aster |
 | --- | --- |
 | Generator | The served agent. It reads the playbook in `rules.md`, which every session reads. |
 | Reflector | One model call per run that the step reads. It returns an error analysis, a key insight, and a tag (`helpful`, `harmful` or `neutral`) for each bullet that applies to the run. |
@@ -104,18 +104,18 @@ The keys go under `evolution.method.config`:
 ### Online, on pi
 
 [examples/serve.yaml](examples/serve.yaml) evolves the rules of pi from live sessions, with
-`evaluation.policy: none`: Reef runs no task and publishes every new playbook that passes validation. Its
+`evaluation.policy: none`: Aster runs no task and publishes every new playbook that passes validation. Its
 seed, [examples/seed/rules.md](examples/seed/rules.md), holds base rules that the agent reads from the first
 snapshot; the method adds its block below them. Run it from the repository root:
 
 ```bash
-export REEF_UPSTREAM_URL=http://127.0.0.1:8000 REEF_UPSTREAM_MODEL=qwen3-8b
-reef serve -c recipes/ace/examples/serve.yaml
+export ASTER_UPSTREAM_URL=http://127.0.0.1:8000 ASTER_UPSTREAM_MODEL=qwen3-8b
+aster serve -c recipes/ace/examples/serve.yaml
 ```
 
-Point pi at this Reef as the client section of
+Point pi at this Aster as the client section of
 [Evolve your harness](../../docs/user-guide/evolve-your-harness.rst) describes. After each session, post one
-report with `POST /reef/report`: a `score`, optional `feedback`, and the receipts of the session's model calls in
+report with `POST /aster/report`: a `score`, optional `feedback`, and the receipts of the session's model calls in
 `references`. The score does not have to be a correct answer; a plain 1 for done and 0 for not done is enough.
 With the default `pipeline.sample2job.config.job_samples` of 1, each report starts one step. The step's record is under
 `recipes/ace/work/harness/<scenario>/harness/steps/<step>/`: the new tree in `harness/`, the playbook in
@@ -127,15 +127,15 @@ recorded request is one trace, without a score:
 ```yaml
 pipeline:
   record2sample:
-    module: reef.record2sample.traces:InferenceSamples
+    module: aster.record2sample.traces:InferenceSamples
 ```
 
-To keep a basic check on each new playbook, use `evaluation.policy: floor` with a scorer and a health task: Reef
+To keep a basic check on each new playbook, use `evaluation.policy: floor` with a scorer and a health task: Aster
 publishes the playbook only when the agent still passes the task.
 
 ### On a fixed task set
 
-Use `evaluation.policy: compare` with a scorer and evaluation tasks. Reef then publishes a new playbook only when
+Use `evaluation.policy: compare` with a scorer and evaluation tasks. Aster then publishes a new playbook only when
 it scores better than the served one on the same tasks. A rejected step keeps its playbook changes in `state/`,
 so the next candidate carries them with that step's changes.
 
@@ -144,14 +144,14 @@ so the next candidate carries them with that step's changes.
 - **Bullets used.** In the paper, the Generator names the bullets that it used, and the Reflector tags those. A
   served agent does not name them, so the Reflector reads the whole playbook and tags the bullets that apply.
 - **One reflection per trace.** The paper lets the Reflector refine its analysis over several rounds, and its
-  offline runs regenerate the answer. Reef does not run the served agent again, so the Reflector answers once.
+  offline runs regenerate the answer. Aster does not run the served agent again, so the Reflector answers once.
 - **De-duplication.** The method drops only exact duplicates, compared without case and extra spaces. The
   paper's de-duplication by semantic embeddings, and the upstream model merge of similar bullets, are out of
   scope.
 - **Refinement by counts.** The paper keeps the playbook within a token budget. This method removes bullets by
   their counts (`prune_margin`) and keeps at most `max_bullets`.
 - **Offline epochs.** The paper revisits the training samples for several epochs and keeps the playbook with
-  the best validation score. In Reef, the evaluation policy decides which playbook is served.
+  the best validation score. In Aster, the evaluation policy decides which playbook is served.
 - **Screens.** The prompts fence trace text as data, and the merge refuses a bullet with the shape of a
   credential or of an instruction override, or with a marker line of the block. The paper has none of these.
 - **No labels, weak signal.** The paper notes that without labels or reliable feedback, the playbook can learn

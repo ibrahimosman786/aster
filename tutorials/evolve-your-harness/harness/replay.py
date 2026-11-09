@@ -16,11 +16,11 @@ import sys
 from contextlib import closing
 from pathlib import Path
 
-from reef.storage.commits import CommitRecord
+from aster.storage.commits import CommitRecord
 
 TUTORIAL = Path(__file__).resolve().parent.parent
 WORK = TUTORIAL / "work"
-RELEASE_FILE = ".reef-harness-release"
+RELEASE_FILE = ".aster-harness-release"
 MAIN_GRAPH = "native/graphs/main.json"
 
 

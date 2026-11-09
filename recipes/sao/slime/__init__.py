@@ -11,14 +11,14 @@ from dataclasses import dataclass
 from numbers import Integral, Real
 from typing import Any
 
-from reef.core.job_data import TrajectorySample
-from reef.core.trajectories import source_record_id, trajectory_reward
-from reef.train.algos.helpers import next_steps
-from reef.train.algos.signals import TrainingSignal
-from reef.train.slime_backend.algorithm import PolicyGradientWeight, SlimeAlgorithm, TrainResult, register_loss_family
-from reef.train.slime_backend.data_builder import build_policy_rollout_data, validate_policy_columns
-from reef.train.slime_backend.objectives import SlimeObjective, register_slime_objective
-from reef.train.types import JobData, trajectories
+from aster.core.job_data import TrajectorySample
+from aster.core.trajectories import source_record_id, trajectory_reward
+from aster.train.algos.helpers import next_steps
+from aster.train.algos.signals import TrainingSignal
+from aster.train.slime_backend.algorithm import PolicyGradientWeight, SlimeAlgorithm, TrainResult, register_loss_family
+from aster.train.slime_backend.data_builder import build_policy_rollout_data, validate_policy_columns
+from aster.train.slime_backend.objectives import SlimeObjective, register_slime_objective
+from aster.train.types import JobData, trajectories
 
 _logger = logging.getLogger(__name__)
 
@@ -91,7 +91,7 @@ class SaoSchedule:
 
 
 def sao_sample_row(sample: TrajectorySample) -> list[Any]:
-    """Shape one Reef sample into SAO's 8-element wire row.
+    """Shape one Aster sample into SAO's 8-element wire row.
 
     The first five columns are the shared policy 5-tuple; SAO appends the
     action mask (for skip-observation GAE), producing artifact ID, and
@@ -116,7 +116,7 @@ def build_sao_rollout_data(
     samples: Sequence,
     spec: SlimeAlgorithm,
 ) -> dict:
-    """Validate and convert Reef SAO rows into Slime's external rollout payload.
+    """Validate and convert Aster SAO rows into Slime's external rollout payload.
 
     SAO's wire row keeps the policy 5-tuple as its prefix and appends the
     action mask, producing artifact, and creation time: ``[source_id, tokens,
@@ -180,7 +180,7 @@ class SaoAlgorithm(SlimeAlgorithm):
     # actor advantages in the backend.
     allows_slime_advantage_computation = True
     forbidden_advantages_message = (
-        "sao advantages are computed by the value model in the training backend; the Reef payload must omit them"
+        "sao advantages are computed by the value model in the training backend; the Aster payload must omit them"
     )
 
     # Wire surface the adapter layer serves generically. ``action_masks`` is

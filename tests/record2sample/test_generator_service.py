@@ -19,20 +19,20 @@ from pathlib import Path
 
 import pytest
 from aiohttp.test_utils import TestServer
-from reef_client.client import ReefClientError
+from reef_client.client import AsterClientError
 
 from recipes.beta.spade import SpadeTaskGenerator
-from reef.core import AgentRecord, RequestType
-from reef.core.tasks import HarborTask, read_harbor_task
-from reef.execution.sandbox.task_environment import (
+from aster.core import AgentRecord, RequestType
+from aster.core.tasks import HarborTask, read_harbor_task
+from aster.execution.sandbox.task_environment import (
     HARBOR_E2B_NAMES,
     DockerProbe,
     EnvironmentVariableProbe,
     ModuleProbe,
 )
-from reef.harness.harbor.rollouts import ReefEvalLab, RolloutTurn, TaskRollout, TaskRolloutRunner, rewards_of
-from reef.recipe.generated_tasks.results import TaskRolloutResult
-from reef.record2sample.generator import (
+from aster.harness.harbor.rollouts import AsterEvalLab, RolloutTurn, TaskRollout, TaskRolloutRunner, rewards_of
+from aster.recipe.generated_tasks.results import TaskRolloutResult
+from aster.record2sample.generator import (
     Designer,
     DesignerAnswer,
     DesignerError,
@@ -48,15 +48,15 @@ from reef.record2sample.generator import (
     OracleResult,
     OracleUnavailable,
     ReadinessProbe,
-    ReefGeneratorRollouts,
+    AsterGeneratorRollouts,
     TaskChecks,
     TaskNameConflict,
     WrittenTask,
     readiness_probes,
 )
-from reef.record2sample.generator.inputs import TaskGenerationRequest
-from reef.record2sample.generator.service import CLOSE_GRACE_S, HarborProbe
-from reef.record2sample.generator.wire import (
+from aster.record2sample.generator.inputs import TaskGenerationRequest
+from aster.record2sample.generator.service import CLOSE_GRACE_S, HarborProbe
+from aster.record2sample.generator.wire import (
     WireError,
     designer_request_document,
     rollout_document,
@@ -65,7 +65,7 @@ from reef.record2sample.generator.wire import (
     task_document,
     task_from_document,
 )
-from reef.service.deploy.generator import GeneratorSettings
+from aster.service.deploy.generator import GeneratorSettings
 
 pytestmark = pytest.mark.unit
 
@@ -463,12 +463,12 @@ def test_the_task_rollouts_keep_at_most_concurrency_rollouts_of_all_requests_in_
         in_flight -= 1
         return TaskRollout(task_path, task_path.name, "e", 1.0, {"reward": 1.0}, "", (), 0, (), None)
 
-    async def build(self: ReefEvalLab, task_path: Path, *, overrides: Mapping[str, object]) -> str:
+    async def build(self: AsterEvalLab, task_path: Path, *, overrides: Mapping[str, object]) -> str:
         return ""
 
     monkeypatch.setattr(TaskRolloutRunner, "run_async", rollout)
-    monkeypatch.setattr(ReefEvalLab, "build_environment", build)
-    task_rollouts = ReefGeneratorRollouts(reef_url="http://127.0.0.1:9", work_dir=tmp_path, concurrency=2)
+    monkeypatch.setattr(AsterEvalLab, "build_environment", build)
+    task_rollouts = AsterGeneratorRollouts(aster_url="http://127.0.0.1:9", work_dir=tmp_path, concurrency=2)
     task_path = task_directory(tmp_path / "t")
 
     async def two_runs() -> list[tuple[TaskRollout, ...]]:
@@ -506,12 +506,12 @@ def test_the_checks_and_the_rollouts_run_in_the_harbor_environment_they_are_give
         environments.append(self.environment)
         return TaskRollout(task_path, task_path.name, "e", 1.0, {"reward": 1.0}, "", (), 0, (), None)
 
-    async def build(self: ReefEvalLab, task_path: Path, *, overrides: Mapping[str, object]) -> str:
+    async def build(self: AsterEvalLab, task_path: Path, *, overrides: Mapping[str, object]) -> str:
         build_environments.append(overrides["environment"])
         return ""
 
     monkeypatch.setattr(TaskRolloutRunner, "run_async", rollout)
-    monkeypatch.setattr(ReefEvalLab, "build_environment", build)
+    monkeypatch.setattr(AsterEvalLab, "build_environment", build)
     rollout_arguments = {
         "scenario": "s",
         "model": "m",
@@ -522,8 +522,8 @@ def test_the_checks_and_the_rollouts_run_in_the_harbor_environment_they_are_give
     }
     task_path = task_directory(tmp_path / "t")
     for generator_rollouts in (
-        ReefGeneratorRollouts(reef_url="http://127.0.0.1:9", work_dir=tmp_path),
-        ReefGeneratorRollouts(reef_url="http://127.0.0.1:9", work_dir=tmp_path, environment="e2b"),
+        AsterGeneratorRollouts(aster_url="http://127.0.0.1:9", work_dir=tmp_path),
+        AsterGeneratorRollouts(aster_url="http://127.0.0.1:9", work_dir=tmp_path, environment="e2b"),
     ):
         asyncio.run(generator_rollouts.run_rollouts(task_path, **rollout_arguments))  # type: ignore[arg-type]
     assert environments == ["docker", "docker", "e2b", "e2b"]
@@ -539,7 +539,7 @@ def test_the_checks_and_the_rollouts_run_in_the_harbor_environment_they_are_give
         ({"concurrency": 0}, "concurrency must be a positive int"),
     ):
         with pytest.raises(ValueError, match=message):
-            ReefGeneratorRollouts(reef_url="http://127.0.0.1:9", work_dir=tmp_path, **fields)  # type: ignore[arg-type]
+            AsterGeneratorRollouts(aster_url="http://127.0.0.1:9", work_dir=tmp_path, **fields)  # type: ignore[arg-type]
 
 
 def test_a_rollout_job_runs_the_arm_with_its_files_and_comes_back_as_rollouts(tmp_path: Path) -> None:
@@ -605,7 +605,7 @@ def test_a_proposal_report_reaches_the_designer(tmp_path: Path) -> None:
     "failure",
     [
         DesignerError("the designer report was refused (404): no record designer-9"),
-        ReefClientError(404, "no record designer-9"),
+        AsterClientError(404, "no record designer-9"),
     ],
     ids=["designer_error", "client_error"],
 )
@@ -651,7 +651,7 @@ def test_healthz_is_503_naming_what_is_missing_and_200_once_every_probe_passes(
     async def body(generator: HttpGenerator) -> object:
         return [await generator.request("GET", "/healthz") for _ in range(2)]
 
-    with caplog.at_level(logging.WARNING, logger="reef.record2sample.generator.service"):
+    with caplog.at_level(logging.WARNING, logger="aster.record2sample.generator.service"):
         first, second = run_with(built, body)
     assert (
         first
@@ -705,7 +705,7 @@ def test_the_stack_probes_look_for_reef_eval_harbor_and_docker(
     )
 
 
-KEY_REASON = "E2B_API_KEY is not set; export it before reef serve starts"
+KEY_REASON = "E2B_API_KEY is not set; export it before aster serve starts"
 
 
 def test_an_e2b_generator_waits_for_the_e2b_key_and_package_and_not_for_docker(
@@ -730,7 +730,7 @@ def test_an_e2b_generator_waits_for_the_e2b_key_and_package_and_not_for_docker(
 
     monkeypatch.setattr(importlib, "import_module", without_e2b)
     reason = package.missing()
-    assert reason.startswith(f"e2b does not import under {sys.executable}") and "install reef-infra[e2b]" in reason
+    assert reason.startswith(f"e2b does not import under {sys.executable}") and "install aster-infra[e2b]" in reason
     too_old = types.ModuleType("e2b")
     too_old.AsyncSandbox = object  # type: ignore[attr-defined]
     monkeypatch.setattr(importlib, "import_module", lambda name, package=None: too_old)
@@ -740,7 +740,7 @@ def test_an_e2b_generator_waits_for_the_e2b_key_and_package_and_not_for_docker(
     monkeypatch.setattr(importlib.util, "find_spec", lambda name, package=None: None)
     reason = parser.missing()
     assert reason.startswith(f"dockerfile_parse does not import under {sys.executable}"), reason
-    assert "install reef-infra[e2b]" in reason
+    assert "install aster-infra[e2b]" in reason
     with pytest.raises(ValueError, match="the Harbor environment must be docker or e2b, not 'modal'"):
         readiness_probes(environment="modal")
     with pytest.raises(ValueError, match="non-empty environment variable name"):
@@ -1061,7 +1061,7 @@ def test_generator_accepts_the_shared_request_without_a_processor(tmp_path: Path
 
 
 def test_worker_scope_stops_harbor_without_a_shared_registry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("reef.execution.jobs.CLOSE_GRACE_S", 0.01)
+    monkeypatch.setattr("aster.execution.jobs.CLOSE_GRACE_S", 0.01)
     pid_path = tmp_path / "harbor.pid"
     cleanup_path = tmp_path / "cleaned"
     harbor = tmp_path / "harbor"

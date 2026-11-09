@@ -7,15 +7,15 @@ from dataclasses import replace
 import pytest
 from tests.support.conversations import conversation
 
-from reef.core import AgentRecord, RequestType
-from reef.record2sample import ReportContext, ReportSamples, TrajectorySamples
-from reef.record2sample.assembly import SampleAssembly, SampleAssemblySettings
-from reef.train import PipelineContext
+from aster.core import AgentRecord, RequestType
+from aster.record2sample import ReportContext, ReportSamples, TrajectorySamples
+from aster.record2sample.assembly import SampleAssembly, SampleAssemblySettings
+from aster.train import PipelineContext
 
 
 def test_a_trajectory_becomes_one_atif_sample_of_its_calls(monkeypatch) -> None:
     # Each call ends with a user turn, and its reply is the assistant turn that the next call resends.
-    monkeypatch.setattr("reef.record2sample.trajectories.time.monotonic", lambda: 0.0)
+    monkeypatch.setattr("aster.record2sample.trajectories.time.monotonic", lambda: 0.0)
     stage = TrajectorySamples.from_config({}, context=PipelineContext(scenario="math"), environ={})
     for turns in (1, 3):
         stage.push(conversation(f"call-{turns}", turns))

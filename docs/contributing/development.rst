@@ -25,12 +25,12 @@ Package responsibilities
 ------------------------
 
 - The ``slime`` extra installs the Python-side dependencies used by
-  ``reef/train/slime_backend/``; the ``runtime`` dependency group pins the
+  ``aster/train/slime_backend/``; the ``runtime`` dependency group pins the
   training runtime itself.
 - ``reef-client`` is a separate distribution maintained at
   `Human-Agent-Society/reef-client <https://github.com/Human-Agent-Society/reef-client>`__.
   It implements Aster's wire protocol using only the standard library, does not
-  import ``reef``, and does not ship in the ``reef`` wheel. The harness in
+  import ``aster``, and does not ship in the ``aster`` wheel. The harness in
   ``recipes/basic/`` talks to Aster through it.
 
 Package ownership and repository-level homes are in `Codebase structure
@@ -40,7 +40,7 @@ Run entry points as modules or scripts:
 
 .. code:: bash
 
-   python -m reef.service.deploy --help
+   python -m aster.service.deploy --help
    recipes/basic/run.sh
 
 Checks
@@ -53,7 +53,7 @@ Checks
      --with pytest \
      --with aiohttp \
      --with huggingface_hub \
-     pytest tests/reef_service -q
+     pytest tests/aster_service -q
 
 Keep provider request bodies unchanged and preserve scenario isolation. A change
 to a public interface also needs a contract test.

@@ -5,18 +5,18 @@ from dataclasses import dataclass
 import pytest
 from tests.support.harness_steps import IdleMethod, evolution_config
 
-from reef.artifact import Artifact, ArtifactNotFound, DefaultStart, InMemoryRepositoryBackend
-from reef.artifact.components import ScenarioComponents
-from reef.dispatcher import Dispatcher
-from reef.evaluation.harness import EvaluationSettings
-from reef.harness.adapters import get_adapter
-from reef.harness.tree import HarnessTree, render_tree
-from reef.inference.http import InferenceProxyRuntime
-from reef.recipe import Recipe
-from reef.recipe.harness import EvolutionSettings, HarnessEvolutionRecipe
-from reef.service.app import RequestService
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.sqlite import SQLiteScenarioStorage
+from aster.artifact import Artifact, ArtifactNotFound, DefaultStart, InMemoryRepositoryBackend
+from aster.artifact.components import ScenarioComponents
+from aster.dispatcher import Dispatcher
+from aster.evaluation.harness import EvaluationSettings
+from aster.harness.adapters import get_adapter
+from aster.harness.tree import HarnessTree, render_tree
+from aster.inference.http import InferenceProxyRuntime
+from aster.recipe import Recipe
+from aster.recipe.harness import EvolutionSettings, HarnessEvolutionRecipe
+from aster.service.app import RequestService
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.sqlite import SQLiteScenarioStorage
 
 #: The files pi reads for a tree that holds only ``rules.md`` with the text ``rule``: its package and empty configs.
 PI_RULES_RENDER = render_tree(HarnessTree({"rules.md": "rule"}), get_adapter("pi"))
@@ -54,14 +54,14 @@ def _service(tmp_path, *, recipe) -> RequestService:
 
 def test_the_manifest_serves_the_release_rendered_or_as_its_source_tree(tmp_path) -> None:
     service = _service(tmp_path, recipe=_HarnessRecipe(rules="rule"))
-    rendered = service.harness_manifest({"x-reef-scenario": "delivery"})
+    rendered = service.harness_manifest({"x-aster-scenario": "delivery"})
     assert rendered["files"] == PI_RULES_RENDER
     assert rendered["artifact_id"]
     assert not {"release_id", "parent_release_id", "content_id"} & rendered.keys()
-    source = service.harness_manifest({"x-reef-scenario": "delivery"}, form="source")
+    source = service.harness_manifest({"x-aster-scenario": "delivery"}, form="source")
     assert source["files"] == {"rules.md": "rule"} and source["artifact_id"] == rendered["artifact_id"]
     with pytest.raises(ValueError, match="form must be 'rendered', 'source' or 'client'"):
-        service.harness_manifest({"x-reef-scenario": "delivery"}, form="tree")
+        service.harness_manifest({"x-aster-scenario": "delivery"}, form="tree")
 
 
 def test_current_files_rejects_a_weights_scenario_without_materializing(tmp_path, monkeypatch) -> None:
@@ -74,13 +74,13 @@ def test_current_files_rejects_a_weights_scenario_without_materializing(tmp_path
         service.dispatcher.get_or_create_scenario("delivery").repository, "materialize", fail_materialize
     )
     with pytest.raises(ArtifactNotFound, match="the deployment's recipe declares no harness component"):
-        service.harness_manifest({"x-reef-scenario": "delivery"})
+        service.harness_manifest({"x-aster-scenario": "delivery"})
 
 
 def test_current_files_never_creates_a_scenario(tmp_path) -> None:
     service = _service(tmp_path, recipe=_HarnessRecipe(rules="x"))
     with pytest.raises(ArtifactNotFound):
-        service.harness_manifest({"x-reef-scenario": "unknown"})
+        service.harness_manifest({"x-aster-scenario": "unknown"})
 
 
 def test_manifest_error_distinguishes_a_scenario_without_a_published_tree(tmp_path) -> None:
@@ -88,7 +88,7 @@ def test_manifest_error_distinguishes_a_scenario_without_a_published_tree(tmp_pa
     # tell the operator that nothing has been published, not that the components is missing.
     service = _service(tmp_path, recipe=_HarnessRecipe(rules=None))
     with pytest.raises(ArtifactNotFound, match="holds no harness tree"):
-        service.harness_manifest({"x-reef-scenario": "delivery"})
+        service.harness_manifest({"x-aster-scenario": "delivery"})
 
 
 def test_harness_components_render_the_source_tree_for_their_adapter(tmp_path) -> None:
@@ -106,14 +106,14 @@ def test_harness_components_render_the_source_tree_for_their_adapter(tmp_path) -
 def test_harness_components_ignore_repository_bookkeeping(tmp_path) -> None:
     """Backend files at the tree root are neither served nor rendered.
 
-    The git-lfs backend commits reef-artifact.json and .gitattributes into
+    The git-lfs backend commits aster-artifact.json and .gitattributes into
     every version; treating them as harness content would fail every tree
     pulled from a durable repository, since neither is a path of the layout.
     """
     root = tmp_path / "artifact"
     root.mkdir()
     (root / "rules.md").write_text("rule", encoding="utf-8")
-    (root / "reef-artifact.json").write_text("{}", encoding="utf-8")
+    (root / "aster-artifact.json").write_text("{}", encoding="utf-8")
     (root / ".gitattributes").write_text("* text", encoding="utf-8")
     components = PI_RECIPE.build_components("s")
     assert components.files_component is not None

@@ -17,27 +17,27 @@ from sqlalchemy import func, select
 from tests.support._trajectories import policy_trajectory
 from tests.support.conversations import conversation
 
-from reef.core.atif_payloads import canonical_json
-from reef.core.evaluation import EvaluationCall, EvaluationCallSummary
-from reef.core.job_data import JobData
-from reef.core.records_types import AgentRecord, RecordLoss, RequestType
-from reef.core.trajectory_index import call_key, trajectory_calls
-from reef.service.assembly import build_dispatcher
-from reef.service.deploy.service_config import ServiceConfig
-from reef.storage.data import ItemConflict, ItemNotFound, MemoryDataStore, NewItem, RecordLink, ScenarioArchived
-from reef.storage.item_kinds import json_digest
-from reef.storage.job_data import job_data_key, read_job_data
-from reef.storage.record_items import evaluation_call_item, record_item, stored_evaluation_call
-from reef.storage.sql_data import PostgresDataStore, SQLiteDataStore
-from reef.storage.sql_records import TrajectoryNodes
-from reef.storage.tasks import LocalTaskFileStore, files_digest
+from aster.core.atif_payloads import canonical_json
+from aster.core.evaluation import EvaluationCall, EvaluationCallSummary
+from aster.core.job_data import JobData
+from aster.core.records_types import AgentRecord, RecordLoss, RequestType
+from aster.core.trajectory_index import call_key, trajectory_calls
+from aster.service.assembly import build_dispatcher
+from aster.service.deploy.service_config import ServiceConfig
+from aster.storage.data import ItemConflict, ItemNotFound, MemoryDataStore, NewItem, RecordLink, ScenarioArchived
+from aster.storage.item_kinds import json_digest
+from aster.storage.job_data import job_data_key, read_job_data
+from aster.storage.record_items import evaluation_call_item, record_item, stored_evaluation_call
+from aster.storage.sql_data import PostgresDataStore, SQLiteDataStore
+from aster.storage.sql_records import TrajectoryNodes
+from aster.storage.tasks import LocalTaskFileStore, files_digest
 
 ATIF = {"schema_version": "ATIF-v1.4", "agent": {"name": "fixture"}, "steps": [{"step_id": 1, "message": "hi"}]}
 ORIGIN = {"scenario": "coding", "artifact_id": "a1"}
 
 
 def record_content(record_id: str) -> dict:
-    """The content of the record item of the inference ``record_id`` (``reef.storage.record_items``)."""
+    """The content of the record item of the inference ``record_id`` (``aster.storage.record_items``)."""
     return {
         "agent_record_id": record_id,
         "request_type": "inference",
@@ -176,7 +176,7 @@ def test_metadata_says_what_an_item_is_and_which_scenarios_use_it(store):
         (trajectory("x", scenarios={"coding": "eval"}), "always train"),
         (trajectory("x", scenarios={"coding": "dev"}), "train or eval"),
         (NewItem("x", ATIF, {"kind": "task"}), "task directory"),
-        # The content of each kind follows its rules (reef.storage.item_kinds).
+        # The content of each kind follows its rules (aster.storage.item_kinds).
         (NewItem("x", {"steps": []}, {"kind": "trajectory"}), "ATIF"),
         (NewItem("coding/x", {"request": {}}, {"kind": "record", "origin": ORIGIN}), "exactly the keys"),
         (NewItem("other/r1", record_content("r1"), {"kind": "record", "origin": ORIGIN}), "has the ID"),
@@ -729,7 +729,7 @@ def deployment(tmp_path, **storage) -> ServiceConfig:
     [
         (None, SQLiteDataStore),
         ("sqlite", SQLiteDataStore),
-        ({"module": "reef.storage.data:MemoryDataStore"}, MemoryDataStore),
+        ({"module": "aster.storage.data:MemoryDataStore"}, MemoryDataStore),
     ],
 )
 def test_the_deployment_builds_the_data_store_it_names_and_closes_it(tmp_path, data_store, store_class):
@@ -750,8 +750,8 @@ def test_the_deployment_builds_the_data_store_it_names_and_closes_it(tmp_path, d
     ("data_store", "reason"),
     [
         ("unknown", "storage.data_store"),
-        ("reef.storage.data:DataStore", "abstract"),
-        ({"module": "reef.storage.sqlite:SQLiteScenarioStorage"}, "DataStore"),
+        ("aster.storage.data:DataStore", "abstract"),
+        ({"module": "aster.storage.sqlite:SQLiteScenarioStorage"}, "DataStore"),
         ("postgres", "record_backend: postgres"),
     ],
 )

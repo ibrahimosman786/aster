@@ -1,4 +1,4 @@
-# SciKnowEval Chemistry through Reef with the sdpo recipe, for run.py
+# SciKnowEval Chemistry through Aster with the sdpo recipe, for run.py
 # (recipes/sdpo/examples/sciknoweval).
 #
 # Qwen3-8B fully fine-tuned with the settings of the reference implementation's
@@ -15,12 +15,12 @@
 # four single-GPU rollout engines. A step runs three forwards over the batch (the
 # student's top-K selection, the teacher, and the training forward), so
 # max-tokens-per-gpu and mem-fraction-static are the knobs to tune first if a
-# step runs out of memory. run.sh mints REEF_TOKEN per run directory.
+# step runs out of memory. run.sh mints ASTER_TOKEN per run directory.
 
-reef:
-  host: 0.0.0.0                        # the task container reaches Reef as host.docker.internal
-  port: 28902                          # run.sh's REEF_PORT
-  token: ${REEF_TOKEN}
+aster:
+  host: 0.0.0.0                        # the task container reaches Aster as host.docker.internal
+  port: 28902                          # run.sh's ASTER_PORT
+  token: ${ASTER_TOKEN}
   ready-timeout: 3600
   run-dir: ${SDPO_RUN_DIR}/run
 inference:
@@ -33,7 +33,7 @@ inference:
     router-port: "23002"
     context-length: "18944"
     mem-fraction-static: "0.55"
-  handler-factory: reef.inference.sglang.chat.SGLangInferenceHandler
+  handler-factory: aster.inference.sglang.chat.SGLangInferenceHandler
   handler-config:
     # The reference samples through vLLM with no nucleus, top-k or repetition
     # penalty; each request sets its own temperature and window.
@@ -75,10 +75,10 @@ training:
       policy: latest
     global_batch_size: 256           # the whole grid: 32 questions x 8 rollouts, one optimizer step
   options:
-    reef-checkpoint-max-storage: "${training.config.checkpoint_retention.max_storage}"
-    reef-checkpoint-max-storage-fraction: "${training.config.checkpoint_retention.max_storage_fraction}"
-    reef-checkpoint-min-free-space-fraction: "${training.config.checkpoint_retention.min_free_space_fraction}"
-    reef-checkpoint-policy: "${training.config.checkpoint_retention.policy}"
+    aster-checkpoint-max-storage: "${training.config.checkpoint_retention.max_storage}"
+    aster-checkpoint-max-storage-fraction: "${training.config.checkpoint_retention.max_storage_fraction}"
+    aster-checkpoint-min-free-space-fraction: "${training.config.checkpoint_retention.min_free_space_fraction}"
+    aster-checkpoint-policy: "${training.config.checkpoint_retention.policy}"
     megatron-to-hf-mode: bridge
     hf-checkpoint: "${inference.model-path}"
     # The chat template's arguments, as the serving engine renders: the component renders each sample with them.
@@ -101,7 +101,7 @@ training:
     seq-length: "18944"
     rollout-max-response-len: "8192"
     rollout-max-context-len: "18944"
-    # Qwen3 architecture flags beyond the sizes Reef reads from the HF config.
+    # Qwen3 architecture flags beyond the sizes Aster reads from the HF config.
     group-query-attention: true
     padded-vocab-size: "151936"
     position-embedding-type: rope

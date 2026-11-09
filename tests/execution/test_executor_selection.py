@@ -7,13 +7,13 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 
-from reef.execution.executor import Executor
-from reef.execution.executor.config import ExecutorSettings, WorkerResources, executor_settings, select_executor
-from reef.execution.executor.ray import RayExecutor
-from reef.execution.executor.requirements import ExecutionRequirements
-from reef.execution.executor.uniproc import UniProcExecutor
-from reef.service.deploy.execution import service_executor_config, service_executor_selection
-from reef.train.slime_backend.reef_adapters.executors.config import DEFAULT_EXECUTOR_BACKEND, slime_executor_class
+from aster.execution.executor import Executor
+from aster.execution.executor.config import ExecutorSettings, WorkerResources, executor_settings, select_executor
+from aster.execution.executor.ray import RayExecutor
+from aster.execution.executor.requirements import ExecutionRequirements
+from aster.execution.executor.uniproc import UniProcExecutor
+from aster.service.deploy.execution import service_executor_config, service_executor_selection
+from aster.train.slime_backend.aster_adapters.executors.config import DEFAULT_EXECUTOR_BACKEND, slime_executor_class
 
 
 @pytest.mark.parametrize(
@@ -94,26 +94,26 @@ def test_slime_rejects_unsupported_builtin_gpu_launchers(backend):
 
 def test_slime_component_auto_and_cli_auto_override_yaml(caplog):
     pytest.importorskip("ray")
-    from reef.train.slime_backend.reef_adapters.startup import configure_executors
+    from aster.train.slime_backend.aster_adapters.startup import configure_executors
 
-    args = SimpleNamespace(reef_executor_backend="auto")
+    args = SimpleNamespace(aster_executor_backend="auto")
     with caplog.at_level("INFO"):
         configure_executors(args, {}, [])
-    assert args.reef_executor_backend == "ray"
+    assert args.aster_executor_backend == "ray"
     assert "training: executor=ray" in caplog.text
     assert "Slime model workers" in caplog.text
-    args.reef_executor_backend = "auto"
-    configure_executors(args, {"training": "custom:Training"}, ["--reef-executor-backend", "auto"])
-    assert args.reef_executor_backend == "ray"
+    args.aster_executor_backend = "auto"
+    configure_executors(args, {"training": "custom:Training"}, ["--aster-executor-backend", "auto"])
+    assert args.aster_executor_backend == "ray"
 
 
 @pytest.mark.parametrize("gpus", [1, 8])
 def test_train_group_auto_resolves_before_create(gpus):
-    from reef.train.slime_backend.reef_adapters.executors.ray import SlimeRayExecutor
-    from reef.train.slime_backend.reef_adapters.train_groups import SlimeTrainGroup
+    from aster.train.slime_backend.aster_adapters.executors.ray import SlimeRayExecutor
+    from aster.train.slime_backend.aster_adapters.train_groups import SlimeTrainGroup
 
     group = SlimeTrainGroup(
-        SimpleNamespace(reef_executor_backend="auto", reef_train_executor_options={}), 1, gpus, pg=None
+        SimpleNamespace(aster_executor_backend="auto", aster_train_executor_options={}), 1, gpus, pg=None
     )
     assert group._executor_config.backend is SlimeRayExecutor
     assert group._executor is None
@@ -146,7 +146,7 @@ def test_unsupported_component_launcher_is_rejected():
 
 
 def test_scorer_can_declare_gpu_needs_without_yaml(monkeypatch):
-    from reef.evaluation.harness import TaskScorer, evaluation_selection
+    from aster.evaluation.harness import TaskScorer, evaluation_selection
 
     class GPUScorer(TaskScorer):
         def execution_requirements(self):
@@ -155,7 +155,7 @@ def test_scorer_can_declare_gpu_needs_without_yaml(monkeypatch):
         def score(self, task, result):
             return 1.0
 
-    monkeypatch.setattr("reef.execution.executor.config.visible_cuda_devices", lambda: ("0", "1"))
+    monkeypatch.setattr("aster.execution.executor.config.visible_cuda_devices", lambda: ("0", "1"))
     selected, requirements = evaluation_selection(GPUScorer(), ExecutorSettings(workers=2))
     assert selected.settings.backend == "mp"
     assert requirements.workers == 2 and requirements.gpus_per_worker == 1
@@ -171,7 +171,7 @@ def test_invalid_gpu_requirement_is_rejected(value):
 
 @pytest.mark.parametrize("workers, expected", [(1, "uni"), (2, "mp")])
 def test_local_gpu_topology_uses_uni_or_mp(monkeypatch, workers, expected):
-    monkeypatch.setattr("reef.execution.executor.config.visible_cuda_devices", lambda: ("GPU-a", "GPU-b"))
+    monkeypatch.setattr("aster.execution.executor.config.visible_cuda_devices", lambda: ("GPU-a", "GPU-b"))
     requirements = ExecutionRequirements(workers=workers, gpus_per_worker=1)
     assert (
         select_executor(ExecutorSettings(), role="evolution", requirements=requirements).settings.backend == expected
@@ -179,7 +179,7 @@ def test_local_gpu_topology_uses_uni_or_mp(monkeypatch, workers, expected):
 
 
 def test_insufficient_local_gpus_do_not_silently_switch_to_ray(monkeypatch):
-    monkeypatch.setattr("reef.execution.executor.config.visible_cuda_devices", lambda: ("0",))
+    monkeypatch.setattr("aster.execution.executor.config.visible_cuda_devices", lambda: ("0",))
     requirements = ExecutionRequirements(workers=2, gpus_per_worker=1)
     with pytest.raises(ValueError, match="explicitly select ray"):
         select_executor(ExecutorSettings(), role="evolution", requirements=requirements)
@@ -192,13 +192,13 @@ def test_cpu_selection_never_probes_cuda(monkeypatch):
     def forbidden():
         raise AssertionError("CPU-only execution probed GPUs")
 
-    monkeypatch.setattr("reef.execution.executor.config.visible_cuda_devices", forbidden)
+    monkeypatch.setattr("aster.execution.executor.config.visible_cuda_devices", forbidden)
     assert select_executor(ExecutorSettings(workers=2), role="evolution").settings.backend == "mp"
 
 
 @pytest.mark.parametrize("workers, expected", [(1, "uni"), (2, "ray")])
 def test_worker_topology_honors_existing_ray_placement_group(monkeypatch, workers, expected):
-    monkeypatch.setattr("reef.execution.executor.config.in_ray_placement_group", lambda: True)
+    monkeypatch.setattr("aster.execution.executor.config.in_ray_placement_group", lambda: True)
     assert select_executor(ExecutorSettings(workers=workers), role="evolution").settings.backend == expected
     assert select_executor(ExecutorSettings("mp", workers=workers), role="evolution").settings.backend == "mp"
 

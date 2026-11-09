@@ -10,10 +10,10 @@ import pytest
 from aiohttp import web
 from aiohttp.test_utils import TestServer
 
-from reef.artifact import Artifact
-from reef.core.errors import inference_aborted
-from reef.inference.interfaces import InferenceArtifact
-from reef.inference.vllm.chat import VLLMGenerateClient, VLLMInferenceHandler, VLLMToolCallParser
+from aster.artifact import Artifact
+from aster.core.errors import inference_aborted
+from aster.inference.interfaces import InferenceArtifact
+from aster.inference.vllm.chat import VLLMGenerateClient, VLLMInferenceHandler, VLLMToolCallParser
 
 
 class FakeTokenizer:
@@ -67,7 +67,7 @@ def _generate_response(*, stamps=None, finish_reason="stop"):
         "usage": {"prompt_tokens": 2, "completion_tokens": 2, "total_tokens": 4},
     }
     if stamps is not None:
-        response["kv_transfer_params"] = {"reef_token_runtime_load_ids": stamps}
+        response["kv_transfer_params"] = {"aster_token_runtime_load_ids": stamps}
     return response
 
 

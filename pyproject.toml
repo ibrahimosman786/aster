@@ -6,7 +6,7 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-# The distribution is `reef-infra`; the import package remains `reef`.
+# The distribution is `aster-infra`; the import package remains `aster`.
 name = "aster-infra"
 dynamic = ["version"]
 description = "A framework-agnostic runtime for continuously improving agents"
@@ -19,14 +19,14 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: System :: Distributed Computing",
 ]
-# Reef core dependencies. Keep this list free of training and GPU packages:
-# `pip install reef-infra` must support the base `recipe` configuration on CPU.
+# Aster core dependencies. Keep this list free of training and GPU packages:
+# `pip install aster-infra` must support the base `recipe` configuration on CPU.
 dependencies = [
     "aiohttp>=3.14",  # web.RequestKey
     "alembic>=1.13,<2",
     "huggingface_hub",
     "python-dotenv[cli]>=1,<2",
-    # Harbor's environment contract backs reef.execution.sandbox; task directory rollouts, the task player and the
+    # Harbor's environment contract backs aster.execution.sandbox; task directory rollouts, the task player and the
     # generator service play Harbor tasks with reef-eval.
     "harbor>=0.20,<0.26",
     "pyyaml",
@@ -111,12 +111,11 @@ runtime = [
 Homepage = "https://github.com/ibrahimosman786/aster"
 
 [project.scripts]
-aster = "reef.cli:main"
-reef = "reef.cli:main"
-reef-native = "reef.harness.runners.native.__main__:main"
+aster = "aster.cli:main"
+aster-native = "aster.harness.runners.native.__main__:main"
 
 [project.entry-points."sglang.srt.plugins"]
-reef = "reef.inference.sglang.plugin:install_sglang_plugin"
+aster = "aster.inference.sglang.plugin:install_sglang_plugin"
 
 [tool.setuptools]
 include-package-data = true
@@ -125,16 +124,16 @@ include-package-data = true
 fallback_version = "0.0.0.dev0"
 
 # reef-client is now a separate repo (Human-Agent-Society/reef-client) and a
-# declared dependency; the reef wheel must not ship its source.
-# `reef` is the shared machinery. The sibling `recipes` tree is a cookbook,
+# declared dependency; the aster wheel must not ship its source.
+# `aster` is the shared machinery. The sibling `recipes` tree is a cookbook,
 # not package code, so neither its methods nor its runnable examples ship.
 # runtime/ intentionally contains only its five modules and executor/ (PEP 420).
 [tool.setuptools.packages.find]
 namespaces = true
-include = ["reef", "reef.*"]
+include = ["aster", "aster.*"]
 
 [tool.setuptools.package-data]
-reef = [
+aster = [
     "harness/adapters/*/adapter.yaml",
     "harness/adapters/codex/default_instructions.md",
     "harness/adapters/codex/bundled_models.json",
@@ -148,9 +147,9 @@ ignore_whitespace = true  # ignore whitespace for compatibility with the initial
 py_version = 312  # sync with requires-python in [project]
 sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
 default_section = "THIRDPARTY"
-known_first_party = ["reef", "recipes"]
+known_first_party = ["aster", "recipes"]
 known_third_party = ["megatron", "wandb", "ray", "transformers"]
-src_paths = ["reef", "recipes"]
+src_paths = ["aster", "recipes"]
 # Files no formatter touches (vendored benchmark content, saved result programs)
 # are listed once, in .pre-commit-config.yaml's top-level `exclude`.
 
@@ -203,29 +202,29 @@ allowed-confusables = ["α", "γ", "−"]
 "recipes/openclawrl/slime/objective.py" = ["N802", "N803", "N806"]
 
 [tool.mypy]
-# Reef's training adapters are checked with the rest of the package; the
+# Aster's training adapters are checked with the rest of the package; the
 # runtime remains a separately installed distribution.
-files = ["reef"]
+files = ["aster"]
 python_version = "3.12"  # sync with requires-python in [project]
 ignore_missing_imports = true
 
 # The training runtime and its GPU dependencies do not ship type information
-# with Reef.
+# with Aster.
 [[tool.mypy.overrides]]
 module = ["slime.*", "slime_plugins.*", "vllm.*"]
 ignore_missing_imports = true
 
 [tool.coverage.run]
-source = ["reef"]
+source = ["aster"]
 # Coverage from the GitHub and Blacksmith checkouts is combined in one gate.
 relative_files = true
-# Reef-authored training control flow counts toward the CPU coverage gate. These
+# Aster-authored training control flow counts toward the CPU coverage gate. These
 # three modules execute only inside a live Megatron/CUDA worker; their useful
 # validation is the GPU integration suite, not import-only CPU mocks.
 omit = [
-    "reef/train/slime_backend/reef_adapters/megatron/hf_export.py",
-    "reef/train/slime_backend/reef_adapters/megatron/model_provider.py",
-    "reef/train/slime_backend/reef_adapters/megatron/train_actor.py",
+    "aster/train/slime_backend/aster_adapters/megatron/hf_export.py",
+    "aster/train/slime_backend/aster_adapters/megatron/model_provider.py",
+    "aster/train/slime_backend/aster_adapters/megatron/train_actor.py",
 ]
 
 [tool.coverage.report]

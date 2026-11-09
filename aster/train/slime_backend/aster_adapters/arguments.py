@@ -1,0 +1,100 @@
+"""Typed fields consumed from Slime's parsed argument namespace.
+
+The pinned parser supplies native fields; Aster's parser hook supplies its
+options. Derived hook fields start here before runtime configuration. Extra
+native options remain on the namespace for Slime's own workers.
+"""
+
+from argparse import Namespace
+
+
+class SlimeArguments(Namespace):
+    """Slime's namespace with explicit Aster adapter inputs and derived hooks."""
+
+    num_rollout: int
+    global_batch_size: int
+    save_hf: str
+    save: str
+    compute_advantages_and_returns: bool
+    debug_train_only: bool
+    debug_rollout_only: bool
+    colocate: bool
+    offload_train: bool
+    offload_rollout: bool
+    # The GPUs of a job's rollout engines; 0 for a job that starts none.
+    rollout_num_gpus: int
+    megatron_lora_rank: int
+    megatron_lora_alpha: int | None
+    megatron_lora_target_modules: list[str] | None
+    use_critic: bool
+    critic_save: str | None
+    critic_init: str | None
+    critic_save_interval: int
+    critic_steps_per_actor: int | None
+    num_critic_only_steps: int
+    critic_lr: float | None
+    lr: float
+    hf_checkpoint: str
+    # The chat template arguments with which the component renders a recorded trajectory, as serving renders it.
+    apply_chat_template_kwargs: dict[str, object] | None = None
+    load: str | None
+    ref_load: str | None
+    megatron_to_hf_mode: str
+    use_wandb: bool
+    wandb_key: str | None
+    start_rollout_id: int | None
+    custom_megatron_init_path: str | None
+    custom_critic_args_hook_path: str | None = None
+    no_save_optim: bool = False
+    # Refused by validate_slime_args: the component never releases its workers between jobs.
+    release_train: bool
+    custom_model_provider_path: str | None
+    custom_rollout_data_keys: tuple[str, ...] | list[str] | None = ()
+    rollout_data_transport: str
+    megatron_config_path: str | None
+    disable_param_buffers_cpu_backup: bool
+    override_opt_param_scheduler: bool
+    no_load_optim: bool
+    no_load_rng: bool
+    finetune: bool
+    ckpt_step: int | None
+    aster_executor_backend: str
+    aster_train_executor_options: dict[str, object]
+    advantage_estimator: str
+    # Slime's native options that a task job reads (aster.train.slime_backend.harbor_rollouts).
+    rewards_normalization: bool
+    n_samples_per_prompt: int
+    rollout_batch_size: int
+    over_sampling_batch_size: int | None
+    group_rm: bool
+    reward_key: str | None
+    custom_generate_function_path: str | None
+    data_source_path: str | None
+    rollout_function_path: str
+    partial_rollout: bool
+    dynamic_sampling_filter_path: str | None
+    use_rollout_routing_replay: bool
+    use_score_centering: bool
+    rollout_temperature: float
+    rollout_top_p: float
+    rollout_top_k: int
+    rollout_max_response_len: int | None
+    sglang_router_ip: str
+    sglang_router_port: int
+    aster_rollout_tensor_dtypes: dict[str, str]
+    aster_external_batch_keys: tuple[str, ...]
+    aster_rollout_log_skip_keys: tuple[str, ...]
+    score_centering: bool
+    score_centering_top_k: int
+    score_centering_min_tail_mass: float
+    aster_score_centering_base_loss_path: str | None = None
+    loss_family: str | None = None
+    loss_type: str
+    custom_megatron_before_train_step_hook_path: str | None = None
+    aster_chained_before_train_step_hook_path: str | None = None
+    aster_configured_advantage_estimator: str | None = None
+    aster_learning_rate_schedule_state: dict[str, object] | None = None
+    decoupled_lr: float | None = None
+    aster_chained_megatron_init_path: str | None = None
+    aster_chained_critic_args_hook_path: str | None = None
+    aster_chained_model_provider_path: str | None = None

@@ -20,16 +20,16 @@ from tests.support.runtime_stubs import STUB_ROOT, runtime_bindings
 from recipes.sdpo import SDPOJobData, SDPORecipe, SDPOReport, SDPOSamples
 from recipes.sdpo.processor import SDPODemonstrationSettings, SDPOSettings
 from recipes.sdpo.slime import SdpoAlgorithm, SdpoSettings
-from reef.core import AgentRecord, RequestType
-from reef.core.chat_rendering import rendered_job_data
-from reef.core.plugins import PluginConfigError
-from reef.recipe.errors import RecipeConfigError
-from reef.train import PipelineContext, Trainer
-from reef.train.pipeline import TrainingPipeline
-from reef.train.slime_backend.data_builder import to_slime_rollout_data
-from reef.train.slime_backend.distill.algorithm import settings_from_args
-from reef.train.slime_backend.objectives import resolve_slime_objective
-from reef.train.types import JobData
+from aster.core import AgentRecord, RequestType
+from aster.core.chat_rendering import rendered_job_data
+from aster.core.plugins import PluginConfigError
+from aster.recipe.errors import RecipeConfigError
+from aster.train import PipelineContext, Trainer
+from aster.train.pipeline import TrainingPipeline
+from aster.train.slime_backend.data_builder import to_slime_rollout_data
+from aster.train.slime_backend.distill.algorithm import settings_from_args
+from aster.train.slime_backend.objectives import resolve_slime_objective
+from aster.train.types import JobData
 
 QUESTION = [{"role": "user", "content": "What is the boiling point of water?"}]
 TOOLS = [

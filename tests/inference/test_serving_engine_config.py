@@ -1,4 +1,4 @@
-"""The serving engines' input that Reef builds from the inference settings and the training component's snapshot format."""
+"""The serving engines' input that Aster builds from the inference settings and the training component's snapshot format."""
 
 from __future__ import annotations
 
@@ -8,14 +8,14 @@ import sys
 
 import pytest
 
-from reef.core.weight_layout import ArtifactFormat
-from reef.inference.remote.runtime import serving_engine_config
-from reef.inference.sglang import config as sglang_config
-from reef.inference.sglang import deployment as sglang_deployment
-from reef.inference.sglang.deployment import create_inference
-from reef.inference.sglang.launch import engine_environment
-from reef.inference.sglang.plugin import REEF_SGLANG_PLUGIN_ENV
-from reef.inference.vllm.config import VLLMConfig
+from aster.core.weight_layout import ArtifactFormat
+from aster.inference.remote.runtime import serving_engine_config
+from aster.inference.sglang import config as sglang_config
+from aster.inference.sglang import deployment as sglang_deployment
+from aster.inference.sglang.deployment import create_inference
+from aster.inference.sglang.launch import engine_environment
+from aster.inference.sglang.plugin import ASTER_SGLANG_PLUGIN_ENV
+from aster.inference.vllm.config import VLLMConfig
 
 FULL = ArtifactFormat("full")
 ADAPTER = ArtifactFormat("adapter", 8, ("q_proj", "v_proj"))
@@ -49,12 +49,12 @@ def engine_input(
 
 @pytest.fixture
 def lora_receiver(monkeypatch):
-    """An SGLang whose LoRA request schema Reef accepts, without importing SGLang."""
+    """An SGLang whose LoRA request schema Aster accepts, without importing SGLang."""
     monkeypatch.setattr(sglang_deployment, "require_lora_tensor_request_schema", lambda: None)
     monkeypatch.setattr(sglang_deployment, "require_lora_distributed_request_schema", lambda: None)
 
 
-def test_sglang_input_loads_the_model_with_the_flags_reef_serving_relies_on(monkeypatch):
+def test_sglang_input_loads_the_model_with_the_flags_aster_serving_relies_on(monkeypatch):
     monkeypatch.setenv("SGLANG_PLUGINS", "telemetry")
     values = engine_input(options={"mem-fraction-static": 0.7}, num_gpus=4, tensor_parallel_size=2)
     config = create_inference(values).config
@@ -71,14 +71,14 @@ def test_sglang_input_loads_the_model_with_the_flags_reef_serving_relies_on(monk
     # An in-place pause keeps in-flight KV across a load, so no prefix is shared.
     assert config.pause_mode == "in_place" and config.options["disable_radix_cache"] is True
     environment = engine_environment(config)
-    assert environment[REEF_SGLANG_PLUGIN_ENV] == "1"
-    assert environment["SGLANG_PLUGINS"] == "telemetry,reef"
+    assert environment[ASTER_SGLANG_PLUGIN_ENV] == "1"
+    assert environment["SGLANG_PLUGINS"] == "telemetry,aster"
     assert os.environ["SGLANG_PLUGINS"] == "telemetry"
 
 
-def test_sglang_input_enables_reefs_plugin_without_other_plugins(monkeypatch):
+def test_sglang_input_enables_asters_plugin_without_other_plugins(monkeypatch):
     monkeypatch.delenv("SGLANG_PLUGINS", raising=False)
-    assert engine_environment(create_inference(engine_input()).config)["SGLANG_PLUGINS"] == "reef"
+    assert engine_environment(create_inference(engine_input()).config)["SGLANG_PLUGINS"] == "aster"
     assert "SGLANG_PLUGINS" not in os.environ
 
 
@@ -163,7 +163,7 @@ def test_vllm_input_keeps_vllm_option_names_and_the_pause_mode():
 
 
 def test_vllm_refuses_adapter_releases():
-    # The serving assembly refuses more than one vLLM engine (tests/reef_service/test_training_startup.py).
+    # The serving assembly refuses more than one vLLM engine (tests/aster_service/test_training_startup.py).
     with pytest.raises(ValueError, match="vllm serves full weights only"):
         engine_input("vllm", artifact_format=ADAPTER)
 
@@ -176,15 +176,15 @@ def test_the_engine_input_imports_no_engine_implementation_or_training_framework
             """
 import json
 import sys
-sys.modules.update(dict.fromkeys(('sglang', 'torch', 'megatron', 'slime', 'reef.train.slime_backend')))
-from reef.inference.remote.runtime import serving_engine_config
-from reef.train.component import ArtifactFormat
+sys.modules.update(dict.fromkeys(('sglang', 'torch', 'megatron', 'slime', 'aster.train.slime_backend')))
+from aster.inference.remote.runtime import serving_engine_config
+from aster.train.component import ArtifactFormat
 values = serving_engine_config('sglang', model_path='model', num_gpus=1, tensor_parallel_size=1, options={},
     artifact_format=ArtifactFormat('adapter', 8, ('all',)), adapter_capacity=1, prefix_sharing=False,
     executor='auto', executor_options={}, environ={})
 json.dumps(values)
 assert 'ray' not in sys.modules
-assert {name for name in sys.modules if name.startswith('reef.inference.sglang.')} <= {'reef.inference.sglang.chat'}
+assert {name for name in sys.modules if name.startswith('aster.inference.sglang.')} <= {'aster.inference.sglang.chat'}
 """,
         ],
         capture_output=True,

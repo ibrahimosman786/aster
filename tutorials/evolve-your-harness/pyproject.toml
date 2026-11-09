@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "reef-harness-evolve-method"
+name = "aster-harness-evolve-method"
 version = "0.1.0"
-description = "The evolve-your-harness tutorial's methods and graders for Reef harness evolution"
+description = "The evolve-your-harness tutorial's methods and graders for Aster harness evolution"
 requires-python = ">=3.10"
 dependencies = ["reef-client"]
 

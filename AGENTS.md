@@ -1,6 +1,6 @@
-# Agent Instructions for Reef
+# Agent Instructions for Aster
 
-These instructions apply to AI-assisted work in `Human-Agent-Society/reef`.
+These instructions apply to AI-assisted work in `Human-Agent-Society/aster`.
 `AGENTS.md` is the shared source of truth; `CLAUDE.md` is a relative symlink to
 this file. Edit this file when updating shared instructions.
 
@@ -42,35 +42,35 @@ precedence over repository guidance.
 
 ## Codebase and boundaries
 
-Reef connects inference, feedback, learning, and versioned delivery for model
-weights and agent harnesses. The distribution is `reef-infra`; imports use
-`reef`. Use the [codebase map](docs/contributing/codebase-structure.rst) and the
+Aster connects inference, feedback, learning, and versioned delivery for model
+weights and agent harnesses. The distribution is `aster-infra`; imports use
+`aster`. Use the [codebase map](docs/contributing/codebase-structure.rst) and the
 affected package's `__init__.py` docstring to find the owner of a change.
 
 | Location | Responsibility |
 | --- | --- |
-| `reef/core/` | Shared value types, wire contracts, and errors |
-| `reef/dispatcher/`, `reef/scenario/` | Coordination, scenario state, commit ordering, and recovery |
-| `reef/service/` | HTTP, authentication, streaming, and deployment |
-| `reef/recipe/`, `reef/train/` | Recipe contracts, built-in recipes, the training pipeline, training, and backend integrations |
-| `reef/evaluation/` | Candidate evaluation: running and scoring evaluation runs, deciding whether a candidate is published, and plugin configuration |
-| `reef/inference/` | Inference contracts, serving runtimes, and concrete inference integrations, engine control, and weight reception |
-| `reef/tinker/` | Tinker SDK pieces that the Tinker training component and the Tinker serving runtime share |
-| `reef/artifact/` | Versioned artifacts, repositories, and the components a recipe declares |
-| `reef/storage/` | Record storage contracts, persistence, and retention |
-| `reef/harness/` | Harness adapters, rendering, runners, and trajectories |
-| `reef/execution/` | Shared job scheduling, local process ownership, worker executors, sandbox isolation, file transfer, and cleanup |
-| `reef/record2sample/` | The record-to-sample stage (`Record2Sample`): which records Reef uses, which train together (report grouping, judging, eligibility checks, the staleness check), and their samples; the samples service (`service/`); and the generator service that writes, checks, and plays Harbor tasks (`generator/`) |
-| `reef/sample2job/` | The sample-to-job stage: the samples of the next job into one training job's data (`Sample2Job`), and the job size `job_samples` |
-| `reef/pipeline_context.py` | The context that the training pipeline and its stages read for one scenario |
+| `aster/core/` | Shared value types, wire contracts, and errors |
+| `aster/dispatcher/`, `aster/scenario/` | Coordination, scenario state, commit ordering, and recovery |
+| `aster/service/` | HTTP, authentication, streaming, and deployment |
+| `aster/recipe/`, `aster/train/` | Recipe contracts, built-in recipes, the training pipeline, training, and backend integrations |
+| `aster/evaluation/` | Candidate evaluation: running and scoring evaluation runs, deciding whether a candidate is published, and plugin configuration |
+| `aster/inference/` | Inference contracts, serving runtimes, and concrete inference integrations, engine control, and weight reception |
+| `aster/tinker/` | Tinker SDK pieces that the Tinker training component and the Tinker serving runtime share |
+| `aster/artifact/` | Versioned artifacts, repositories, and the components a recipe declares |
+| `aster/storage/` | Record storage contracts, persistence, and retention |
+| `aster/harness/` | Harness adapters, rendering, runners, and trajectories |
+| `aster/execution/` | Shared job scheduling, local process ownership, worker executors, sandbox isolation, file transfer, and cleanup |
+| `aster/record2sample/` | The record-to-sample stage (`Record2Sample`): which records Aster uses, which train together (report grouping, judging, eligibility checks, the staleness check), and their samples; the samples service (`service/`); and the generator service that writes, checks, and plays Harbor tasks (`generator/`) |
+| `aster/sample2job/` | The sample-to-job stage: the samples of the next job into one training job's data (`Sample2Job`), and the job size `job_samples` |
+| `aster/pipeline_context.py` | The context that the training pipeline and its stages read for one scenario |
 | `recipes/`, `tutorials/` | Method implementations, runnable examples, and tutorials |
 | `tests/`, `docs/`, `docker/` | Verification, documentation, and deployment environments |
 
-- Keep shared mechanisms in `reef/` and method-specific policy in `recipes/`.
+- Keep shared mechanisms in `aster/` and method-specific policy in `recipes/`.
   The core must not import cookbook methods; `recipes/` does not ship in the
-  Reef wheel.
+  Aster wheel.
 - Keep `reef-client` a separate, dependency-free protocol client. Harnesses
-  consume `reef_client`; they should not need Reef's service or training stack.
+  consume `reef_client`; they should not need Aster's service or training stack.
 - Keep the base installation usable on CPU. GPU dependencies belong to the
   supported training environment, and concrete adapters belong under their
   integration. Declare or pin third-party dependencies instead of copying them.
@@ -90,7 +90,7 @@ uv pip install -e ".[dev]" -e ./third_party/reef-client
 pre-commit install
 ```
 
-Reef requires Python 3.12 or newer, one interpreter for the service and every
+Aster requires Python 3.12 or newer, one interpreter for the service and every
 child it starts; CI tests 3.12. Git LFS is required for artifact/checkpoint work.
 
 Training-related work may also need:
@@ -109,7 +109,7 @@ for the environment required by the selected backend.
 ## Python style and design
 
 - Follow `pyproject.toml`: Black and isort format at 119 columns; Ruff checks
-  code and naming; mypy checks `reef`. Match nearby code and add types to new
+  code and naming; mypy checks `aster`. Match nearby code and add types to new
   or changed interfaces.
 - Prefer focused functions, data classes for values, and cohesive objects for
   state and lifecycle. Use composition and explicit abstract base classes for behavior.
@@ -124,7 +124,7 @@ for the environment required by the selected backend.
 - Do not model long-lived behavior as `Callable` constructor arguments,
   callable-valued fields, or callback containers. Use an explicit interface. Keep unavoidable
   third-party dynamic behavior local to its boundary adapter.
-- Do not use `assert` or `del` statements in `reef/`; use explicit validation,
+- Do not use `assert` or `del` statements in `aster/`; use explicit validation,
   exceptions, and mutation APIs. Test assertions are allowed.
 - Use descriptive domain names and short comments that explain intent or
   constraints. Follow the Google-style documentation guidance in
@@ -303,14 +303,14 @@ anything not verified. Refer to results in `Verification` rather than duplicatin
 Use these reviewed changes as examples of specific improvements, not as blanket
 endorsements of every sentence or historical API detail:
 
-- @yanxz: [#185](https://github.com/Human-Agent-Society/reef/pull/185) and
-  [#561](https://github.com/Human-Agent-Society/reef/pull/561): introduce the
+- @yanxz: [#185](https://github.com/Human-Agent-Society/aster/pull/185) and
+  [#561](https://github.com/Human-Agent-Society/aster/pull/561): introduce the
   workflow and its concepts before expanding modes and configuration.
-- @yanxz: [#324](https://github.com/Human-Agent-Society/reef/pull/324): separate
+- @yanxz: [#324](https://github.com/Human-Agent-Society/aster/pull/324): separate
   the core loop from advanced state details and move reference material to
   the pages that own it.
-- @YihongT: [#606](https://github.com/Human-Agent-Society/reef/pull/606) and
-  [#607](https://github.com/Human-Agent-Society/reef/pull/607): organize dense
+- @YihongT: [#606](https://github.com/Human-Agent-Society/aster/pull/606) and
+  [#607](https://github.com/Human-Agent-Society/aster/pull/607): organize dense
   method and adapter descriptions by responsibility, with explicit inputs,
   outputs, and configuration mappings.
 
@@ -318,7 +318,7 @@ endorsements of every sentence or historical API detail:
 
 Read [tests/AGENTS.md](tests/AGENTS.md) before adding or moving tests. Place new
 tests under their owning component, not directly under `tests/`. Keep
-`tests/reef_service/` for service contracts and service workflows. Update CI
+`tests/aster_service/` for service contracts and service workflows. Update CI
 selection and fixture paths with every move; preserve existing test coverage.
 
 Start with the smallest existing suite that exercises the changed behavior.
@@ -328,7 +328,7 @@ changes, include relevant evaluation or baseline comparisons.
 
 ```bash
 # Focused test example; substitute the suite relevant to the change.
-.venv/bin/python -m pytest tests/artifact/test_reef_artifacts.py -q
+.venv/bin/python -m pytest tests/artifact/test_aster_artifacts.py -q
 
 # Python checks (activate .venv first for pre-commit's local hooks).
 pre-commit run --files path/to/changed_file.py
@@ -354,7 +354,7 @@ CI uses `GIT_CONFIG_GLOBAL=/dev/null` and `GIT_CONFIG_SYSTEM=/dev/null` for
 Git LFS test isolation. Record skipped or unavailable checks honestly.
 
 For full-suite coverage on Python 3.12, use
-`.venv/bin/python -m pytest tests -n 8 --cov=reef --cov-report=term`.
+`.venv/bin/python -m pytest tests -n 8 --cov=aster --cov-report=term`.
 The configured coverage floor applies to the whole package, not a focused run.
 
 Pre-commit includes repository-wide Python design, statement, and README

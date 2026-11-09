@@ -1,16 +1,16 @@
-"""``reef --version`` reports the installed distribution version."""
+"""``aster --version`` reports the installed distribution version."""
 
 import subprocess
 import sys
 
-import reef
+import aster
 
 
 def test_version_flag_prints_package_version() -> None:
     result = subprocess.run(
-        [sys.executable, "-m", "reef.cli", "--version"],
+        [sys.executable, "-m", "aster.cli", "--version"],
         capture_output=True,
         text=True,
         check=True,
     )
-    assert result.stdout.strip() == f"reef {reef.__version__}"
+    assert result.stdout.strip() == f"aster {aster.__version__}"

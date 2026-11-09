@@ -1,4 +1,4 @@
-"""A terminus tree never chooses where a model call goes: Reef's model binding is its only route.
+"""A terminus tree never chooses where a model call goes: Aster's model binding is its only route.
 
 Render refuses every Terminus 2 argument that chooses the endpoint, the
 provider, the credential or the model, in the tree alone (as validation
@@ -14,9 +14,9 @@ from typing import Any
 
 import pytest
 
-from reef.harness.adapters import get_adapter
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tree import HarnessTree, RenderError, render_tree, validate_tree
+from aster.harness.adapters import get_adapter
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tree import HarnessTree, RenderError, render_tree, validate_tree
 
 OTHER_URL = "http://127.0.0.1:9/v1"
 
@@ -55,7 +55,7 @@ TERMINUS_REFUSED = [
 
 @pytest.mark.parametrize(("data", "bound"), TERMINUS_REFUSED)
 def test_terminus_refuses_a_setting_that_chooses_the_route(data: dict[str, Any], bound: bool) -> None:
-    with pytest.raises(RenderError, match="Reef's model binding"):
+    with pytest.raises(RenderError, match="Aster's model binding"):
         render("terminus", config(data), bound=bound)
 
 
@@ -80,4 +80,4 @@ def test_terminus_keeps_the_arguments_a_tree_tunes() -> None:
 )
 def test_validation_refuses_the_tree_and_says_why(data: dict[str, Any]) -> None:
     (problem,) = validate_tree(HarnessTree(config(data)), get_adapter("terminus")).problems
-    assert "Reef's model binding" in problem
+    assert "Aster's model binding" in problem

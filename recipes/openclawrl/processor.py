@@ -20,16 +20,16 @@ from typing import Any, Self
 
 from recipes.openclawrl.judging import OpenClawRLJudging, OpenClawRLJudgingSettings
 from recipes.openclawrl.turns import TurnJudgment
-from reef.core.chat_rendering import TeacherRequest, trajectory_tools
-from reef.core.config import config_option
-from reef.core.plugins import PluginConfigError
-from reef.core.records_types import AgentRecord
-from reef.core.trajectories import make_trajectory, source_record_id, trajectory_reward
-from reef.execution.jobs import BackgroundJobWorker
-from reef.pipeline_context import PipelineContext
-from reef.record2sample import JudgedSamples, Record2Sample
-from reef.sample2job import Sample2Job, Sample2JobSettings
-from reef.train.types import JobData, Sample, TrajectorySample
+from aster.core.chat_rendering import TeacherRequest, trajectory_tools
+from aster.core.config import config_option
+from aster.core.plugins import PluginConfigError
+from aster.core.records_types import AgentRecord
+from aster.core.trajectories import make_trajectory, source_record_id, trajectory_reward
+from aster.execution.jobs import BackgroundJobWorker
+from aster.pipeline_context import PipelineContext
+from aster.record2sample import JudgedSamples, Record2Sample
+from aster.sample2job import Sample2Job, Sample2JobSettings
+from aster.train.types import JobData, Sample, TrajectorySample
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class OpenClawRLSamples(JudgedSamples):
     """Sessions correlated, turns judged on a PRM worker, and one judged turn as one sample.
 
     The sample is the turn's call as an ATIF trajectory, whose reply trains, with its teacher candidates in
-    ``extra.reef.teacher_candidates`` (``reef.core.chat_rendering.teacher_candidates``). Every trained sample carries
+    ``extra.aster.teacher_candidates`` (``aster.core.chat_rendering.teacher_candidates``). Every trained sample carries
     at least one teacher candidate; a declined or candidate-less judgment retires the turn. The training component
     renders the sample and its candidates, and the actor computes the student's top-K. Config:
     :class:`~recipes.openclawrl.judging.OpenClawRLJudgingSettings`. Without a ``worker``, the stage starts one when
@@ -115,7 +115,7 @@ class OpenClawRLJobData(Sample2Job):
         super().__init__(context, settings.buffer_size, settings.job_samples)
         # What the judge actually saw goes to the PRM record file, one line
         # per job. Upstream persists this per turn; without it a job mean
-        # is the only visible number. A file, not a log line: reef configures
+        # is the only visible number. A file, not a log line: aster configures
         # no logging, so anything below WARNING is discarded.
         record_file = settings.prm_record_file.strip()
         self.record_path = pathlib.Path(record_file) if record_file else None

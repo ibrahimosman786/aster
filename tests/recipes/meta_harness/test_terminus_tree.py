@@ -13,15 +13,15 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from reef_terminus import TerminusTreeError, instruction_paths, load_tree, runner, skill_roots, terminus_kwargs
-from reef_terminus.trajectory import read_trials
-from reef_terminus.tree import ENVIRONMENT_ENV
+from aster_terminus import TerminusTreeError, instruction_paths, load_tree, runner, skill_roots, terminus_kwargs
+from aster_terminus.trajectory import read_trials
+from aster_terminus.tree import ENVIRONMENT_ENV
 
-from reef.harness.adapters import get_adapter
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tree import HarnessTree, render_tree
+from aster.harness.adapters import get_adapter
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tree import HarnessTree, render_tree
 
-#: The model comes from Reef's binding: a tree cannot set model_name.
+#: The model comes from Aster's binding: a tree cannot set model_name.
 BINDING = ModelBinding(base_url="http://127.0.0.1:9", model="openai/gpt-4o", api_key="k")
 
 
@@ -96,7 +96,7 @@ def test_the_agent_spec_names_harbors_own_agent_and_carries_the_tree(tmp_path: P
         BINDING,
     )
     spec = runner.agent_spec(str(tmp_path), files)
-    # Harbor's terminus-2, not a Reef subclass: no Reef code runs in the agent.
+    # Harbor's terminus-2, not an Aster subclass: no Aster code runs in the agent.
     assert spec["name"] == "terminus-2"
     assert spec["model_name"] == "openai/gpt-4o"
     assert spec["kwargs"] == {
@@ -115,14 +115,14 @@ def test_a_tree_without_a_model_name_cannot_run() -> None:
 
 @pytest.mark.unit
 def test_runner_refuses_extension_before_importing_or_executing_it(monkeypatch) -> None:
-    from reef.execution.sandbox.process import ISOLATION_ENV
+    from aster.execution.sandbox.process import ISOLATION_ENV
 
     monkeypatch.delenv(ISOLATION_ENV, raising=False)
     tree = {
         "terminus/config.json": '{"model_name":"stub"}',
         "terminus/context/agent.py": "raise RuntimeError('must not run')\nclass Agent: pass\n",
     }
-    with pytest.raises(TerminusTreeError, match="must run inside Reef's sandbox"):
+    with pytest.raises(TerminusTreeError, match="must run inside Aster's sandbox"):
         runner.agent_spec("/root", tree)
 
 

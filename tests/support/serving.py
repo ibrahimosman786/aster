@@ -2,7 +2,7 @@
 
 import time
 
-from reef.dispatcher import Dispatcher
+from aster.dispatcher import Dispatcher
 
 
 def wait_for_serving(dispatcher: Dispatcher, scenario: str = "math") -> None:

@@ -2,8 +2,8 @@
 
 Covers: parallel agents, retries, late grading, duplicate reports, and
 missing inference references — plus the header-stamping contract itself.
-The fake downstream app plays LiteLLM+provider+reef in one: it asserts the
-reef headers arrived and answers with a configurable receipt shape.
+The fake downstream app plays LiteLLM+provider+aster in one: it asserts the
+aster headers arrived and answers with a configurable receipt shape.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ import threading
 import pytest
 
 from recipes.beta.coral.journal import CallJournal, CallRecord, deterministic_report_id
-from recipes.beta.coral.middleware import ReefGatewayMiddleware
+from recipes.beta.coral.middleware import AsterGatewayMiddleware
 from recipes.beta.coral.reporter import AttemptReport
 
 
@@ -50,15 +50,15 @@ class FakeDownstream:
         headers = [(b"content-type", b"application/json")]
         body = b'{"choices": []}'
         if self.mode == "header":
-            headers.append((b"x-reef-agent-record-id", self.record_id.encode()))
+            headers.append((b"x-aster-agent-record-id", self.record_id.encode()))
         elif self.mode == "sse":
             headers = [(b"content-type", b"text/event-stream")]
             receipt = json.dumps(
-                {"object": "chat.completion.chunk", "choices": [], "reef": {"agent_record_id": self.record_id}}
+                {"object": "chat.completion.chunk", "choices": [], "aster": {"agent_record_id": self.record_id}}
             )
             body = f"data: {json.dumps({'choices': [{'delta': {'content': 'hi'}}]})}\n\ndata: {receipt}\n\ndata: [DONE]\n\n".encode()
         elif self.mode == "json-body":
-            body = json.dumps({"choices": [], "reef": {"agent_record_id": self.record_id}}).encode()
+            body = json.dumps({"choices": [], "aster": {"agent_record_id": self.record_id}}).encode()
         await send({"type": "http.response.start", "status": self.status, "headers": headers})
         await send({"type": "http.response.body", "body": body})
 
@@ -79,13 +79,13 @@ async def _call(mw, scope):
 def _mw(tmp_path, downstream, scenario="coral-demo", extra_tags=None):
     journal = CallJournal(tmp_path / "calls.jsonl")
     return (
-        ReefGatewayMiddleware(downstream, scenario=scenario, journal=journal, extra_tags=extra_tags),
+        AsterGatewayMiddleware(downstream, scenario=scenario, journal=journal, extra_tags=extra_tags),
         journal,
     )
 
 
 # --------------------------------------------------------------------------
-# Header stamping: reef sees scenario+tags, provider body untouched
+# Header stamping: aster sees scenario+tags, provider body untouched
 # --------------------------------------------------------------------------
 
 
@@ -96,10 +96,10 @@ def test_stamps_scenario_and_tags_without_touching_body(tmp_path):
 
     (scope,) = downstream.seen_scopes
     headers = {bytes(k).decode(): bytes(v).decode() for k, v in scope["headers"]}
-    assert headers["x-reef-scenario"] == "coral-demo"
-    assert headers["x-reef-tag-coral-agent"] == "agent-1"
-    assert headers["x-reef-tag-coral-commit"] == "abc123def456"
-    assert headers["x-reef-tag-coral-run"] == "run-7"
+    assert headers["x-aster-scenario"] == "coral-demo"
+    assert headers["x-aster-tag-coral-agent"] == "agent-1"
+    assert headers["x-aster-tag-coral-commit"] == "abc123def456"
+    assert headers["x-aster-tag-coral-run"] == "run-7"
     # provider-native parts pass through untouched
     assert headers["authorization"] == "Bearer sk-coral-agent-1-deadbeef"
 
@@ -109,19 +109,19 @@ def test_stamps_scenario_and_tags_without_touching_body(tmp_path):
     assert record.commit_hash == "abc123def456"
 
 
-def test_client_cannot_smuggle_reef_headers(tmp_path):
+def test_client_cannot_smuggle_aster_headers(tmp_path):
     downstream = FakeDownstream()
     mw, _ = _mw(tmp_path, downstream)
     smuggled = [
         *_coral_headers(),
-        (b"x-reef-scenario", b"evil-scenario"),
-        (b"x-reef-tag-coral-agent", b"spoofed"),
+        (b"x-aster-scenario", b"evil-scenario"),
+        (b"x-aster-tag-coral-agent", b"spoofed"),
     ]
     asyncio.run(_call(mw, _scope(headers=smuggled)))
     (scope,) = downstream.seen_scopes
     values = [(bytes(k).decode(), bytes(v).decode()) for k, v in scope["headers"]]
-    scenarios = [v for k, v in values if k == "x-reef-scenario"]
-    agents = [v for k, v in values if k == "x-reef-tag-coral-agent"]
+    scenarios = [v for k, v in values if k == "x-aster-scenario"]
+    agents = [v for k, v in values if k == "x-aster-tag-coral-agent"]
     assert scenarios == ["coral-demo"]
     assert agents == ["agent-1"]
 
@@ -172,7 +172,7 @@ def test_parallel_agents_attribute_to_themselves(tmp_path):
         for i in range(8):
             agent = f"agent-{i % 4}"
             downstream = FakeDownstream(record_id=f"rec-{agent}-{i}")
-            mw = ReefGatewayMiddleware(downstream, scenario="coral-demo", journal=journal)
+            mw = AsterGatewayMiddleware(downstream, scenario="coral-demo", journal=journal)
             tasks.append(_call(mw, _scope(headers=_coral_headers(agent=agent, commit=f"c-{agent}"))))
         await asyncio.gather(*tasks)
 
@@ -193,7 +193,7 @@ def test_retry_produces_two_references_dedup_only_collapses_same_receipt(tmp_pat
     async def run():
         for record_id in ("rec-try1", "rec-try2", "rec-try2"):  # retry + duplicate receipt
             downstream = FakeDownstream(record_id=record_id)
-            mw = ReefGatewayMiddleware(downstream, scenario="s", journal=journal)
+            mw = AsterGatewayMiddleware(downstream, scenario="s", journal=journal)
             await _call(mw, _scope(headers=_coral_headers()))
 
     asyncio.run(run())
@@ -240,7 +240,7 @@ def test_late_grading_builds_report_from_journal(tmp_path):
 
     async def run():
         downstream = FakeDownstream(record_id="rec-late")
-        mw = ReefGatewayMiddleware(downstream, scenario="coral-demo", journal=journal)
+        mw = AsterGatewayMiddleware(downstream, scenario="coral-demo", journal=journal)
         await _call(mw, _scope(headers=_coral_headers(commit="late-commit")))
 
     asyncio.run(run())
@@ -267,7 +267,7 @@ def test_duplicate_reports_share_a_deterministic_id():
     first = AttemptReport(**kwargs).payload()
     second = AttemptReport(**kwargs).payload()
     assert first["agent_record_id"] == second["agent_record_id"]
-    assert first == second  # identical resend -> reef dedups instead of double-counting
+    assert first == second  # identical resend -> aster dedups instead of double-counting
     # and the id is attempt-scoped, not global
     other = deterministic_report_id("s", "a", "c2")
     assert other != first["agent_record_id"]

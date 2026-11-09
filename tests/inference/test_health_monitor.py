@@ -5,7 +5,7 @@ from time import monotonic
 
 import pytest
 
-from reef.inference.recovery import EngineHealthChecks, EngineHealthMonitor, EngineHealthTarget, HealthMonitorConfig
+from aster.inference.recovery import EngineHealthChecks, EngineHealthMonitor, EngineHealthTarget, HealthMonitorConfig
 
 
 class Target(EngineHealthTarget):

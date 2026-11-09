@@ -7,7 +7,7 @@ owner, then use the matching playbook below.
 Core and external extensions
 ----------------------------
 
-Recipes and learning methods outside ``reef/recipe/`` are external packages
+Recipes and learning methods outside ``aster/recipe/`` are external packages
 selected by dotted reference; Aster does not import those packages at boot. Changes to shared runtime or
 training machinery start with an `RFC issue
 <https://github.com/ibrahimosman786/aster/issues/new?template=rfc.yml>`__.
@@ -26,19 +26,19 @@ Implementation
 
 - Keep a recipe with its method package and select its frozen recipe dataclass
   as ``package.module:ClassName``. There is no ``register_kind`` step and no
-  import from ``reef/__init__.py``. The contract it implements is
-  ``reef/recipe/``.
+  import from ``aster/__init__.py``. The contract it implements is
+  ``aster/recipe/``.
 - Declare recipe-owned settings with ``config_field``. Do not parse those
-  settings again in ``reef/service/``.
+  settings again in ``aster/service/``.
 - Put the method's record-to-sample and sample-to-job stages in
   ``<method-package>/processor.py``, subclassing ``ReportSamples`` or
-  ``JudgedSamples`` (``reef/record2sample/``) and ``Sample2Job``
-  (``reef/sample2job/``), and its record stage in the recipe module.
+  ``JudgedSamples`` (``aster/record2sample/``) and ``Sample2Job``
+  (``aster/sample2job/``), and its record stage in the recipe module.
   Extend those contracts only when they do not already express it.
 - Put the method's training objective with the backend that it targets: a
-  ``SlimeObjective`` (``reef/train/slime_backend/objectives.py``) in
+  ``SlimeObjective`` (``aster/train/slime_backend/objectives.py``) in
   ``<method-package>/slime/__init__.py``, or a ``TinkerObjective``
-  (``reef/train/tinker_backend/objectives.py``) in its Tinker module. The
+  (``aster/train/tinker_backend/objectives.py``) in its Tinker module. The
   package's ``__init__.py`` refers to it with ``register_objective_ref``, so its
   public half imports no backend. Name it in the recipe's ``default_parameters()``.
 - A method with its own tensor objective adds a loss family in
@@ -53,8 +53,8 @@ Surrounding changes
 ~~~~~~~~~~~~~~~~~~~
 
 - Add dotted-resolution and configuration tests in
-  ``tests/reef_recipe/test_reef_recipes.py`` and
-  ``tests/reef_recipe/test_recipe_config_fields.py``.
+  ``tests/aster_recipe/test_aster_recipes.py`` and
+  ``tests/aster_recipe/test_recipe_config_fields.py``.
 - Add method behavior tests under ``tests/recipes/<method>/``. Add an integration
   contract when the method calls into a concrete backend.
 - Put every runnable configuration beside its method under
@@ -75,7 +75,7 @@ Implementation
 
 - Put the ``Method`` in ``recipes/<name>/method.py`` and export it from the
   package's ``__init__.py``. A deployment runs
-  ``reef.recipe.harness:HarnessEvolutionRecipe`` and names the class in
+  ``aster.recipe.harness:HarnessEvolutionRecipe`` and names the class in
   ``evolution.method``, so the method needs no recipe of its own.
 - Parse the method's settings into a ``PluginSettings`` dataclass in
   ``from_config``.
@@ -109,18 +109,18 @@ framework types leak into backend-neutral modules.
 Implementation
 ~~~~~~~~~~~~~~
 
-- Start an accepted integration in ``reef/train/<integration>/``. Keep its
+- Start an accepted integration in ``aster/train/<integration>/``. Keep its
   implementation, framework adapters, and plugins inside that subtree.
-- Implement ``TrainingComponent`` from ``reef/train/component.py``. A component
+- Implement ``TrainingComponent`` from ``aster/train/component.py``. A component
   runs whole training jobs with the framework's own training loop and saves
   checkpoints; Aster submits jobs and reads their status. Derive from
-  ``reef.train.local_jobs.LocalJobComponent`` to get durable job directories,
+  ``aster.train.local_jobs.LocalJobComponent`` to get durable job directories,
   one job at a time, and resumption after a restart.
 - Own the job's parameters: parse them into your own typed value, refuse an
   unknown key with ``ValueError``, and declare them in
   ``TrainingComponent.parameters_schema(kind)``. Aster reads none of them. Own your
   objectives and their registry too. Cut the data into optimizer steps
-  with ``reef.train.algos.schedule.schedule_job_data`` when it fits. Write each
+  with ``aster.train.algos.schedule.schedule_job_data`` when it fits. Write each
   ``SavedCheckpoint.artifact_path`` in a form that serving loads: a Hugging Face
   checkpoint for full weights, or a PEFT adapter in an ``adapter/`` directory.
 - Implement ``import_start`` to load a published snapshot as the start of the
@@ -136,10 +136,10 @@ Implementation
   no serving runtime. A backend with its own serving returns its runtime
   config from ``trainer_serving_config``. In-process integrations can extend
   ``InProcessTrainingDeployment``. Expose the definition through a
-  dotted reference or the ``reef.training_backends`` entry-point group; see
+  dotted reference or the ``aster.training_backends`` entry-point group; see
   `Training backend deployment
   <../developer-guide/write-a-recipe.rst#training-backend-deployment>`__.
-- Keep step signals in ``reef/train/algos/`` backend-neutral. Translate them
+- Keep step signals in ``aster/train/algos/`` backend-neutral. Translate them
   into framework payloads inside the integration.
 - Declare Python dependencies and source pins in ``pyproject.toml``. Add
   plugin entry points and package-data rules there when the framework loads
@@ -154,11 +154,11 @@ Tests and documentation
 - Put framework-internal tests in ``tests/<integration>/``.
 - Put import-scope, packaging, and plugin-loading tests in
   ``tests/plugin_contracts/``.
-- Put service-facing lifecycle and wire contracts in ``tests/reef_service/``.
+- Put service-facing lifecycle and wire contracts in ``tests/aster_service/``.
 - Prove that importing backend-neutral Aster modules does not import the
   framework. Extend ``tests/contributing/test_dependency_boundaries.py`` when
   a new package dependency rule is added.
-- Update the ``reef/train`` package docstring, the Integration API,
+- Update the ``aster/train`` package docstring, the Integration API,
   deployment guidance, and the configuration reference.
 
 Add a runtime kind
@@ -166,44 +166,44 @@ Add a runtime kind
 
 Use this playbook for a new inference provider or a runtime implementation that
 satisfies Aster's backend-neutral lifecycle. Read the runtime contract in
-``reef/inference/interfaces.py`` before adding configuration.
+``aster/inference/interfaces.py`` before adding configuration.
 
 - For an external runtime, expose a factory as
   ``package.module:factory_name`` and use that dotted value as the runtime
   ``type``.
 - For a concrete inference backend, add its native implementation under
-  ``reef/inference/<integration>/``. Keep native engine launch, request
+  ``aster/inference/<integration>/``. Keep native engine launch, request
   adaptation, weight loading, and framework imports inside that package.
-  The modules at the root of ``reef/inference/`` hold the inference contracts;
-  they must not import a concrete integration or ``reef.train``. Implement
-  ``InferenceBackend`` from ``reef/inference/interfaces.py``, including
+  The modules at the root of ``aster/inference/`` hold the inference contracts;
+  they must not import a concrete integration or ``aster.train``. Implement
+  ``InferenceBackend`` from ``aster/inference/interfaces.py``, including
   ``load_weight_files``, so that the serving runtimes in
-  ``reef/inference/serving.py`` can load published snapshots. Expose an inference
+  ``aster/inference/serving.py`` can load published snapshots. Expose an inference
   service factory through a dotted reference or the
-  ``reef.inference_backends`` entry-point group, so the inference component
+  ``aster.inference_backends`` entry-point group, so the inference component
   can start the engines. Shared monitoring and engine recovery belong in
-  ``reef/inference/recovery.py``; adapter residency belongs in
-  ``reef/inference/residency.py``. Shared contracts and version values belong in
-  ``reef/inference/interfaces.py``.
+  ``aster/inference/recovery.py``; adapter residency belongs in
+  ``aster/inference/residency.py``. Shared contracts and version values belong in
+  ``aster/inference/interfaces.py``.
 - For a registered runtime, subclass ``RuntimeFactory``, set its ``kind``,
   implement ``__call__``, decorate the class with ``@register_runtime_kind``,
   and load the selected integration from service assembly. ``RuntimeFactory`` and
-  factory resolution live in ``reef.inference.registry``. Importing
-  ``reef.inference`` does not register integrations or re-export classes. A
+  factory resolution live in ``aster.inference.registry``. Importing
+  ``aster.inference`` does not register integrations or re-export classes. A
   training component is not a runtime: its
   ``TrainingDeployment.component_type`` names a ``TrainingComponentFactory``
-  from ``reef.train.component``.
+  from ``aster.train.component``.
 - A ``RuntimeFactory`` can expose ``config_type()`` returning a configuration
-  dataclass whose fields use ``reef.core.config.config_option``. The registry
+  dataclass whose fields use ``aster.core.config.config_option``. The registry
   parses that selected schema with the shared CLI/YAML rules and runs the
   dataclass's validation before calling the factory. Keep schema imports
   lightweight. Factories without a schema retain their mapping contract.
   Opaque backend payloads must be declared as object fields and validated by
   the adapter; do not enumerate backend-native flags in the service layer.
 - Keep provider authentication and provider-native request handling in the
-  adapter. Do not import ``reef.train`` from ``reef/inference/``.
+  adapter. Do not import ``aster.train`` from ``aster/inference/``.
 - Test registered and dotted resolution in
-  ``tests/reef_service/test_runtime_registry.py``. Add request, recovery, and
+  ``tests/aster_service/test_runtime_registry.py``. Add request, recovery, and
   malformed-result contracts for every capability the runtime implements.
 - Add or update the stack that exercises the runtime under ``recipes/`` and
   document every public setting. Never commit credentials or real provider tokens.
@@ -213,7 +213,7 @@ Add a worker executor
 
 Use an ``Executor`` subclass when worker launch or control transport changes
 while the training lifecycle stays the same. Implement the common interface
-under ``reef/execution/executor/`` for a general-purpose backend, or inside the
+under ``aster/execution/executor/`` for a general-purpose backend, or inside the
 owning training integration for a backend-specific launcher. See
 `Worker executors <../developer-guide/executors.rst>`__ for configuration,
 ownership, rank ordering and the Slime extension contract.
@@ -227,20 +227,20 @@ Read `Scenario components <../developer-guide/components.rst>`__ and the
 release-chain section of `Architecture <../getting-started/core-loop.rst>`__.
 
 - Put storage, materialization, or version identity behavior in
-  ``reef/artifact/``. A new storage backend implements ``RepositoryBackend``
+  ``aster/artifact/``. A new storage backend implements ``RepositoryBackend``
   and is exposed through a repository backend factory. To let a deployment
   select it in ``storage.artifact_backend``, the factory also inherits
   ``ConfigurableRepositoryBackendFactory``.
 - Put weight loading in ``InferenceRuntime.activate_checkpoint`` under
-  ``reef/inference/``, and client-pull delivery in a
-  ``FileTree`` (``reef/artifact/components.py``). Aster does not change a model
+  ``aster/inference/``, and client-pull delivery in a
+  ``FileTree`` (``aster/artifact/components.py``). Aster does not change a model
   request on its way to the engine: a client pulls the artifacts that shape
   its requests.
 - Declare the components in the owning recipe's ``build_components``; do not
   make a component choose a method or evaluate a candidate.
 - Test component behavior in ``tests/artifact/test_scenario_components.py`` or
   ``tests/artifact/test_snapshot_components.py``. Test storage backends against
-  the contracts in ``tests/artifact/test_reef_artifacts.py``.
+  the contracts in ``tests/artifact/test_aster_artifacts.py``.
 - Add scenario commit, activation, train-from, and recovery tests whenever
   persistence or activation ordering changes. Persisted-format changes require an RFC and a
   compatibility contract.
@@ -248,21 +248,21 @@ release-chain section of `Architecture <../getting-started/core-loop.rst>`__.
 Add a service route
 -------------------
 
-Routes adapt HTTP to transport-independent behavior. The ``reef/service``
+Routes adapt HTTP to transport-independent behavior. The ``aster/service``
 package docstring and `HTTP API <../reference/http-api.rst>`__ define the
 current request contract.
 
-- Add or extend a module in ``reef/service/routes/`` with a
+- Add or extend a module in ``aster/service/routes/`` with a
   ``register_*_routes`` function.
-- Import and call it from ``reef/service/routes/__init__.py`` in
+- Import and call it from ``aster/service/routes/__init__.py`` in
   ``register_routes``.
 - Keep parsing and response adaptation in the route. Put reusable request or
-  domain behavior in ``reef/service/request_service.py`` or the package that
+  domain behavior in ``aster/service/request_service.py`` or the package that
   owns the concept.
 - Raise domain errors. If a new error needs a non-default HTTP status, add it
-  to ``ERROR_STATUS_TABLE`` in ``reef/service/errors.py`` instead of adding a
+  to ``ERROR_STATUS_TABLE`` in ``aster/service/errors.py`` instead of adding a
   route-local exception table.
-- Add route and service tests under ``tests/reef_service/``. Update the wire
+- Add route and service tests under ``tests/aster_service/``. Update the wire
   guide for a public endpoint; the docs contract check requires the guide to
   name every registered route.
 - Treat removal, incompatible payload changes, and changes to authentication
@@ -275,7 +275,7 @@ Use this playbook when Aster must render and run the same composition tree for
 another agent harness. Benchmark, grader, and environment orchestration stays
 under ``recipes/<name>/examples/`` or in the external harness.
 
-- For a bundled adapter, add ``reef/harness/adapters/<name>/adapter.yaml``,
+- For a bundled adapter, add ``aster/harness/adapters/<name>/adapter.yaml``,
   whose ``evolve`` section declares the parts of the agent's tree, and its
   package initializer. Add a ``render.py`` with an
   ``AdapterRenderer`` subclass, named by the descriptor's ``renderer``, only
@@ -284,7 +284,7 @@ under ``recipes/<name>/examples/`` or in the external harness.
   adapter needs it, then include the asset in the package-data rules in
   ``pyproject.toml``.
 - For an external adapter, publish an entry in the
-  ``reef.harness_adapters`` entry-point group that resolves to an
+  ``aster.harness_adapters`` entry-point group that resolves to an
   ``AdapterDescriptor`` or a zero-argument descriptor factory.
 - Add descriptor and golden-render coverage in
   ``tests/harness/test_harness_render.py``. Add run, cleanup, install,

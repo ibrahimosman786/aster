@@ -1,0 +1,83 @@
+"""The inference runtime of a deployment that runs no engine: ``inference.backend: none``.
+
+A deployment selects it to train on data that does not come from its own model,
+such as trajectory items (``POST /aster/namespaces/{owner}/data``) or imported records
+(``POST /aster/records``). It takes no GPUs and serves no requests: its base URL
+names no HTTP engine, so control writes no ``served_models`` row for it and the
+inference service answers every request 404. Aster still publishes and commits
+every saved checkpoint as a snapshot, which another deployment can serve.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import Any
+
+from aster.artifact.artifact import Artifact
+from aster.core.errors import InferenceUnavailable
+from aster.inference.interfaces import InferenceAdmissionHandle, InferenceArtifact, InferenceHandler, InferenceRuntime
+from aster.inference.registry import RuntimeFactory
+
+#: The response body of every inference request.
+UNAVAILABLE_MESSAGE = (
+    "this deployment runs no inference engine (inference.backend: none) and serves no inference requests; "
+    "serve a published checkpoint from a separate deployment"
+)
+#: The base URL of the runtime. It names no HTTP endpoint, so no ``served_models`` row names this runtime.
+NULL_INFERENCE_URL = "none://no-inference-engine"
+
+
+class NullInferenceHandler(InferenceHandler):
+    """A request handler that refuses every request with :class:`InferenceUnavailable`."""
+
+    async def inference(self, artifact: InferenceArtifact, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+        raise InferenceUnavailable(UNAVAILABLE_MESSAGE)
+
+
+class NullInferenceRuntime(InferenceRuntime):
+    """Serve nothing: admission refuses every request, and activating a snapshot loads nothing."""
+
+    def __init__(self, *, model_path: str = "", inference_timeout_s: float = 300.0) -> None:
+        super().__init__(base_url=NULL_INFERENCE_URL, inference_timeout_s=inference_timeout_s)
+        self._handler = NullInferenceHandler()
+        self._model_path = model_path
+
+    @property
+    def serves_requests(self) -> bool:
+        return False
+
+    @property
+    def inference_handler(self) -> InferenceHandler:
+        return self._handler
+
+    @property
+    def model_path(self) -> str:
+        return self._model_path
+
+    @property
+    def shared_by_training_scenarios(self) -> bool:
+        # Nothing is served, so no scenario's snapshot replaces another's.
+        return True
+
+    async def acquire_inference(self) -> InferenceAdmissionHandle:
+        raise InferenceUnavailable(UNAVAILABLE_MESSAGE)
+
+    def activate_checkpoint(self, artifact: Artifact, *, scenario: str | None = None) -> str:
+        return artifact.artifact_id
+
+
+class NullRuntimeFactory(RuntimeFactory):
+    """Build the runtime of a deployment with ``inference.backend: none``."""
+
+    kind = "none"
+
+    def __call__(
+        self,
+        config: Mapping[str, Any],
+        model_path: str,
+        recipe_config: Mapping[str, Any],
+        environ: Mapping[str, str],
+    ) -> InferenceRuntime:
+        return NullInferenceRuntime(
+            model_path=model_path, inference_timeout_s=config.get("inference_timeout_s", 300.0)
+        )

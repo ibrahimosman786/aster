@@ -5,12 +5,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, Self
 
-from reef.pipeline_context import PipelineContext
-from reef.record2sample import Record2Sample, ReportContext, ReportGrouping, ReportSamples
-from reef.record2sample.assembly import SampleAssembly, SampleAssemblySettings
-from reef.sample2job import Sample2Job, Sample2JobSettings
-from reef.train.pipeline import TrainingPipeline
-from reef.train.types import JobData, Sample, TrajectorySample
+from aster.pipeline_context import PipelineContext
+from aster.record2sample import Record2Sample, ReportContext, ReportGrouping, ReportSamples
+from aster.record2sample.assembly import SampleAssembly, SampleAssemblySettings
+from aster.sample2job import Sample2Job, Sample2JobSettings
+from aster.train.pipeline import TrainingPipeline
+from aster.train.types import JobData, Sample, TrajectorySample
 
 
 class ThresholdSamples(ReportSamples):

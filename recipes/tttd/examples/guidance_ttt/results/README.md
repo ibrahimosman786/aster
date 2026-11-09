@@ -1,6 +1,6 @@
-# Guidance-TTT Reef results
+# Guidance-TTT Aster results
 
-This directory records two completed Guidance-TTT searches run through Reef.
+This directory records two completed Guidance-TTT searches run through Aster.
 Both used Qwen3-14B as the trainable guidance model, GLM-5.2 as the frozen
 executor, 8 groups of 16 rollouts per update, and 30 training updates.
 
@@ -41,4 +41,4 @@ python3 check_results.py
 The full committed archives are hundreds of megabytes, so they are not copied
 into Git. Their hashes in `runs.json` bind these compact records to the remote
 run artifacts. The historical Polyomino score `91.8907` is deliberately absent:
-its artifact came from an `open-ttt-verl` run rather than a Reef run.
+its artifact came from an `open-ttt-verl` run rather than an Aster run.

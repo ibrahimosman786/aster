@@ -6,8 +6,8 @@ run reaches the runner with its tree (``test_terminus_run.py``) and
 that Harbor accepts what the runner builds (``test_terminus_agent.py``) —
 runs in CI.
 
-    REEF_REAL_TERMINUS_TASK=recipes/basic/harbor \\
-    REEF_REAL_TERMINUS_MODEL=openai/gpt-4o \\
+    ASTER_REAL_TERMINUS_TASK=recipes/basic/harbor \\
+    ASTER_REAL_TERMINUS_MODEL=openai/gpt-4o \\
     OPENAI_API_KEY=... \\
     python -m pytest tests/smoke/test_real_terminus.py
 """
@@ -19,26 +19,26 @@ import os
 from pathlib import Path
 
 import pytest
-from reef_terminus.trajectory import read_trials
+from aster_terminus.trajectory import read_trials
 from tests.support.harness_render import write_rendered
 
-from reef.harness.adapters import get_adapter
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tree import HarnessTree
+from aster.harness.adapters import get_adapter
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tree import HarnessTree
 
-MODEL = os.environ.get("REEF_REAL_TERMINUS_MODEL", "")
-TASK = os.environ.get("REEF_REAL_TERMINUS_TASK", "")
-BASE_URL = os.environ.get("REEF_REAL_TERMINUS_BASE_URL", "https://api.openai.com/v1")
+MODEL = os.environ.get("ASTER_REAL_TERMINUS_MODEL", "")
+TASK = os.environ.get("ASTER_REAL_TERMINUS_TASK", "")
+BASE_URL = os.environ.get("ASTER_REAL_TERMINUS_BASE_URL", "https://api.openai.com/v1")
 
 pytestmark = pytest.mark.skipif(
     not (TASK and MODEL),
-    reason="REEF_REAL_TERMINUS_TASK and REEF_REAL_TERMINUS_MODEL must name a real task and model",
+    reason="ASTER_REAL_TERMINUS_TASK and ASTER_REAL_TERMINUS_MODEL must name a real task and model",
 )
 
 
 def test_real_terminus_runs_a_task_and_reports_a_verifier_reward(tmp_path: Path, monkeypatch) -> None:
     descriptor = get_adapter("terminus")
-    # The model comes through Reef's binding, as in every run: a tree may not name a model or an endpoint.
+    # The model comes through Aster's binding, as in every run: a tree may not name a model or an endpoint.
     binding = ModelBinding(
         base_url=BASE_URL.removesuffix("/v1"), model=MODEL, api_key=os.environ.get("OPENAI_API_KEY") or None
     )
@@ -52,11 +52,11 @@ def test_real_terminus_runs_a_task_and_reports_a_verifier_reward(tmp_path: Path,
     write_rendered(root, tree, descriptor, binding)
 
     sessions = root / "terminus" / "sessions"
-    monkeypatch.setenv("REEF_TERMINUS_DIR", str(root))
-    monkeypatch.setenv("REEF_TERMINUS_SESSION_DIR", str(sessions))
-    monkeypatch.setenv("REEF_TERMINUS_TRIALS_DIR", str(root / "terminus" / "trials"))
+    monkeypatch.setenv("ASTER_TERMINUS_DIR", str(root))
+    monkeypatch.setenv("ASTER_TERMINUS_SESSION_DIR", str(sessions))
+    monkeypatch.setenv("ASTER_TERMINUS_TRIALS_DIR", str(root / "terminus" / "trials"))
 
-    from reef_terminus.runner import run, trial_slug
+    from aster_terminus.runner import run, trial_slug
 
     exit_code = run(TASK)
 

@@ -12,16 +12,16 @@ from typing import Any
 
 from tests.support._threshold_processor import threshold_pipeline
 
-from reef.inference.interfaces import InferenceRuntime
-from reef.observability import ExperimentLogger
-from reef.recipe.base import WeightTrainingRecipe
-from reef.storage.records import RecordStore
-from reef.storage.samples import SAMPLE_KINDS, TrainerSamples
-from reef.storage.tasks import TaskStorage
-from reef.train.backend import ComponentArtifacts
-from reef.train.component import ScenarioRoot, TrainingComponent
-from reef.train.jobs import JobLoop
-from reef.train.trainer import Trainer
+from aster.inference.interfaces import InferenceRuntime
+from aster.observability import ExperimentLogger
+from aster.recipe.base import WeightTrainingRecipe
+from aster.storage.records import RecordStore
+from aster.storage.samples import SAMPLE_KINDS, TrainerSamples
+from aster.storage.tasks import TaskStorage
+from aster.train.backend import ComponentArtifacts
+from aster.train.component import ScenarioRoot, TrainingComponent
+from aster.train.jobs import JobLoop
+from aster.train.trainer import Trainer
 
 
 @dataclass(frozen=True)

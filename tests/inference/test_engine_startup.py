@@ -13,22 +13,22 @@ import pytest
 import ray
 from ray.exceptions import RayTaskError
 
-from reef.inference import process
-from reef.inference.process import (
+from aster.inference import process
+from aster.inference.process import (
     PORT_CONFLICT_SPREAD,
     EngineStartup,
     PortConflictError,
     check_server_owner,
     ports_in_use,
 )
-from reef.inference.sglang import launch as sglang_launch
-from reef.inference.sglang.config import SGLangConfig, SGLangGroupConfig
-from reef.inference.sglang.launch import SGLangCluster, SGLangEngineGroup, SGLangModel
-from reef.inference.vllm import engine as vllm_engine
-from reef.inference.vllm.config import VLLMConfig
-from reef.inference.vllm.engine import ReefVLLMEngine
-from reef.inference.vllm.launch import VLLMEngineGroup
-from reef.inference.vllm.worker import VLLMWorker
+from aster.inference.sglang import launch as sglang_launch
+from aster.inference.sglang.config import SGLangConfig, SGLangGroupConfig
+from aster.inference.sglang.launch import SGLangCluster, SGLangEngineGroup, SGLangModel
+from aster.inference.vllm import engine as vllm_engine
+from aster.inference.vllm.config import VLLMConfig
+from aster.inference.vllm.engine import AsterVLLMEngine
+from aster.inference.vllm.launch import VLLMEngineGroup
+from aster.inference.vllm.worker import VLLMWorker
 
 NOT_READY = RuntimeError("inference process did not become ready")
 #: The tests' release window, in fake seconds; ports are checked again every second.
@@ -134,7 +134,7 @@ def test_port_check_reports_bound_ports_but_not_time_wait_or_free_ports():
         listener.bind(("127.0.0.1", 0))
         listener.listen()
         held = listener.getsockname()[1]
-        # Like the servers Reef launches; Linux lets a TIME_WAIT port be reused only if both sockets ask.
+        # Like the servers Aster launches; Linux lets a TIME_WAIT port be reused only if both sockets ask.
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind(("127.0.0.1", 0))
         server.listen()
@@ -402,7 +402,7 @@ def test_router_whose_ports_another_process_holds_starts_again_on_new_ports(
     "router_port, held_ports, failures, message",
     [
         (None, [], [NOT_READY], "did not become ready"),
-        # Reef cannot move a configured port that another process holds.
+        # Aster cannot move a configured port that another process holds.
         (3000, [3000], [NOT_READY], "did not become ready"),
         (3000, [], [PortConflictError("another process listens on inference port 10.0.0.5:3000")], "listens"),
         (
@@ -507,7 +507,7 @@ def test_vllm_engine_checks_the_listener_once_its_server_answers(monkeypatch, ow
     install_psutil(monkeypatch, [("10.0.0.5", 18900, owner, "LISTEN")])
     monkeypatch.setattr(vllm_engine, "launch_server", lambda *args: SimpleNamespace(pid=SERVER_PID))
     monkeypatch.setattr(vllm_engine, "wait_ready", lambda *args, **kwargs: None)
-    engine = ReefVLLMEngine(VLLMConfig("model", 1, 1, 1), rank=0, gpu_ids=(0,))
+    engine = AsterVLLMEngine(VLLMConfig("model", 1, 1, 1), rank=0, gpu_ids=(0,))
     if owner == SERVER_PID:
         engine.init("10.0.0.5", 18900)
     else:

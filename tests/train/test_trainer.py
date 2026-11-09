@@ -26,33 +26,33 @@ from tests.support.serving import wait_for_serving
 
 from recipes.sao import SAOJobData, SAOSamples
 from recipes.tttd import TTTDGroupedRolloutReport, TTTDJobData, TTTDSamples, TTTDSettings
-from reef.artifact import InMemoryRepositoryBackend, SnapshotRef
-from reef.core import AgentRecord, RequestType
-from reef.core.chat_rendering import rendered_job_data
-from reef.core.errors import TrainingStartRefused
-from reef.core.plugins import PluginConfigError
-from reef.core.reports import ReportValidationError
-from reef.core.trajectories import source_record_id, trajectory_reward
-from reef.dispatcher import Dispatcher
-from reef.recipe import WeightTrainingRecipe
-from reef.record2sample.assembly import SampleAssemblySettings
-from reef.record2sample.service import ProducedSamples
-from reef.storage.commit_history import CommitHistoryScenarioStore
-from reef.storage.commits import CommitRecord
-from reef.storage.job_data import read_job_data
-from reef.storage.record_items import ItemRecordStore
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.sql_data import SQLiteDataStore
-from reef.storage.sqlite import SQLiteScenarioStorage
-from reef.storage.tasks import LocalTaskFileStore
-from reef.train import PipelineContext, Trainer, TrainingPipeline
-from reef.train.algos.schedule import StepScheduling
-from reef.train.component import ScenarioRoot
-from reef.train.jobs import JobLoop, JobLoopState
-from reef.train.pipeline import PipelineConfig, PipelineSpec
-from reef.train.slime_backend.reef_adapters.preparation import prepare_slime_job
-from reef.train.trainer import PendingTrainingResult
-from reef.train.types import JobData, PreparedCommit, TrainingCommit
+from aster.artifact import InMemoryRepositoryBackend, SnapshotRef
+from aster.core import AgentRecord, RequestType
+from aster.core.chat_rendering import rendered_job_data
+from aster.core.errors import TrainingStartRefused
+from aster.core.plugins import PluginConfigError
+from aster.core.reports import ReportValidationError
+from aster.core.trajectories import source_record_id, trajectory_reward
+from aster.dispatcher import Dispatcher
+from aster.recipe import WeightTrainingRecipe
+from aster.record2sample.assembly import SampleAssemblySettings
+from aster.record2sample.service import ProducedSamples
+from aster.storage.commit_history import CommitHistoryScenarioStore
+from aster.storage.commits import CommitRecord
+from aster.storage.job_data import read_job_data
+from aster.storage.record_items import ItemRecordStore
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.sql_data import SQLiteDataStore
+from aster.storage.sqlite import SQLiteScenarioStorage
+from aster.storage.tasks import LocalTaskFileStore
+from aster.train import PipelineContext, Trainer, TrainingPipeline
+from aster.train.algos.schedule import StepScheduling
+from aster.train.component import ScenarioRoot
+from aster.train.jobs import JobLoop, JobLoopState
+from aster.train.pipeline import PipelineConfig, PipelineSpec
+from aster.train.slime_backend.aster_adapters.preparation import prepare_slime_job
+from aster.train.trainer import PendingTrainingResult
+from aster.train.types import JobData, PreparedCommit, TrainingCommit
 
 NUM_GPUS = 0
 
@@ -455,7 +455,7 @@ def test_the_trainer_builds_jobs_only_from_samples_that_the_samples_service_made
 
 @pytest.mark.unit
 def test_a_selection_names_the_tasks_that_read_and_stored_each_sample() -> None:
-    from reef.record2sample.service import Selection
+    from aster.record2sample.service import Selection
 
     class Recording(Selection):
         def __init__(self) -> None:
@@ -768,7 +768,7 @@ def test_the_slime_sao_row_defaults_the_action_mask_to_the_loss_mask_of_a_render
 
 
 def test_reported_samples_leave_rendering_and_tensor_validation_to_the_training_component() -> None:
-    from reef.train.slime_backend.data_builder import to_slime_rollout_data
+    from aster.train.slime_backend.data_builder import to_slime_rollout_data
 
     processor = sao_pipeline(PipelineContext("math"))
     processor.push(served_call("i1", 1))

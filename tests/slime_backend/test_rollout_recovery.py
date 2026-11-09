@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from reef.execution.executor.delegating import DelegatingExecutor
-from reef.execution.executor.uniproc import UniProcExecutor
-from reef.inference.sglang.config import SGLangConfig
-from reef.inference.sglang.launch import SGLangModel
+from aster.execution.executor.delegating import DelegatingExecutor
+from aster.execution.executor.uniproc import UniProcExecutor
+from aster.inference.sglang.config import SGLangConfig
+from aster.inference.sglang.launch import SGLangModel
 
 torch = pytest.importorskip("torch")
 
@@ -58,10 +58,10 @@ def _install_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def _load_manager_module(monkeypatch: pytest.MonkeyPatch, *, serving: bool = False):
     _install_stubs(monkeypatch)
-    path = Path(__file__).parents[2] / "reef" / "train" / "slime_backend" / "reef_adapters" / "batches.py"
+    path = Path(__file__).parents[2] / "aster" / "train" / "slime_backend" / "aster_adapters" / "batches.py"
     if serving:
-        path = Path(__file__).parents[2] / "reef" / "inference" / "sglang" / "worker.py"
-    name = "reef.train.slime_backend.reef_adapters._rollout_manager_recovery_test"
+        path = Path(__file__).parents[2] / "aster" / "inference" / "sglang" / "worker.py"
+    name = "aster.train.slime_backend.aster_adapters._rollout_manager_recovery_test"
     spec = importlib.util.spec_from_file_location(name, path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -91,7 +91,7 @@ class _RecordingRolloutExecutor(DelegatingExecutor):
 
 
 def test_rollout_manager_routes_entire_serving_lifecycle_through_custom_executor(monkeypatch):
-    from reef.inference.sglang.control import SGLangControl
+    from aster.inference.sglang.control import SGLangControl
 
     args = SGLangConfig("model", 1, 1, 1, executor=_RecordingRolloutExecutor)
     manager = SGLangControl(args, "placement")
@@ -161,7 +161,7 @@ def test_rollout_shutdown_of_external_engines_is_idempotent(monkeypatch):
 
 def _attach_control(module, worker) -> None:
     """Give a bare serving worker the inference control its constructor builds."""
-    from reef.inference.recovery import InferenceControl
+    from aster.inference.recovery import InferenceControl
 
     worker._control = InferenceControl(module._SGLangEngineGroup(worker), module._SGLangInferenceMonitor(worker))
 
@@ -205,7 +205,7 @@ class _RemoteMethod:
 @pytest.mark.unit
 def test_healthy_recovery_preserves_pending_initial_engine_count(monkeypatch: pytest.MonkeyPatch) -> None:
     _install_stubs(monkeypatch)
-    from reef.inference.sglang.worker import recover_server
+    from aster.inference.sglang.worker import recover_server
 
     group = _ServerGroup([object(), object()], num_new_engines=2)
     server = SGLangModel(server_groups=[group])
@@ -219,10 +219,10 @@ def test_healthy_recovery_preserves_pending_initial_engine_count(monkeypatch: py
 @pytest.mark.unit
 def test_recovery_still_starts_dead_engines(monkeypatch: pytest.MonkeyPatch) -> None:
     _install_stubs(monkeypatch)
-    from reef.inference.sglang.worker import recover_server
+    from aster.inference.sglang.worker import recover_server
 
     # The relaunched engines are ready at once; nothing reaches Ray.
-    monkeypatch.setattr("reef.inference.sglang.launch.ray", types.SimpleNamespace(get=lambda refs: refs))
+    monkeypatch.setattr("aster.inference.sglang.launch.ray", types.SimpleNamespace(get=lambda refs: refs))
 
     group = _ServerGroup([object(), None], num_new_engines=0)
     server = SGLangModel(server_groups=[group])
@@ -235,9 +235,9 @@ def test_recovery_still_starts_dead_engines(monkeypatch: pytest.MonkeyPatch) -> 
 
 
 @pytest.mark.unit
-def test_reef_external_fields_are_tensorized_without_patching_slime(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_aster_external_fields_are_tensorized_without_patching_slime(monkeypatch: pytest.MonkeyPatch) -> None:
     _install_stubs(monkeypatch)
-    from reef.train.slime_backend.reef_adapters.batches import tensorize_external_fields
+    from aster.train.slime_backend.aster_adapters.batches import tensorize_external_fields
 
     data = {
         "action_masks": [[1, 0]],
@@ -246,7 +246,7 @@ def test_reef_external_fields_are_tensorized_without_patching_slime(monkeypatch:
         "prm_teacher_topk_log_probs_cand": [[[[-0.1, -0.2], [-0.3, -0.4]]]],
     }
 
-    from reef.train.slime_backend.loss_families import LOSS_FAMILIES
+    from aster.train.slime_backend.loss_families import LOSS_FAMILIES
 
     # Each family declares its own columns; the manager applies whatever the
     # active family declared. Both sets here, so one call covers the table.
@@ -266,7 +266,7 @@ def test_reef_external_fields_are_tensorized_without_patching_slime(monkeypatch:
 def test_uncertain_weight_update_synchronously_retires_managed_engine_handles(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from reef.inference.sglang.launch import SGLangModel
+    from aster.inference.sglang.launch import SGLangModel
 
     module = _load_manager_module(monkeypatch, serving=True)
     engines = [
@@ -405,7 +405,7 @@ def test_dp_packaging_preserves_producing_artifact_ids_per_partition(
         global_batch_size=2,
         rollout_data_transport="object-store",
         custom_rollout_data_keys=("producing_artifact_ids",),
-        reef_rollout_tensor_dtypes={},
+        aster_rollout_tensor_dtypes={},
     )
     manager = module.TrainingBatchProcessor(args, {"dp_size": 2})
     packed = manager._split_train_data_by_dp(
@@ -437,13 +437,13 @@ def _manager_for_schedule(monkeypatch: pytest.MonkeyPatch, *, global_batch_size:
         global_batch_size=global_batch_size,
         rollout_data_transport="object-store",
         custom_rollout_data_keys=(),
-        reef_rollout_tensor_dtypes={},
+        aster_rollout_tensor_dtypes={},
     )
     return module.TrainingBatchProcessor(args, {"dp_size": 2})
 
 
 @pytest.mark.unit
-def test_dp_packaging_splices_reef_step_sizes_with_a_partial_tail(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_dp_packaging_splices_aster_step_sizes_with_a_partial_tail(monkeypatch: pytest.MonkeyPatch) -> None:
     manager = _manager_for_schedule(monkeypatch, global_batch_size=99)
 
     packed = manager._split_train_data_by_dp(
@@ -482,7 +482,7 @@ def test_dp_packaging_trains_a_partial_last_step(monkeypatch: pytest.MonkeyPatch
 def test_batch_processor_has_no_actor_or_inference_lifecycle(monkeypatch):
     module = _load_manager_module(monkeypatch)
     processor = module.TrainingBatchProcessor(
-        types.SimpleNamespace(custom_rollout_data_keys=(), reef_rollout_tensor_dtypes={}), {"dp_size": 1}
+        types.SimpleNamespace(custom_rollout_data_keys=(), aster_rollout_tensor_dtypes={}), {"dp_size": 1}
     )
     assert processor.train_parallel_config == {"dp_size": 1}
     for name in ("inference_url", "pause_generation_for_update", "dispose", "shutdown"):
@@ -541,8 +541,8 @@ def test_shutdown_drain_failure_preserves_engines_and_allows_retry(monkeypatch):
     assert killed == [engine]
 
 
-def test_serving_worker_installs_reef_monitor_with_native_timings(monkeypatch):
-    from reef.inference.recovery import EngineHealthMonitor, HealthMonitorConfig
+def test_serving_worker_installs_aster_monitor_with_native_timings(monkeypatch):
+    from aster.inference.recovery import EngineHealthMonitor, HealthMonitorConfig
 
     module = _load_manager_module(monkeypatch, serving=True)
     group = types.SimpleNamespace(all_engines=[], nodes_per_engine=1)

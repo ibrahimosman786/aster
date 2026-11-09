@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "reef-basic-harness"
+name = "aster-basic-harness"
 version = "0.1.0"
-description = "Minimal Harbor agent harness that talks to a Reef service"
+description = "Minimal Harbor agent harness that talks to an Aster service"
 requires-python = ">=3.12"
 dependencies = [
     "reef-client",

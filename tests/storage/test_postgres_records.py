@@ -8,17 +8,17 @@ from threading import Barrier
 import pytest
 from sqlalchemy import create_engine, inspect, text
 
-from reef.core.errors import ReefError
-from reef.core.records_types import AgentRecord, RequestType
-from reef.core.snapshot import SnapshotRef
-from reef.service.assembly import _recipe_owned_settings, build_dispatcher
-from reef.service.deploy.config_utils import load_config
-from reef.service.deploy.deployment_config import translate_layout
-from reef.service.deploy.service_config import ServiceConfig, service_config_arguments, service_config_from_mapping
-from reef.storage.commits import CommitRecord
-from reef.storage.postgres import OLD_RECORD_TABLES, PostgresRecordDatabase, PostgresScenarioStorage, postgres_url
-from reef.storage.record_items import ItemRecordStore, record_item
-from reef.storage.scenario import ScenarioSettings
+from aster.core.errors import AsterError
+from aster.core.records_types import AgentRecord, RequestType
+from aster.core.snapshot import SnapshotRef
+from aster.service.assembly import _recipe_owned_settings, build_dispatcher
+from aster.service.deploy.config_utils import load_config
+from aster.service.deploy.deployment_config import translate_layout
+from aster.service.deploy.service_config import ServiceConfig, service_config_arguments, service_config_from_mapping
+from aster.storage.commits import CommitRecord
+from aster.storage.postgres import OLD_RECORD_TABLES, PostgresRecordDatabase, PostgresScenarioStorage, postgres_url
+from aster.storage.record_items import ItemRecordStore, record_item
+from aster.storage.scenario import ScenarioSettings
 
 
 def record(record_id="first", scenario="math"):
@@ -54,7 +54,7 @@ def test_schema_version_and_database_close(postgres_config):
     database.close()
     with pytest.raises(RuntimeError, match="closed"), database.transaction():
         pass
-    with pytest.raises(ReefError, match="unsupported PostgreSQL record schema version"):
+    with pytest.raises(AsterError, match="unsupported PostgreSQL record schema version"):
         PostgresRecordDatabase(url, schema=schema)
 
 
@@ -62,7 +62,7 @@ def test_postgres_dependency_is_optional_and_error_is_actionable(monkeypatch):
     import sys
 
     monkeypatch.setitem(sys.modules, "psycopg", None)
-    with pytest.raises(ReefError, match=r"reef-infra\[postgres\]"):
+    with pytest.raises(AsterError, match=r"aster-infra\[postgres\]"):
         PostgresRecordDatabase("postgresql:///unused")
 
 
@@ -146,9 +146,9 @@ def test_a_storage_drops_the_old_record_tables_only_when_their_records_are_recor
     "values",
     [
         {"record_backend": "unknown"},
-        {"record_backend": "reef.storage.scenario:ScenarioStorage"},
-        {"record_backend": {"module": "reef.storage.sqlite:SQLiteScenarioDatabase"}},
-        {"record_backend": {"module": "reef.storage.sqlite:SQLiteScenarioStorage", "options": {}}},
+        {"record_backend": "aster.storage.scenario:ScenarioStorage"},
+        {"record_backend": {"module": "aster.storage.sqlite:SQLiteScenarioDatabase"}},
+        {"record_backend": {"module": "aster.storage.sqlite:SQLiteScenarioStorage", "options": {}}},
         {"record_backend": "postgres"},
         {"record_database_url": "postgresql:///db"},
         {"record_backend": "postgres", "record_database_url": "sqlite:///local"},
@@ -165,17 +165,17 @@ def test_deployment_file_names_a_storage_plugin_with_its_config(tmp_path):
     path = tmp_path / "deployment.yaml"
     path.write_text(
         "recipe:\n  implementation: recipe\n"
-        "storage:\n  record_backend:\n    module: reef.storage.postgres:PostgresScenarioStorage\n"
+        "storage:\n  record_backend:\n    module: aster.storage.postgres:PostgresScenarioStorage\n"
         "    config:\n      database_url: postgresql://user:secret@example.invalid/db\n"
         "  coordination_backend: postgres\n  record_database_url: postgresql://user:secret@example.invalid/db\n"
     )
     settings = service_config_from_mapping(translate_layout(load_config(path)))
     assert settings.record_backend == {
-        "module": "reef.storage.postgres:PostgresScenarioStorage",
+        "module": "aster.storage.postgres:PostgresScenarioStorage",
         "config": {"database_url": "postgresql://user:secret@example.invalid/db"},
     }
     argument = next(argument for argument in service_config_arguments() if argument.name == "record_backend")
-    assert argument.parse("reef.storage.sqlite:SQLiteScenarioStorage") == "reef.storage.sqlite:SQLiteScenarioStorage"
+    assert argument.parse("aster.storage.sqlite:SQLiteScenarioStorage") == "aster.storage.sqlite:SQLiteScenarioStorage"
     assert argument.parse('{"module": "a.b:C"}') == {"module": "a.b:C"}
 
 
@@ -183,7 +183,7 @@ def test_config_interpolation_and_credentials(monkeypatch, tmp_path):
     monkeypatch.setenv("TEST_RECORD_URL", "postgresql://user:secret@example.invalid/db")
     path = tmp_path / "deployment.yaml"
     path.write_text(
-        "reef:\n  recipe: recipe\n  record_backend: postgres\n"
+        "aster:\n  recipe: recipe\n  record_backend: postgres\n"
         "  record_database_url: ${TEST_RECORD_URL}\n  record_database_schema: deployment_one\n"
     )
     settings = service_config_from_mapping(load_config(path))
@@ -204,11 +204,11 @@ def test_deployment_selects_record_backend(backend, request, tmp_path):
         url, schema = request.getfixturevalue("postgres_config")
         values = {"record_backend": backend, "record_database_url": url, "record_database_schema": schema}
     elif backend == "sqlite-plugin":
-        values = {"record_backend": "reef.storage.sqlite:SQLiteScenarioStorage", "coordination_backend": "sqlite"}
+        values = {"record_backend": "aster.storage.sqlite:SQLiteScenarioStorage", "coordination_backend": "sqlite"}
     elif backend == "postgres-plugin":
         url, schema = request.getfixturevalue("postgres_config")
         plugin = {
-            "module": "reef.storage.postgres:PostgresScenarioStorage",
+            "module": "aster.storage.postgres:PostgresScenarioStorage",
             "config": {"database_url": url, "schema": schema},
         }
         # The records are record items, so a new host needs the data store in PostgreSQL too.
@@ -216,7 +216,7 @@ def test_deployment_selects_record_backend(backend, request, tmp_path):
             "record_backend": plugin,
             "coordination_backend": "postgres",
             "data_store": {
-                "module": "reef.storage.sql_data:PostgresDataStore",
+                "module": "aster.storage.sql_data:PostgresDataStore",
                 "config": {"database_url": url, "schema": f"{schema}_data"},
             },
             "record_database_url": url,

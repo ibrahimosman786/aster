@@ -5,11 +5,11 @@ from dataclasses import dataclass
 from typing import Any
 
 from recipes.opd.processor import OPDSamples
-from reef.core.reports import ReportBase, TeacherContextReport
-from reef.recipe.base import WeightTrainingRecipe
-from reef.sample2job import DistillJobData
-from reef.storage.samples import SAMPLE_KINDS, SampleKind
-from reef.train.pipeline import PipelineSpec
+from aster.core.reports import ReportBase, TeacherContextReport
+from aster.recipe.base import WeightTrainingRecipe
+from aster.sample2job import DistillJobData
+from aster.storage.samples import SAMPLE_KINDS, SampleKind
+from aster.train.pipeline import PipelineSpec
 
 
 @dataclass(frozen=True, kw_only=True)

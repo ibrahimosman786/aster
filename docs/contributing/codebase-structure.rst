@@ -7,11 +7,11 @@ This page says which package should own a change.
 Choose a destination
 --------------------
 
-``reef/`` holds every shared mechanism, including the harness evolution engine
-at ``reef/train/harness_backend/`` and the harness source tree at
-``reef/harness/tree/``. The built-in SFT recipe lives under
-``reef/recipe/sft/``, and its Slime loss family is in
-``reef/train/slime_backend/sft.py``. Paper-backed methods live in separate
+``aster/`` holds every shared mechanism, including the harness evolution engine
+at ``aster/train/harness_backend/`` and the harness source tree at
+``aster/harness/tree/``. The built-in SFT recipe lives under
+``aster/recipe/sft/``, and its Slime loss family is in
+``aster/train/slime_backend/sft.py``. Paper-backed methods live in separate
 packages under ``recipes/`` (``sao``, ``tttd``, ``openclawrl``, ``gepa``,
 ``meta_harness``, ``ace``, ``reasoning_bank``). Beta methods
 live under ``recipes/beta/`` (``coral``, ``spade``, ``autoenvscaling``,
@@ -20,7 +20,7 @@ its recipe and processor, with the ``slime/`` subpackage, which holds its
 objective and loss family, that only the training plane imports. A harness method holds its ``Method``, its
 prompts, and a scorer when it needs its own; it adds a recipe subclass only
 when it changes more than the tree, such as the files a client pulls. Nothing
-under ``reef/`` imports a method package.
+under ``aster/`` imports a method package.
 
 Aster is organized around an application kernel and three capability domains,
 not a strict stack of top-level packages. The arrows below show the primary
@@ -33,9 +33,9 @@ composition and use paths; they are not an exhaustive Python import graph:
 
        Methods("<b>Method plug-ins</b><br/><code>recipes/*</code>")
        Entry("<b>Entrypoints</b><br/>HTTP · CLI")
-       Policy("<b>Policy</b><br/><code>reef/recipe</code>")
-       Service("<b>Delivery &amp; composition</b><br/><code>reef/service</code>")
-       Kernel(["<b>Application kernel</b><br/><code>reef/dispatcher</code> · <code>reef/scenario</code>"])
+       Policy("<b>Policy</b><br/><code>aster/recipe</code>")
+       Service("<b>Delivery &amp; composition</b><br/><code>aster/service</code>")
+       Kernel(["<b>Application kernel</b><br/><code>aster/dispatcher</code> · <code>aster/scenario</code>"])
 
        subgraph Domains["Capability domains"]
            direction LR
@@ -51,8 +51,8 @@ composition and use paths; they are not an exhaustive Python import graph:
            StateAdapters("Git/LFS repositories<br/>SQLite")
        end
 
-       Observability(["<b>Cross-cutting</b><br/><code>reef/observability</code>"])
-       Core(["<b>Shared kernel</b><br/><code>reef/core</code>"])
+       Observability(["<b>Cross-cutting</b><br/><code>aster/observability</code>"])
+       Core(["<b>Shared kernel</b><br/><code>aster/core</code>"])
 
        Methods --> Policy --> Kernel
        Entry --> Service --> Kernel
@@ -63,11 +63,11 @@ composition and use paths; they are not an exhaustive Python import graph:
        Kernel -. telemetry .-> Observability
        ServingAdapters & EvolutionAdapters & StateAdapters --> Core
 
-Method packages provide policy through ``reef/recipe`` and may bind
-``reef/train`` machinery directly. HTTP and CLI entrypoints compose Aster
-through ``reef/service``; the transport-free dispatcher and scenario aggregate
-coordinate serving, evolution, and state. ``reef/service`` also imports
-``reef/artifact`` directly to stream artifact bytes.
+Method packages provide policy through ``aster/recipe`` and may bind
+``aster/train`` machinery directly. HTTP and CLI entrypoints compose Aster
+through ``aster/service``; the transport-free dispatcher and scenario aggregate
+coordinate serving, evolution, and state. ``aster/service`` also imports
+``aster/artifact`` directly to stream artifact bytes.
 
 Concrete integrations may depend on shared contracts; shared contracts never
 import a concrete integration.
@@ -75,52 +75,52 @@ import a concrete integration.
 +-------------------------+----------------------------------------------------------+--------------------------------------------+
 | Package                 | Owns                                                     | Does not own                               |
 +=========================+==========================================================+============================================+
-| ``reef/core/``          | shared value types, wire shapes, artifact                | storage, I/O, runtime behavior             |
+| ``aster/core/``          | shared value types, wire shapes, artifact                | storage, I/O, runtime behavior             |
 |                         | identity, root errors                                    |                                            |
 +-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``reef/service/``       | HTTP routes, auth, streaming, process                    | training methods or domain logic           |
+| ``aster/service/``       | HTTP routes, auth, streaming, process                    | training methods or domain logic           |
 |                         | lifecycle                                                | tied to aiohttp                            |
 +-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``reef/scenario/``      | scenario binding, commit ordering,                       | training algorithms, repository            |
+| ``aster/scenario/``      | scenario binding, commit ordering,                       | training algorithms, repository            |
 |                         | recovery, and lifecycle                                  | implementations                            |
 +-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``reef/recipe/``        | the contract a method implements, dotted                 | external cookbook methods                  |
+| ``aster/recipe/``        | the contract a method implements, dotted                 | external cookbook methods                  |
 |                         | resolution, runtime binding, the base harness evolution  |                                            |
 |                         | recipe, and the built-in generated-task recipe           |                                            |
 +-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``reef/train/``         | the trainer, the training job loop, the training         | HTTP endpoints, deployment                 |
+| ``aster/train/``         | the trainer, the training job loop, the training         | HTTP endpoints, deployment                 |
 |                         | pipeline, job data types, training components            | configuration parsing                      |
 +-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``reef/record2sample/`` | which records Aster uses, which train together, and their | job data shape, record storage,            |
+| ``aster/record2sample/`` | which records Aster uses, which train together, and their | job data shape, record storage,            |
 |                         | samples (``Record2Sample``, ``ReportSamples``,           | training loops                             |
 |                         | ``JudgedSamples``): report grouping, judging,            |                                            |
 |                         | eligibility checks, the staleness check; the samples     |                                            |
 |                         | service; and the generator service that writes, checks,  |                                            |
 |                         | and runs Harbor tasks                                    |                                            |
 +-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``reef/evaluation/``    | candidate evaluation: running and scoring evaluation     | making candidates, training loops,         |
+| ``aster/evaluation/``    | candidate evaluation: running and scoring evaluation     | making candidates, training loops,         |
 |                         | runs, the harness history and its score cache, the       | artifact publication                       |
 |                         | harness publication policies, and the ``evaluation``     |                                            |
 |                         | plugin configuration                                     |                                            |
 +-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``reef/sample2job/``    | shaping the samples of the next job into one job's       | which records train, the training loop,    |
+| ``aster/sample2job/``    | shaping the samples of the next job into one job's       | which records train, the training loop,    |
 |                         | data (``Sample2Job``), and the job size                  | step signals                               |
 +-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``reef/inference/``     | inference contracts, serving runtimes and their          | training algorithms and publication        |
+| ``aster/inference/``     | inference contracts, serving runtimes and their          | training algorithms and publication        |
 |                         | selection, saved-weight serving, concrete inference      | decisions                                  |
 |                         | backends, native engine control, request adaptation      |                                            |
 +-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``reef/artifact/``      | artifact bytes, repositories, materialization, release   | commit policy, weight loading              |
+| ``aster/artifact/``      | artifact bytes, repositories, materialization, release   | commit policy, weight loading              |
 |                         | heads, and the components a recipe declares              |                                            |
 |                         | (``components.py``)                                      |                                            |
 +-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``reef/harness/``       | adapters (the parts of each agent's tree and its         | recipe policy, the snapshot chain          |
+| ``aster/harness/``       | adapters (the parts of each agent's tree and its         | recipe policy, the snapshot chain          |
 |                         | descriptor), the source tree (patches, validation,       |                                            |
 |                         | rendering), task runs, runners, trajectories, and the    |                                            |
 |                         | loopback gateway an agent process reaches its model      |                                            |
 |                         | and tools through                                        |                                            |
 +-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``reef/execution/``     | job scheduling, process ownership, worker executors,     | harness rendering, evaluation, recipe      |
+| ``aster/execution/``     | job scheduling, process ownership, worker executors,     | harness rendering, evaluation, recipe      |
 |                         | isolation, file transfer and environment lifecycle       | policy                                     |
 +-------------------------+----------------------------------------------------------+--------------------------------------------+
 | ``recipes/``            | one method per package: the recipe, processor and        | shared machinery, or another method        |
@@ -139,7 +139,7 @@ Package import direction
 Imports between the top-level Aster packages form a directed acyclic graph.
 ``tests/contributing/test_dependency_boundaries.py`` scans every Python file,
 including relative imports and imports inside functions. Importing the root
-``reef`` facade from an internal package also counts as a dependency; internal
+``aster`` facade from an internal package also counts as a dependency; internal
 code imports the owning module directly.
 
 The following table records direct package dependencies (excluding each
@@ -234,7 +234,7 @@ components, and each ``launch.py`` supplies its deployment definition and
 runtime factory. Both components render each sample that has no tokens with
 ``core/chat_rendering.py``, which turns an ATIF trajectory and its teacher
 requests into token IDs with the model's chat template. It is in
-``reef/core/`` because ``train/`` must not import ``inference/``. No training backend builds serving:
+``aster/core/`` because ``train/`` must not import ``inference/``. No training backend builds serving:
 ``service/deploy/serving.py`` selects and configures it from the
 ``inference`` section and the component's snapshot format.
 
@@ -254,7 +254,7 @@ inference service, the control actor and its default serving executor.
 independently of training; ``inference/vllm/`` owns vLLM response parsing,
 the KV connector that stamps tokens with their weight version, and engine launch and
 control over vLLM's HTTP control routes. ``inference/remote/`` is the inference
-component: ``python -m reef.inference.remote`` runs the engines and serves
+component: ``python -m aster.inference.remote`` runs the engines and serves
 their control operations and requests over HTTP. ``RemoteInferenceBackend``
 is the control plane's client for it, and ``inference/remote/runtime.py``
 supplies the ``remote_serving`` runtime kind and builds the engines' input
@@ -271,12 +271,12 @@ The extension points those packages expose are in `Python API
 
 
 - Is it a value or error needed by unrelated layers without behavior attached?
-  Put it in ``reef/core/``.
+  Put it in ``aster/core/``.
 - Does it own scenario state, commit ordering, recovery, activation, or
-  training starts? Put it in ``reef/scenario/``. ``reef/storage/commits.py`` defines the persisted ``CommitRecord`` and
+  training starts? Put it in ``aster/scenario/``. ``aster/storage/commits.py`` defines the persisted ``CommitRecord`` and
   ``RecordProgress`` values without storage behavior. Checkpoint recovery uses
   the same ``CommitRecord`` type; initial registration has no commit.
-  ``reef/storage/scenario.py`` defines the ``ScenarioStore`` and ``ScenarioStorage``
+  ``aster/storage/scenario.py`` defines the ``ScenarioStore`` and ``ScenarioStorage``
   abstract bases. ``storage/commits.py`` also encodes artifact metadata and decodes existing
   checkpoint metadata into registration information and a ``CommitRecord``.
   ``ScenarioFactory`` receives the storage service from deployment assembly
@@ -293,27 +293,27 @@ The extension points those packages expose are in `Python API
   service after closing the loaded scenarios. It never imports or chooses a
   concrete record backend.
 - Does it define shared record operations or retention limits? Put the contract
-  or value in ``reef/storage/records.py``. It defines the ``RecordStore`` abstract base
+  or value in ``aster/storage/records.py``. It defines the ``RecordStore`` abstract base
   without importing scenario coordination, training, or concrete adapters.
   ``ScenarioStore`` combines a ``RecordStore`` with committed scenario state
-  and opens the scenario's task stores (``reef/storage/tasks.py``) and its
+  and opens the scenario's task stores (``aster/storage/tasks.py``) and its
   training state; its training samples are data items
-  (``reef/storage/samples.py``);
+  (``aster/storage/samples.py``);
   ``ScenarioStorage`` owns scenario settings and archival; a scenario's records
   are record items in the data store (``ItemRecordStore``).
 - Does it turn a designer's replies into Harbor tasks, check them with Harbor
-  or run them with an agent? Put it in ``reef/record2sample/generator/``, the
+  or run them with an agent? Put it in ``aster/record2sample/generator/``, the
   generator service ``aster serve`` starts beside the HTTP service from a
-  ``generator`` section. ``reef/service/deploy/generator.py`` assembles that
-  child, and ``reef/service/deploy/generator_process.py`` runs it. The built-in generated-task recipe, which generates tasks
+  ``generator`` section. ``aster/service/deploy/generator.py`` assembles that
+  child, and ``aster/service/deploy/generator_process.py`` runs it. The built-in generated-task recipe, which generates tasks
   through that service and trains on them, is in
-  ``reef/recipe/generated_tasks/``, with the ``TaskGenerator`` contract
+  ``aster/recipe/generated_tasks/``, with the ``TaskGenerator`` contract
   (``generator.py``). The request, ``TaskGenerationRequest``, is in
-  ``reef/record2sample/generator/inputs.py``, because the generator service
-  reads it too. ``reef/core/tasks/`` keeps the Harbor task values and the
+  ``aster/record2sample/generator/inputs.py``, because the generator service
+  reads it too. ``aster/core/tasks/`` keeps the Harbor task values and the
   split manifests. What a method asks the designer for, and what it does
   with the results, stays in the method's task generator under ``recipes/``.
-- Does it implement storage? Put it in ``reef/storage/``. ``sql_records.py``
+- Does it implement storage? Put it in ``aster/storage/``. ``sql_records.py``
   shares the trajectory nodes of record items, ``SQLScenarioDatabase``, the
   database of one scenario's state, and ``ScopedTable``, one table with the
   namespace of one store. ``sql_setup.py`` holds the connection setup that the
@@ -331,19 +331,19 @@ The extension points those packages expose are in `Python API
   scenario storage services against the interfaces in ``scenario.py``.
   Storage implementations depend on domain contracts, never the reverse.
 - Does it persist or materialize versioned bytes, or declare a snapshot
-  component? Put it in ``reef/artifact/``. If it loads those bytes into an
-  engine, put that behavior in ``reef/inference/`` instead.
+  component? Put it in ``aster/artifact/``. If it loads those bytes into an
+  engine, put that behavior in ``aster/inference/`` instead.
 - Does it define a model-service contract? Put an inference contract in a
-  module at the root of ``reef/inference/``, and a training component contract
-  in ``reef/train/component.py``. Put a value that both sides read in
-  ``reef/core/``. Put concrete inference engines and their request/control
-  adapters in ``reef/inference/<integration>/``; put implementation tied to a
-  concrete training stack in its own ``reef/train/<integration>/`` subtree.
-  ``reef/train/slime_backend/`` trains weights.
+  module at the root of ``aster/inference/``, and a training component contract
+  in ``aster/train/component.py``. Put a value that both sides read in
+  ``aster/core/``. Put concrete inference engines and their request/control
+  adapters in ``aster/inference/<integration>/``; put implementation tied to a
+  concrete training stack in its own ``aster/train/<integration>/`` subtree.
+  ``aster/train/slime_backend/`` trains weights.
 - Is it part of harness evolution? Each part has one owner. Data,
   evaluation and release are Aster's, shared with weight training; evolve and
-  sync are the harness's own. ``reef/harness/tree/`` holds the tree that
-  every part reads, and ``reef/train/harness_backend/backend.py`` runs one
+  sync are the harness's own. ``aster/harness/tree/`` holds the tree that
+  every part reads, and ``aster/train/harness_backend/backend.py`` runs one
   step through evolve, evaluation and release. ``component.py`` is the
   ``harness`` training component: it runs each step as one training job, in
   the training service, and keeps the harness state after each job in the
@@ -358,12 +358,12 @@ The extension points those packages expose are in `Python API
     and reads back the tree. ``contract.py`` is the method contract.
     ``agent/`` runs the deployment's coding agent for a method
     (``evolution.agent``, ``AgentMethod``, ``protocol.md``). It starts the
-    agent with ``launch_agent`` in ``reef/harness/tasks/run.py``, as an
-    evaluation run does, and ``reef/harness/gateway.py`` is the
+    agent with ``launch_agent`` in ``aster/harness/tasks/run.py``, as an
+    evaluation run does, and ``aster/harness/gateway.py`` is the
     loopback gateway the agent reaches its model and tools through.
-  - Evaluation: ``reef/evaluation/`` holds the contract that every
+  - Evaluation: ``aster/evaluation/`` holds the contract that every
     candidate passes, weights and trees alike (``evaluate``, then
-    ``decide``). ``reef/evaluation/harness/evaluator.py`` scores trees by
+    ``decide``). ``aster/evaluation/harness/evaluator.py`` scores trees by
     running tasks, with the history as the score cache, and ``policy.py``
     decides.
   - Release: the harness backend turns a selected tree into the step's
@@ -371,52 +371,52 @@ The extension points those packages expose are in `Python API
     the job's start (``TrainingComponent.changed_parts``, which the job loop
     puts in ``changed_kinds``). The scenario
     committer publishes it, and the scenario's activation rule
-    (``reef/evaluation/activation.py``) decides whether it serves.
-  - Sync: ``reef/harness/sync.py`` moves a tree between Aster and a person's
+    (``aster/evaluation/activation.py``) decides whether it serves.
+  - Sync: ``aster/harness/sync.py`` moves a tree between Aster and a person's
     machine, in both directions: the snapshot as a layer over the person's
     own configuration (``run.layer`` of the adapter's ``adapter.yaml``),
     and the person's changes merged back (the ``merge`` of each part in its
     ``parts``). The client half is ``reef_client.harness``.
 - Does it decide which records train, in which groups, or how a record set
-  becomes samples? Put the shared contract in ``reef/record2sample/``. Does it
-  shape samples into job data? Put it in ``reef/sample2job/``. Does it turn job
-  data into a step signal? Put it in ``reef/train/algos/``.
-  ``reef/train/pipeline.py`` drives the two stages. A recipe selects and binds
+  becomes samples? Put the shared contract in ``aster/record2sample/``. Does it
+  shape samples into job data? Put it in ``aster/sample2job/``. Does it turn job
+  data into a step signal? Put it in ``aster/train/algos/``.
+  ``aster/train/pipeline.py`` drives the two stages. A recipe selects and binds
   that machinery; it should
   not reimplement it.
 - Does one service tell another what to do? Do it through the shared store,
-  not a call. ``reef/storage/work_queue.py`` defines the ``WorkQueue`` contract
+  not a call. ``aster/storage/work_queue.py`` defines the ``WorkQueue`` contract
   of the jobs, samples, evaluations and data queues;
-  ``reef/storage/served_models.py`` the ``served_models`` table, which control
+  ``aster/storage/served_models.py`` the ``served_models`` table, which control
   writes and the inference service reads;
-  ``reef/storage/control_lease.py`` the lease that makes one control instance
+  ``aster/storage/control_lease.py`` the lease that makes one control instance
   active.
-  ``reef/storage/sql_coordination.py`` keeps these tables in SQLite or
-  PostgreSQL. ``reef/execution/workers.py`` holds ``QueueWorker``, the loop
+  ``aster/storage/sql_coordination.py`` keeps these tables in SQLite or
+  PostgreSQL. ``aster/execution/workers.py`` holds ``QueueWorker``, the loop
   that takes, leases and finishes queue items. The workers that take queue
-  items live with their service: ``reef/train/job_queue.py`` (training),
-  ``reef/record2sample/service/`` (samples),
-  ``reef/evaluation/rollout_worker.py`` (evaluation) and
-  ``reef/service/data_service.py`` (data). Control's writer of
+  items live with their service: ``aster/train/job_queue.py`` (training),
+  ``aster/record2sample/service/`` (samples),
+  ``aster/evaluation/rollout_worker.py`` (evaluation) and
+  ``aster/service/data_service.py`` (data). Control's writer of
   ``served_models``, its watcher of the store and its worker of the
-  ``data_sync`` items are in ``reef/dispatcher/served.py``,
-  ``reef/dispatcher/store_changes.py`` and
-  ``reef/dispatcher/data_sync_worker.py``.
-  ``reef/service/inference_service.py`` is the inference service, and
-  ``reef/service/components.py`` builds the app of each service for
+  ``data_sync`` items are in ``aster/dispatcher/served.py``,
+  ``aster/dispatcher/store_changes.py`` and
+  ``aster/dispatcher/data_sync_worker.py``.
+  ``aster/service/inference_service.py`` is the inference service, and
+  ``aster/service/components.py`` builds the app of each service for
   ``aster serve --component``.
-- Does it handle the data routes? ``reef/service/data.py`` creates, reads,
+- Does it handle the data routes? ``aster/service/data.py`` creates, reads,
   updates and deletes data items and asks control to sync the touched
-  scenarios (``reef/storage/data_sync.py``). ``reef/service/data_transfer.py``
+  scenarios (``aster/storage/data_sync.py``). ``aster/service/data_transfer.py``
   runs imports, exports and item archives, and
-  ``reef/service/scenario_files.py`` reads an artifact's files and a
-  scenario's training jobs. ``reef/storage/record_items.py`` copies records
-  to record items. ``reef/storage/artifact_items.py`` defines the artifact
+  ``aster/service/scenario_files.py`` reads an artifact's files and a
+  scenario's training jobs. ``aster/storage/record_items.py`` copies records
+  to record items. ``aster/storage/artifact_items.py`` defines the artifact
   items of the artifact library, and ``copy_scenario_artifacts`` in
-  ``reef/service/data_service.py`` makes them. ``create_data_app`` in ``reef/service/app.py`` builds the
-  data service's app; the aiohttp adapters are ``reef/service/routes/data.py``
-  and ``reef/service/routes/scenario_files.py``.
-- Is it HTTP-specific? Keep the aiohttp adapter in ``reef/service/routes/``
+  ``aster/service/data_service.py`` makes them. ``create_data_app`` in ``aster/service/app.py`` builds the
+  data service's app; the aiohttp adapters are ``aster/service/routes/data.py``
+  and ``aster/service/routes/scenario_files.py``.
+- Is it HTTP-specific? Keep the aiohttp adapter in ``aster/service/routes/``
   and put transport-independent behavior in a service or domain object.
 - Does it orchestrate a benchmark, task, grader, or external environment?
   Keep it under ``recipes/<name>/examples/`` or in the external harness.
@@ -425,13 +425,13 @@ Repository-level homes
 ----------------------
 
 Code for a concrete training integration lives together under
-``reef/train/<integration>/``, but its surrounding files remain at repository
+``aster/train/<integration>/``, but its surrounding files remain at repository
 level:
 
 - component and integration tests in ``tests/<owner>/``;
 - cookbook method tests in ``tests/recipes/<method>/``;
 - import and packaging contracts in ``tests/plugin_contracts/``;
-- service-facing contracts in ``tests/reef_service/``;
+- service-facing contracts in ``tests/aster_service/``;
 - the learn-nothing deployment stacks, and the smallest example around them, in
   ``recipes/basic/``;
 - configuration for one runnable deployment under ``recipes/<name>/examples/``;
@@ -450,39 +450,39 @@ Where the detailed rules live
 -----------------------------
 
 Each package's ``__init__`` docstring states the boundaries it holds and
-how to extend it; there are no READMEs under ``reef/``. Design pages for the
+how to extend it; there are no READMEs under ``aster/``. Design pages for the
 two packages that need more than a docstring are `Scenario components
 <../developer-guide/components.rst>`__ and `Training pipeline
 <../developer-guide/processors.rst>`__; the extension points every package
 exposes are in `Python API <../reference/python-api.rst>`__, and the public
 harness wire contract is `HTTP API <../reference/http-api.rst>`__. The
 `top-level README <../../README.md>`__ shows how the cookbook methods sit
-beside ``reef/``.
+beside ``aster/``.
 
-The harness method contract is in the ``reef/train/harness_backend/``
+The harness method contract is in the ``aster/train/harness_backend/``
 package docstring, and `Write a harness method
 <../developer-guide/write-a-harness-method.rst>`__ explains it.
-``reef/harness/adapters/parts.py`` defines the parts a harness tree may hold,
+``aster/harness/adapters/parts.py`` defines the parts a harness tree may hold,
 and each adapter declares its own parts in the ``evolve`` section of its
-``adapter.yaml``, such as ``reef/harness/adapters/pi/adapter.yaml``.
+``adapter.yaml``, such as ``aster/harness/adapters/pi/adapter.yaml``.
 `Harness adapters <../developer-guide/harness-adapters.rst>`__ explains the
 file.
 
-Adding a new subpackage under ``reef/`` or a new method under ``recipes/``
+Adding a new subpackage under ``aster/`` or a new method under ``recipes/``
 requires an RFC that states which layer owns the behavior.
 
 
 Deployment modules
 ------------------
 
-``reef/service/deploy/`` separates configuration input from process startup:
+``aster/service/deploy/`` separates configuration input from process startup:
 
 * ``config_utils.py`` reads YAML, expands environment/config references and locates
   recipe source packages. It does not download models or validate process graphs.
 * ``service_config.py`` declares shared HTTP, storage and runtime fields and
   converts effective values into ``ServiceConfig`` for app assembly. With a
   ``task-import`` section, assembly wraps the scenario storage in
-  ``reef/service/task_import.py``, so that each scenario that opens imports the
+  ``aster/service/task_import.py``, so that each scenario that opens imports the
   deployment's Harbor tasks.
 * ``deployment_config.py`` declares ``DeploymentConfig`` defaults, loads selected
   recipe/runtime declarations, translates the versioned public layout and
@@ -501,7 +501,7 @@ Deployment modules
 * ``orchestrator.py`` coordinates configuration resolution, launch, readiness,
   supervision and shutdown, including the internal HTTP child entrypoint.
 
-Shared parsing types come directly from ``reef.core.config``. Native backend
-argument encoding comes from ``reef.execution.executor.arguments``. The package
-exports in ``reef.service.deploy`` remain the entrypoints for app assembly and
+Shared parsing types come directly from ``aster.core.config``. Native backend
+argument encoding comes from ``aster.execution.executor.arguments``. The package
+exports in ``aster.service.deploy`` remain the entrypoints for app assembly and
 launching; internal module names are not a compatibility API.

@@ -1,4 +1,4 @@
-"""Reef's vLLM connector stamps every sampled token with the weight version that produced it."""
+"""Aster's vLLM connector stamps every sampled token with the weight version that produced it."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from reef.inference.vllm.versions import TOKEN_RUNTIME_LOAD_IDS_KEY, UNKNOWN_RUNTIME_LOAD_ID, TokenVersionTracker
+from aster.inference.vllm.versions import TOKEN_RUNTIME_LOAD_IDS_KEY, UNKNOWN_RUNTIME_LOAD_ID, TokenVersionTracker
 
 # -- tracker ------------------------------------------------------------------------
 
@@ -94,8 +94,8 @@ def _import_connector_with_fake_vllm(monkeypatch):
     core.EngineCore = EngineCore
     monkeypatch.setitem(sys.modules, base.__name__, base)
     monkeypatch.setitem(sys.modules, core.__name__, core)
-    monkeypatch.delitem(sys.modules, "reef.inference.vllm.connector", raising=False)
-    module = importlib.import_module("reef.inference.vllm.connector")
+    monkeypatch.delitem(sys.modules, "aster.inference.vllm.connector", raising=False)
+    module = importlib.import_module("aster.inference.vllm.connector")
     return module, KVConnectorRole, EngineCore, KVConnectorMetadata
 
 
@@ -122,7 +122,7 @@ def _step(*, new=(), cached=()):
 @pytest.mark.unit
 def test_connector_stamps_a_request_that_spans_a_weight_update(monkeypatch) -> None:
     module, role, engine_core_type, metadata_type = _import_connector_with_fake_vllm(monkeypatch)
-    connector = module.ReefConnector("config", role.SCHEDULER, "kv-cache-config")
+    connector = module.AsterConnector("config", role.SCHEDULER, "kv-cache-config")
     assert connector.init_args == ("config", role.SCHEDULER, "kv-cache-config")
 
     request = _request("r1")
@@ -147,7 +147,7 @@ def test_connector_stamps_a_request_that_spans_a_weight_update(monkeypatch) -> N
 @pytest.mark.unit
 def test_connector_reads_the_index_from_the_live_request_for_resumed_and_async_batches(monkeypatch) -> None:
     module, role, engine_core_type, _ = _import_connector_with_fake_vllm(monkeypatch)
-    connector = module.ReefConnector(None, role.SCHEDULER, None)
+    connector = module.AsterConnector(None, role.SCHEDULER, None)
     request = _request("r1")
     connector.on_new_request(request)
     connector.build_connector_meta(_step(new=["r1"]))
@@ -168,11 +168,11 @@ def test_connector_reads_the_index_from_the_live_request_for_resumed_and_async_b
 def test_worker_role_does_not_observe_versions_and_the_observer_installs_once(monkeypatch) -> None:
     module, role, engine_core_type, _ = _import_connector_with_fake_vllm(monkeypatch)
     original = engine_core_type.set_weight_version
-    module.ReefConnector(None, role.WORKER, None)
+    module.AsterConnector(None, role.WORKER, None)
     assert engine_core_type.set_weight_version is original
-    first = module.ReefConnector(None, role.SCHEDULER, None)
+    first = module.AsterConnector(None, role.SCHEDULER, None)
     wrapped = engine_core_type.set_weight_version
-    second = module.ReefConnector(None, role.SCHEDULER, None)
+    second = module.AsterConnector(None, role.SCHEDULER, None)
     assert engine_core_type.set_weight_version is wrapped
     engine_core_type().set_weight_version("engine:9")
     assert first._tracker.version == second._tracker.version == "engine:9"
@@ -182,8 +182,8 @@ def test_worker_role_does_not_observe_versions_and_the_observer_installs_once(mo
 
 @pytest.mark.unit
 def test_chat_client_refuses_a_response_whose_stamps_include_unknown() -> None:
-    from reef.artifact import Artifact, SnapshotRef
-    from reef.inference.vllm.chat import VLLMGenerateClient
+    from aster.artifact import Artifact, SnapshotRef
+    from aster.inference.vllm.chat import VLLMGenerateClient
 
     artifact = Artifact(
         SnapshotRef(revision="live:engine:1", parent_revision="checkpoint"),

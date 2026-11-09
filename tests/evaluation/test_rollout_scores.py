@@ -6,8 +6,8 @@ import math
 
 import pytest
 
-from reef.core.evaluation import PolicyHarness, PolicyModel, RolloutRequest, RolloutScore, RolloutScores, mean_score
-from reef.evaluation.evaluators import FloorCheck, ScoreComparison, check_floor, compare_scores
+from aster.core.evaluation import PolicyHarness, PolicyModel, RolloutRequest, RolloutScore, RolloutScores, mean_score
+from aster.evaluation.evaluators import FloorCheck, ScoreComparison, check_floor, compare_scores
 
 SCORED = RolloutScore.scored
 FAILED = RolloutScore.failed()

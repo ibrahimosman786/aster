@@ -19,7 +19,7 @@ function localToken() {
 const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || localToken();
 const headers = {
   accept: "application/vnd.github+json",
-  "user-agent": "reef-docs",
+  "user-agent": "aster-docs",
   ...(token ? { authorization: `Bearer ${token}` } : {}),
 };
 

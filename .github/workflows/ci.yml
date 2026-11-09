@@ -64,7 +64,7 @@ jobs:
       # Callable-based object state are architectural policy violations.
       - name: Enforce Python design policy
         run: python .github/scripts/check_python_design.py
-      - name: Ban assert and del in Reef source
+      - name: Ban assert and del in Aster source
         run: python .github/scripts/check_python_statements.py
       # Type check the service package, including its training-runtime adapters.
       # huggingface_hub and harbor are declared core dependencies
@@ -109,17 +109,17 @@ jobs:
       postgres:
         image: ${{ matrix.suite == 'source' && 'postgres:16' || '' }}
         env:
-          POSTGRES_USER: reef
-          POSTGRES_PASSWORD: reef_test
-          POSTGRES_DB: reef_test
+          POSTGRES_USER: aster
+          POSTGRES_PASSWORD: aster_test
+          POSTGRES_DB: aster_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U reef -d reef_test"
+          --health-cmd "pg_isready -U aster -d aster_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      REEF_TEST_POSTGRES_URL: ${{ matrix.suite == 'source' && 'postgresql://reef:reef_test@localhost:5432/reef_test' || '' }}
-      REEF_REQUIRE_SANDBOX: ${{ matrix.suite == 'sandbox' && '1' || '0' }}
+      ASTER_TEST_POSTGRES_URL: ${{ matrix.suite == 'source' && 'postgresql://aster:aster_test@localhost:5432/aster_test' || '' }}
+      ASTER_REQUIRE_SANDBOX: ${{ matrix.suite == 'sandbox' && '1' || '0' }}
       COVERAGE_FILE: .coverage.${{ matrix.suite }}
     strategy:
       fail-fast: false
@@ -161,12 +161,12 @@ jobs:
       - name: Add uv to PATH
         run: echo "$UV_INSTALL_DIR/bin" >> "$GITHUB_PATH"
       # huggingface_hub and harbor are declared core dependencies
-      # (pyproject.toml); reef.execution.sandbox imports harbor's environment contract at
+      # (pyproject.toml); aster.execution.sandbox imports harbor's environment contract at
       # module load. The rest are test-only: NumPy for the Erdos TTTD example, httpx for the
       # OPD teacher-client tests, ray for the slime bridge suites, and openai
       # for the CEO-Bench harness tests, the OpenTelemetry SDK for the
       # record tracing exporter; keeping them here avoids expanding
-      # Reef's minimal service dependencies.
+      # Aster's minimal service dependencies.
       - run: uv pip install --system --python python pytest pytest-cov "coverage==$COVERAGE_VERSION" pytest-xdist==3.8.0 aiohttp "alembic>=1.13,<2" pyyaml huggingface_hub "harbor>=0.25,<0.26" "sqlalchemy>=2.0,<3" tomli-w numpy ray httpx openai "psutil>=5.9" "psycopg[binary]>=3.1,<4" "opentelemetry-sdk>=1.25" "opentelemetry-exporter-otlp-proto-http>=1.25"
       # Install the pinned training runtime without its GPU dependencies: the
       # tests need it importable, not its GPU stack, and the
@@ -177,12 +177,12 @@ jobs:
       # install the submodule pin so coordinated protocol changes are tested
       # before the matching client release reaches PyPI.
       - run: uv pip install --system --python python ./third_party/reef-client
-      # Subprocess tests change directory and clear PYTHONPATH. Install Reef
+      # Subprocess tests change directory and clear PYTHONPATH. Install Aster
       # so their selected recipes can import it outside the source checkout.
       # Dependencies are prepared above; keep the CPU-only stack unchanged.
       - run: uv pip install --system --python python --no-deps --editable .
       # Exercise the CPU-only Megatron LoRA helpers without making Torch a
-      # dependency of the Reef wheel. Production Torch remains owned by the
+      # dependency of the Aster wheel. Production Torch remains owned by the
       # Slime image.
       - run: uv pip install --system --python python torch --index-url https://download.pytorch.org/whl/cpu
       # Both suites collect tests/ and use complementary markers so new tests
@@ -195,7 +195,7 @@ jobs:
       # is enough. It is the only gate that pins SAO's hard-mask semantics,
       # which share the pg_clipfrac key with PPO's clamp counter.
       # Keep Git-LFS tests independent of host-level Git configuration.
-      # Coverage is measured on every leg: Reef requires Python 3.12, whose
+      # Coverage is measured on every leg: Aster requires Python 3.12, whose
       # sys.settrace no longer has the process-global reentrancy guard that
       # killed bootstrapping worker threads under coverage on 3.10 and 3.11.
       # Source tests share eight workers; worksteal balances single tests, so
@@ -219,7 +219,7 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
 
-  # The one required check per suite; Reef supports Python 3.12 only.
+  # The one required check per suite; Aster supports Python 3.12 only.
   test:
     needs: [select-tests, test-suites]
     if: always() && !github.event.pull_request.draft
@@ -308,7 +308,7 @@ jobs:
       - run: python -m build
       - run: python -m twine check dist/*
       - run: uv pip install --system --python python ./third_party/reef-client
-      - run: uv pip install --system --python python dist/reef_infra-[0-9]*.whl
+      - run: uv pip install --system --python python dist/aster_infra-[0-9]*.whl
       - name: Check distribution and dependency boundaries
         working-directory: ${{ runner.temp }}
         run: |
@@ -321,15 +321,15 @@ jobs:
           from packaging.requirements import Requirement
           from packaging.utils import canonicalize_name
 
-          # PyPI distribution `reef-infra`; the import package is `reef`.
-          reef = distribution("reef-infra")
-          assert reef.metadata["Name"] == "reef-infra"
-          assert importlib.util.find_spec("reef") is not None
+          # PyPI distribution `aster-infra`; the import package is `aster`.
+          aster = distribution("aster-infra")
+          assert aster.metadata["Name"] == "aster-infra"
+          assert importlib.util.find_spec("aster") is not None
           # The protocol client is its own distribution and stays
-          # dependency-free: harnesses cannot take the reef wheel's deps.
+          # dependency-free: harnesses cannot take the aster wheel's deps.
           client = distribution("reef-client")
           assert not (client.requires or ()), client.requires
-          requirements = [Requirement(value) for value in reef.requires or ()]
+          requirements = [Requirement(value) for value in aster.requires or ()]
           # Core is what installs with no extra on this interpreter: a marker
           # that only names the Python version is still core.
           core = {
@@ -337,7 +337,7 @@ jobs:
               for requirement in requirements
               if requirement.marker is None or requirement.marker.evaluate({"extra": ""})
           }
-          # harbor and reef-eval are core: reef.execution.sandbox implements Harbor's environment contract, and task
+          # harbor and reef-eval are core: aster.execution.sandbox implements Harbor's environment contract, and task
           # directory runs, the task player and the generator play Harbor tasks.
           expected_core = {
               "aiohttp",
@@ -376,36 +376,36 @@ jobs:
               "wandb",
           }, slime
 
-          # The training runtime is a separate distribution: the Reef wheel
+          # The training runtime is a separate distribution: the Aster wheel
           # ships the adapter package, not the runtime itself.
-          assert importlib.util.find_spec("reef.train.slime_backend") is not None
-          assert importlib.util.find_spec("reef.train.slime") is None
+          assert importlib.util.find_spec("aster.train.slime_backend") is not None
+          assert importlib.util.find_spec("aster.train.slime") is None
           for module in ("megatron", "ray", "sglang", "torch", "transformers"):
               assert importlib.util.find_spec(module) is None, module
 
           source_root = Path(os.environ["GITHUB_WORKSPACE"])
           expected_backend_files = {
               str(path.relative_to(source_root))
-              for directory in ("reef/train/slime_backend", "reef/inference/sglang")
+              for directory in ("aster/train/slime_backend", "aster/inference/sglang")
               for path in (source_root / directory).rglob("*")
               if path.suffix in {".cu", ".md", ".py"}
           }
-          expected_backend_files.add("reef/train/__init__.py")
-          expected_backend_files.add("reef/inference/__init__.py")
-          installed_files = {str(path) for path in reef.files or ()}
+          expected_backend_files.add("aster/train/__init__.py")
+          expected_backend_files.add("aster/inference/__init__.py")
+          installed_files = {str(path) for path in aster.files or ()}
           assert expected_backend_files <= installed_files
-          assert not any(path.startswith("reef/runtime/") for path in installed_files)
+          assert not any(path.startswith("aster/runtime/") for path in installed_files)
           assert {
-              "reef/inference/interfaces.py", "reef/inference/registry.py", "reef/inference/serving.py",
-              "reef/inference/http.py", "reef/inference/null.py", "reef/inference/remote/runtime.py",
-              "reef/train/component.py", "reef/train/jobs.py", "reef/train/local_jobs.py",
-              "reef/train/slime_backend/component.py", "reef/execution/executor/base.py",
+              "aster/inference/interfaces.py", "aster/inference/registry.py", "aster/inference/serving.py",
+              "aster/inference/http.py", "aster/inference/null.py", "aster/inference/remote/runtime.py",
+              "aster/train/component.py", "aster/train/jobs.py", "aster/train/local_jobs.py",
+              "aster/train/slime_backend/component.py", "aster/execution/executor/base.py",
           } <= installed_files
-          assert not any(path.startswith("reef/train/slime_backend/reef_adapters/sglang/") for path in installed_files)
+          assert not any(path.startswith("aster/train/slime_backend/aster_adapters/sglang/") for path in installed_files)
           assert {
-              entry.value for entry in reef.entry_points
-              if entry.group == "sglang.srt.plugins" and entry.name == "reef"
-          } == {"reef.inference.sglang.plugin:install_sglang_plugin"}
+              entry.value for entry in aster.entry_points
+              if entry.group == "sglang.srt.plugins" and entry.name == "aster"
+          } == {"aster.inference.sglang.plugin:install_sglang_plugin"}
           inference = {
               canonicalize_name(requirement.name)
               for requirement in requirements
@@ -414,18 +414,18 @@ jobs:
           } - core
           assert inference == {"httpx", "psutil", "ray", "requests", "sglang-router"}, inference
           PY
-      # Run outside the repo so `import reef` resolves to the installed wheel,
+      # Run outside the repo so `import aster` resolves to the installed wheel,
       # not the source tree. Proves the wheel is complete: core modules import,
       # cookbook methods and named configs do not ship, entrypoint answers.
       - run: |
           python -c "
           import importlib.util, pathlib
-          import reef, reef.service.deploy
+          import aster, aster.service.deploy
           import reef_client
-          import reef.recipe as rp
-          from reef.recipe import Recipe
-          from reef.recipe.registry import recipe_class_for
-          assert importlib.util.find_spec('reef.train.slime_backend') is not None
+          import aster.recipe as rp
+          from aster.recipe import Recipe
+          from aster.recipe.registry import recipe_class_for
+          assert importlib.util.find_spec('aster.train.slime_backend') is not None
           assert importlib.util.find_spec('recipes') is None
           assert not hasattr(rp, 'register_kind')
           assert recipe_class_for('recipe') is Recipe
@@ -434,16 +434,16 @@ jobs:
           assert not leftover, f'named recipe configs are deployment data and must not ship: {leftover}'
           print('core recipe:', recipe_class_for('recipe'))
           "
-          reef --help
+          aster --help
         working-directory: ${{ runner.temp }}
       - name: Start an recipe core installation
         working-directory: ${{ runner.temp }}
         run: |
-          reef serve -c "${{ github.workspace }}/tests/packaging/recipe-wheel.yaml" &
-          reef_pid=$!
+          aster serve -c "${{ github.workspace }}/tests/packaging/recipe-wheel.yaml" &
+          aster_pid=$!
           cleanup() {
-            kill -TERM "$reef_pid" 2>/dev/null || true
-            wait "$reef_pid"
+            kill -TERM "$aster_pid" 2>/dev/null || true
+            wait "$aster_pid"
           }
           trap cleanup EXIT
           ready=
@@ -452,7 +452,7 @@ jobs:
               ready=1
               break
             fi
-            kill -0 "$reef_pid"
+            kill -0 "$aster_pid"
             sleep 1
           done
           test "$ready" = 1
@@ -465,8 +465,8 @@ jobs:
       # Stay outside the repo so the source tree cannot shadow the wheels.
       - run: uv pip install --system --python python pytest pytest-xdist==3.8.0 "psutil>=5.9"
       # Exercise the repository cookbook as an external consumer of the
-      # installed Reef wheel. Link recipes and test support without exposing
-      # the source reef/ package on sys.path.
+      # installed Aster wheel. Link recipes and test support without exposing
+      # the source aster/ package on sys.path.
       - run: |
           ln -s "$GITHUB_WORKSPACE/recipes" "$RUNNER_TEMP/recipes"
           ln -s "$GITHUB_WORKSPACE/tests" "$RUNNER_TEMP/tests"

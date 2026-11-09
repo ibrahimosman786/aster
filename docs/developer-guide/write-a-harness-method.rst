@@ -11,7 +11,7 @@ Meta-Harness in ``recipes/`` are methods.
 
 .. code:: python
 
-   from reef.train.harness_backend import Method, StepContext
+   from aster.train.harness_backend import Method, StepContext
 
 
    class MyMethod(Method):
@@ -41,9 +41,9 @@ the tool only when it scores better than the head:
 
 .. code:: python
 
-   from reef.core.prompts import untrusted_text
-   from reef.harness.tree import TreePatch
-   from reef.train.harness_backend import Method, StepContext
+   from aster.core.prompts import untrusted_text
+   from aster.harness.tree import TreePatch
+   from aster.train.harness_backend import Method, StepContext
 
    PROMPT = (
        "The agent failed the requests below. Write one pi extension that registers a tool that would have "
@@ -214,7 +214,7 @@ Run a coding agent
 A method whose class sets ``runs_agent = True`` gets the deployment's coding
 agent (``evolution.agent``: adapter, binary, sandbox). The agent works in the
 workspace and holds no credential: its model calls go through a loopback
-gateway at ``$REEF_AGENT_URL``, which spends from the step's budget. The
+gateway at ``$ASTER_AGENT_URL``, which spends from the step's budget. The
 same address checks and scores trees: ``GET /tools``, ``POST /check`` with
 ``{"tree": "harness"}``, and ``POST /evaluate`` with ``{"tree": "harness",
 "tasks": [...]}``. ``run_agent`` returns an ``AgentOutcome`` (``exit_code``,
@@ -223,7 +223,7 @@ same address checks and scores trees: ``GET /tools``, ``POST /check`` with
 A method made of prompts
 ------------------------
 
-``reef.train.harness_backend:AgentMethod`` runs the coding agent once per
+``aster.train.harness_backend:AgentMethod`` runs the coding agent once per
 step on a folder of prompts:
 
 .. list-table::
@@ -246,7 +246,7 @@ step on a folder of prompts:
 
    evolution:
      method:
-       module: reef.train.harness_backend:AgentMethod
+       module: aster.train.harness_backend:AgentMethod
        config: {prompts: methods/rules-editor, model: proposer}
      agent: {adapter: claude, sandbox: bwrap}
 
@@ -319,8 +319,8 @@ higher is better:
 
 .. code:: python
 
-   from reef.evaluation.harness import TaskScorer
-   from reef.harness.tasks.trajectory import final_assistant_text
+   from aster.evaluation.harness import TaskScorer
+   from aster.harness.tasks.trajectory import final_assistant_text
 
    EXPECTED = {"[fib]": "2880067194370816120"}
 
@@ -347,7 +347,7 @@ Configure a deployment
 .. code:: yaml
 
    recipe:
-     implementation: reef.recipe.harness:HarnessEvolutionRecipe
+     implementation: aster.recipe.harness:HarnessEvolutionRecipe
      config:
        evolution:
          adapter: pi
@@ -363,7 +363,7 @@ Configure a deployment
      config:
        review_kinds: [extension]       # a tool waits for a person
    inference:
-     upstream-url: ${REEF_UPSTREAM_URL}
+     upstream-url: ${ASTER_UPSTREAM_URL}
      upstream-model: qwen3-8b
 
 Start ``aster serve -c`` where Aster can import ``methods``.
@@ -381,8 +381,8 @@ dataclass, which refuses an unknown key:
 
    from dataclasses import dataclass
 
-   from reef.core.config import config_option
-   from reef.core.plugins import PluginSettings
+   from aster.core.config import config_option
+   from aster.core.plugins import PluginSettings
 
 
    @dataclass(frozen=True)
@@ -414,7 +414,7 @@ Untrusted input
 ---------------
 
 - Traces are client data. Wrap their text with
-  ``reef.core.prompts.untrusted_text`` before it enters a prompt.
+  ``aster.core.prompts.untrusted_text`` before it enters a prompt.
 - Trust ``trace.client`` as an identity only when a gateway sets the tag.
 - Client text can shape code parts (``extension``, ``native_tool``,
   ``native_hook``). Name them in the ``always`` activation rule's

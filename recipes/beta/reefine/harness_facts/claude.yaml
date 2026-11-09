@@ -1,10 +1,10 @@
 # What Reefine's prompts say about Claude Code: see recipes/beta/reefine/harness_facts/__init__.py.
 title: Claude Code
 command: >-
-  A command file is a command of the plugin reef, which a person types as /reef:<name> in the session. Its text is a
+  A command file is a command of the plugin aster, which a person types as /aster:<name> in the session. Its text is a
   Claude Code command file: YAML frontmatter with description (and allowed-tools, a list such as [WebSearch], which
   pre-approves those tools for the command's own turn), then the prompt, where $ARGUMENTS stands for what the person
-  typed after /reef:<name>. Claude
+  typed after /aster:<name>. Claude
   Code replaces every $ARGUMENTS in the file with that text, so write it once (The person typed: $ARGUMENTS) and
   describe the branches by what it holds.
 tools: >-

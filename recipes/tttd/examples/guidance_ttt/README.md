@@ -2,7 +2,7 @@
 
 Guidance-TTT trains a guidance model while a frozen executor writes candidate
 programs. The task judge supplies the reward. Only the guidance inference
-receipt reaches Reef's grouped TTTD training recipe.
+receipt reaches Aster's grouped TTTD training recipe.
 
 The [user guide](../../../../docs/user-guide/recipes/guidance-ttt.rst) explains
 the loop, configuration, four paper results, search curves, and resume behavior.
@@ -16,7 +16,7 @@ the loop, configuration, four paper results, search curves, and resume behavior.
 
 ## Run
 
-Use Linux, Docker, and the supported Reef GPU environment. From the repository root:
+Use Linux, Docker, and the supported Aster GPU environment. From the repository root:
 
 ```bash
 git submodule update --init third_party/reef-client
@@ -78,7 +78,7 @@ zero reward without format repair. The executor returns a full `<solution>` and
 a canonical `<summary>`. Search uses rank-prior PUCT, `best_child` Q, ancestor
 visit updates, two children per expansion, and a top-1000 archive.
 
-The example uses Reef's existing TTTD recipe, adaptive entropic advantages,
+The example uses Aster's existing TTTD recipe, adaptive entropic advantages,
 frozen-base KL, and rank-32 LoRA publication. The final Harbor verifier's reward
 is evaluation-only, because every training rollout already reports its own reward.
 
@@ -89,7 +89,7 @@ The paper reports 91.89 for Polyomino, 0.1739 ms⁻¹ for Lasso,
 
 - [Discovered solutions](solutions/README.md): complete programs, evaluation commands, and measurement settings.
 - [Paper results and search trajectories](results/paper/README.md): comparison data, model configurations, and progress during search.
-- [Earlier Reef runs](results/README.md): separate Polyomino and TriMul experiments with different configurations.
+- [Earlier Aster runs](results/README.md): separate Polyomino and TriMul experiments with different configurations.
 
 ## Local checks
 
@@ -115,11 +115,11 @@ also requires the frozen executor and a supported GPU stack.
 - `harness/`: guidance search, executor client, judge adapter, archive, and controller.
 - `prepare.py`: pinned external benchmark and bootstrap downloads.
 - `judges/`: official evaluator adapters and setup instructions.
-- `run.sh`, `run.py`, `serve.yaml`: one complete Reef and Harbor trajectory.
+- `run.sh`, `run.py`, `serve.yaml`: one complete Aster and Harbor trajectory.
 - `results/`: historical measurements and paper result records.
 
 ## Source licenses
 
-Reef's harness and adapters use the repository's Apache-2.0 license.
+Aster's harness and adapters use the repository's Apache-2.0 license.
 The [benchmark notices](harbor/NOTICE.md) identify external task sources.
 Preparation keeps external code and its original license under ignored `work/` paths.

@@ -23,7 +23,7 @@ def test_statement_policy_rejects_assert_and_delete_statements() -> None:
 assert ready
 del items[key]
 """,
-        "reef/example.py",
+        "aster/example.py",
     )
 
     assert [finding.statement for finding in findings] == ["assert", "del"]
@@ -37,7 +37,7 @@ def test_statement_policy_ignores_words_in_comments_and_strings() -> None:
 # assert ready
 message = "del items[key]"
 """,
-        "reef/example.py",
+        "aster/example.py",
     )
 
     assert findings == []

@@ -14,9 +14,9 @@ from types import ModuleType, SimpleNamespace
 import pytest
 
 from recipes.sao.slime import CRITIC_ATTENTION_PARAM_PATTERN, SaoSchedule
-from reef.train.algos.registry import register_loss_family_ref
-from reef.train.slime_backend.algorithm import SlimeAlgorithm, resolve_objective_paths
-from reef.train.slime_backend.loss_families import (
+from aster.train.algos.registry import register_loss_family_ref
+from aster.train.slime_backend.algorithm import SlimeAlgorithm, resolve_objective_paths
+from aster.train.slime_backend.loss_families import (
     LOSS_FAMILIES,
     UnknownLossFamilyError,
     register_loss_family,
@@ -142,7 +142,7 @@ def test_dotted_reference_cannot_shadow_a_registered_family(monkeypatch) -> None
 
 @pytest.mark.unit
 def test_sft_spec_refuses_advantages_instead_of_silently_dropping_them() -> None:
-    from reef.train.slime_backend.data_builder import to_slime_rollout_data
+    from aster.train.slime_backend.data_builder import to_slime_rollout_data
 
     sample = ["a", [10, 11, 12], [1, 1], [], 0.5]
     payload = {
@@ -380,11 +380,11 @@ def test_sao_config_freezes_critic_attention_only_for_moe() -> None:
 
 # ---------------------------------------------------------------------------
 # Family conformance: the layout and naming conventions documented in
-# reef/train/slime_backend/algorithm.py.
+# aster/train/slime_backend/algorithm.py.
 # ---------------------------------------------------------------------------
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_ADAPTERS_ROOT = _REPO_ROOT / "reef" / "train" / "slime_backend" / "reef_adapters"
+_ADAPTERS_ROOT = _REPO_ROOT / "aster" / "train" / "slime_backend" / "aster_adapters"
 _BUNDLED_FAMILIES = ("openclawrl", "sao", "sdft", "sdpo", "tttd")
 #: Deprecated flag spellings allowed alongside the canonical --<pkg>-* form.
 _DEPRECATED_FLAG_PREFIXES = ("--openclaw-topk-",)
@@ -393,21 +393,21 @@ _OBJECTIVE_ENTRY_NAMES = {
     "custom_loss_function_path": "{pkg}_loss",
     "custom_pg_loss_function_path": "{pkg}_loss",
     "custom_advantage_function_path": "{pkg}_advantages",
-    "reef_actor_init_hook_path": "{pkg}_actor_init",
-    "reef_actor_pre_train_hook_path": "{pkg}_actor_pre_train",
+    "aster_actor_init_hook_path": "{pkg}_actor_init",
+    "aster_actor_pre_train_hook_path": "{pkg}_actor_pre_train",
 }
 _EXPECTED_OBJECTIVE_CHANNELS = {
     "openclawrl": frozenset(
         {
             "custom_advantage_function_path",
             "custom_loss_function_path",
-            "reef_actor_init_hook_path",
-            "reef_actor_pre_train_hook_path",
+            "aster_actor_init_hook_path",
+            "aster_actor_pre_train_hook_path",
         }
     ),
     "sao": frozenset({"custom_advantage_function_path", "custom_pg_loss_function_path"}),
-    "sdft": frozenset({"custom_loss_function_path", "reef_actor_pre_train_hook_path"}),
-    "sdpo": frozenset({"custom_loss_function_path", "reef_actor_pre_train_hook_path"}),
+    "sdft": frozenset({"custom_loss_function_path", "aster_actor_pre_train_hook_path"}),
+    "sdpo": frozenset({"custom_loss_function_path", "aster_actor_pre_train_hook_path"}),
     "tttd": frozenset({"custom_advantage_function_path", "custom_loss_function_path"}),
 }
 
@@ -441,12 +441,12 @@ def _family_source_files() -> list[Path]:
 
 @pytest.mark.unit
 def test_family_packages_never_import_the_adapter_layer() -> None:
-    # The dependency points one way: reef_adapters consumes the registry and
+    # The dependency points one way: aster_adapters consumes the registry and
     # the SlimeAlgorithm interface; no family package may reach back into the
     # adapter layer.
-    # Every import spelling counts: ``from pkg import reef_adapters`` names the
+    # Every import spelling counts: ``from pkg import aster_adapters`` names the
     # module in the alias, and a relative import is resolved against the
-    # package so ``from ....reef_adapters import x`` cannot slip through.
+    # package so ``from ....aster_adapters import x`` cannot slip through.
     offenders: list[str] = []
     for path in _family_source_files():
         package = ".".join(path.parent.relative_to(_REPO_ROOT).parts)
@@ -464,7 +464,7 @@ def test_family_packages_never_import_the_adapter_layer() -> None:
                     module = node.module or ""
                 targets = [f"{module}.{alias.name}" for alias in node.names]
             offenders.extend(
-                f"{path.relative_to(_REPO_ROOT)}: {target}" for target in targets if "reef_adapters" in target
+                f"{path.relative_to(_REPO_ROOT)}: {target}" for target in targets if "aster_adapters" in target
             )
     assert offenders == []
 
@@ -581,7 +581,7 @@ def test_objective_entry_points_are_named_by_channel(family: str) -> None:
 
 @pytest.mark.unit
 def test_objective_resolution_only_ignores_the_missing_objective_module(monkeypatch) -> None:
-    # The built-in sft family (reef.train.slime_backend.sft) declares no hooks.
+    # The built-in sft family (aster.train.slime_backend.sft) declares no hooks.
     module_path = f"{type(resolve_loss_family('sft')).__module__}.objective"
 
     def missing_objective(name: str) -> None:
@@ -611,7 +611,7 @@ def test_objective_resolution_rejects_a_missing_required_objective_module(monkey
 
 @pytest.mark.unit
 def test_objective_resolution_rejects_missing_required_hook_registrations(monkeypatch) -> None:
-    from reef.train.slime_backend import algorithm as base_module
+    from aster.train.slime_backend import algorithm as base_module
 
     # Load the spec before import_module is patched, so only the objective module's import sees the patch.
     resolve_loss_family("tttd")
@@ -632,7 +632,7 @@ def test_objective_resolution_rejects_missing_required_hook_registrations(monkey
 def test_objective_resolution_derives_core_hook_requirements(
     monkeypatch, loss_type: str, uses_pg_loss_primitive: bool, required_channel: str
 ) -> None:
-    from reef.train.slime_backend import algorithm as base_module
+    from aster.train.slime_backend import algorithm as base_module
 
     toy = _TestAlgorithm(loss_family="toy_objective", loss_type=loss_type)
     toy.uses_pg_loss_primitive = uses_pg_loss_primitive
@@ -704,7 +704,7 @@ def test_dotted_reference_accepts_the_decorated_class(monkeypatch) -> None:
     # The documented external pattern: decorate the class, name it as
     # package.module:ClassName. Resolving returns the instance the decorator
     # registered, so the canonical name resolves to the same object.
-    from reef.train.slime_backend.algorithm import register_loss_family as decorate
+    from aster.train.slime_backend.algorithm import register_loss_family as decorate
 
     module = ModuleType("toy_loss_decorated")
 
@@ -738,7 +738,7 @@ def test_dotted_family_reference_survives_a_fresh_worker_process(tmp_path) -> No
     package = tmp_path / "toy_worker_family"
     package.mkdir()
     (package / "__init__.py").write_text(
-        "from reef.train.slime_backend.algorithm import SlimeAlgorithm, register_loss_family\n"
+        "from aster.train.slime_backend.algorithm import SlimeAlgorithm, register_loss_family\n"
         "\n"
         "@register_loss_family\n"
         "class ToyWorkerAlgorithm(SlimeAlgorithm):\n"
@@ -751,8 +751,8 @@ def test_dotted_family_reference_survives_a_fresh_worker_process(tmp_path) -> No
     )
     script = (
         "from argparse import Namespace\n"
-        "from reef.train.slime_backend.algorithm import resolve_args_loss_family, resolve_objective_paths\n"
-        "from reef.train.slime_backend.loss_families import UnknownLossFamilyError\n"
+        "from aster.train.slime_backend.algorithm import resolve_args_loss_family, resolve_objective_paths\n"
+        "from aster.train.slime_backend.loss_families import UnknownLossFamilyError\n"
         "try:\n"
         "    resolve_args_loss_family(Namespace(loss_family='toy_worker'))\n"
         "    print('canonical:resolved')\n"

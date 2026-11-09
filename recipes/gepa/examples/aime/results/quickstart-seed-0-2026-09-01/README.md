@@ -1,12 +1,12 @@
 # Paired GEPA quickstart seed 0 (2026-09-01)
 
-This retained result is the reference the Reef GEPA method is validated
+This retained result is the reference the Aster GEPA method is validated
 against. The official arm is the pinned upstream GEPA quickstart, run
-unchanged; it is the target number. The Reef arm beside it was produced by the
+unchanged; it is the target number. The Aster arm beside it was produced by the
 pre-method replication driver - upstream `gepa.optimize` owning the search loop
-with Reef underneath it as renderer, episode runner, and artifact backend -
+with Aster underneath it as renderer, episode runner, and artifact backend -
 which this branch retains in its first commit,
-`feat(gepa): reproduce the GEPA AIME quickstart through Reef`, and which the
+`feat(gepa): reproduce the GEPA AIME quickstart through Aster`, and which the
 method under `recipes/gepa/` replaces. Both arms used optimizer seed 0, the
 same 45/45/150 AIME split, `gpt-4.1-mini-2025-04-14` for tasks,
 `gpt-5-2025-08-07` for reflection, the same seed prompt, and a 150-call search
@@ -28,27 +28,27 @@ benchmark score.
   the replication arm's validation improved from 11/45 (24.44%) to 18/45
   (40.00%).
 - Before search, the 450-run baseline check measured 22.00% for the direct
-  official path and 20.67% through Reef. The predeclared non-inferiority check
-  passed with no failed Reef episodes.
+  official path and 20.67% through Aster. The predeclared non-inferiority check
+  passed with no failed Aster episodes.
 - The official arm took 15,371.5 seconds and cost an estimated $5.458627. The
   replication arm took 2,301.3 seconds and cost an estimated $3.642371.
 
 The frozen scores differ by 0.67 percentage points and the selected scores by
-1.33 points. Reef therefore reproduced the official quickstart's improvement
+1.33 points. Aster therefore reproduced the official quickstart's improvement
 pattern closely for seed 0. Seeds 1 and 2 and the multi-component extension were
 not run, so this result does not estimate across-seed variance or complete the
 four-cell study.
 
 ## Baseline source
 
-The baseline check was paid under one Reef commit of the replication branch and
+The baseline check was paid under one Aster commit of the replication branch and
 run identity `0ffbc8e3`, then imported into the seed-0 optimization run at a
 later commit of that same branch. The intervening change added a
 worker-concurrency override without changing the model, dataset, prompt,
 request envelope, or sampling settings. Neither commit survives the branch's
 squash, so `manifest.json` retains both source hashes and both run identities
 as the durable record; the links they carried no longer resolve. The baseline
-path used 10-way concurrency and checkpoint batches for both arms; the 32 Reef
+path used 10-way concurrency and checkpoint batches for both arms; the 32 Aster
 and 16 held-out values in its run identity were inactive defaults for
 optimization cells. Both seed-0 optimization arms used 128 workers. The
 manifest retains the original baseline report hash alongside them.

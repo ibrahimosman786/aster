@@ -11,22 +11,22 @@ import pytest
 from tests.support.chat_templates import CharTemplate
 from tests.support.job_data import job_data_ref
 
-from reef.core.evaluation import RolloutScore, RolloutScores
-from reef.core.job_data import JobData, TaskSample, TrajectorySample, trajectories
-from reef.core.trajectories import trajectory_reward
-from reef.harness.harbor.rollouts import RolloutRow, TaskLab
-from reef.tinker.sampling import SampleResult, TinkerSampler
-from reef.train.algos.signals import TrainingSignal
-from reef.train.component import TrainingJob
-from reef.train.task_rollouts import ChatEndpoint, TaskJobRollouts, run_train_tasks
-from reef.train.tinker_backend import component as component_module
-from reef.train.tinker_backend.checkpoint import TinkerCheckpoint
-from reef.train.tinker_backend.client import TinkerClient
-from reef.train.tinker_backend.component import ROLLOUTS_FILE, TinkerTrainingComponent
-from reef.train.tinker_backend.config import TinkerConfig
-from reef.train.tinker_backend.objectives import TinkerObjective
-from reef.train.tinker_backend.parameters import rollout_settings
-from reef.train.tinker_backend.rollout import SamplerChat
+from aster.core.evaluation import RolloutScore, RolloutScores
+from aster.core.job_data import JobData, TaskSample, TrajectorySample, trajectories
+from aster.core.trajectories import trajectory_reward
+from aster.harness.harbor.rollouts import RolloutRow, TaskLab
+from aster.tinker.sampling import SampleResult, TinkerSampler
+from aster.train.algos.signals import TrainingSignal
+from aster.train.component import TrainingJob
+from aster.train.task_rollouts import ChatEndpoint, TaskJobRollouts, run_train_tasks
+from aster.train.tinker_backend import component as component_module
+from aster.train.tinker_backend.checkpoint import TinkerCheckpoint
+from aster.train.tinker_backend.client import TinkerClient
+from aster.train.tinker_backend.component import ROLLOUTS_FILE, TinkerTrainingComponent
+from aster.train.tinker_backend.config import TinkerConfig
+from aster.train.tinker_backend.objectives import TinkerObjective
+from aster.train.tinker_backend.parameters import rollout_settings
+from aster.train.tinker_backend.rollout import SamplerChat
 
 MODEL = "Qwen/Qwen3-8B"
 ROLLOUT = {"rollouts_per_task": 2, "concurrency": 2}
@@ -210,7 +210,7 @@ def grouped(tmp_path: Path) -> TaskJobRollouts:
             "schema_version": "ATIF-v1.6",
             "agent": {"name": "a"},
             "steps": [{"step_id": 1}],
-            "extra": {"reef": {"training": training, "reward": reward}},
+            "extra": {"aster": {"training": training, "reward": reward}},
         }
         return TrajectorySample(trajectory, group_id=name)
 

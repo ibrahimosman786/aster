@@ -61,7 +61,7 @@ How Aster implements it
 
 gepa is a method on the harness evolution engine: ``recipes.gepa:GEPA`` is a
 ``Method``, and a deployment runs it with the harness evolution recipe
-``reef.recipe.harness:HarnessEvolutionRecipe``. `Evolve your harness
+``aster.recipe.harness:HarnessEvolutionRecipe``. `Evolve your harness
 <../evolve-your-harness.rst>`__ describes the mechanism it runs on.
 
 Each step runs the reflection round described above: pick a parent, rewrite
@@ -102,7 +102,7 @@ Configuration
 -------------
 
 ``recipes/gepa/examples/aime/gepa.yaml`` is the recipe config the driver boots.
-It names ``reef.recipe.harness:HarnessEvolutionRecipe`` as its
+It names ``aster.recipe.harness:HarnessEvolutionRecipe`` as its
 ``implementation``, GEPA as ``evolution.method`` with GEPA's own settings, and
 GEPA's validation pass as ``evolution.evaluation``. Its ``pipeline`` section
 sets the step's traces to GEPA's minibatch:

@@ -1,4 +1,4 @@
-"""Watch CORAL's finalized attempts and report each one to Reef exactly once.
+"""Watch CORAL's finalized attempts and report each one to Aster exactly once.
 
 CORAL's grader daemon finalizes every attempt as a JSON record under the
 run's ``.coral`` directory (``public/attempts/*.json``, or
@@ -18,7 +18,7 @@ inference references from the call journal and posts one
   sweep CORAL itself excludes from optimization budgets.
 - an attempt is reported once, in its first terminal state. A later regrade
   under the same commit would produce a conflicting resend of the same
-  deterministic report id, which reef rejects loudly — terminal means
+  deterministic report id, which aster rejects loudly — terminal means
   terminal.
 
 Reference resolution: the gateway journals every call with the worktree's
@@ -127,7 +127,7 @@ def read_finalized_attempts(coral_dir: Path) -> list[FinalizedAttempt]:
 
 
 class AttemptWatcher:
-    """Poll a run's attempts and report each finalized one to Reef once.
+    """Poll a run's attempts and report each finalized one to Aster once.
 
     Drive it with :meth:`poll_once` from any loop the caller owns (the
     example runs it on a thread beside CORAL's monitor loop, with a final
@@ -140,7 +140,7 @@ class AttemptWatcher:
         *,
         coral_dir: Path,
         journal: CallJournal,
-        reef_url: str,
+        aster_url: str,
         scenario: str,
         run_id: str,
         token: str | None = None,
@@ -148,13 +148,13 @@ class AttemptWatcher:
     ) -> None:
         self.coral_dir = Path(coral_dir)
         self.journal = journal
-        self.reef_url = reef_url
+        self.aster_url = aster_url
         self.scenario = scenario
         self.run_id = run_id
         self.token = token
-        self.state_path = Path(state_path) if state_path else self.coral_dir / "reef_reported.json"
+        self.state_path = Path(state_path) if state_path else self.coral_dir / "aster_reported.json"
         self.reports: list[AttemptReport] = []
-        self._reported: set[str] = set()  # commit hashes acknowledged by reef
+        self._reported: set[str] = set()  # commit hashes acknowledged by aster
         self._claimed: set[str] = set()  # journal record ids attributed to a report
         self._load_state()
 
@@ -230,9 +230,9 @@ class AttemptWatcher:
                 references=references,
             )
             try:
-                ack = report_attempt(self.reef_url, report, token=self.token)
+                ack = report_attempt(self.aster_url, report, token=self.token)
             except urllib.error.HTTPError:
-                # Reef rejected the report (e.g. a conflicting resend under the
+                # Aster rejected the report (e.g. a conflicting resend under the
                 # same deterministic id). That's a bug to surface, not retry.
                 raise
             except OSError as exc:  # connection refused / timeout — retry next poll

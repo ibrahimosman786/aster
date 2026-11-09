@@ -15,18 +15,18 @@ from tests.support._trajectories import recorded_trajectory
 from tests.support.harness_steps import COMPONENT, PI_SEED, UNCHANGED, changed_rules, harness_backend, harness_recipe
 from tests.support.job_data import job_data_ref
 
-from reef.artifact.files import DirectoryFiles
-from reef.core.job_data import JobData
-from reef.harness.tree import HarnessTree, TreePatch
-from reef.train.component import JobStatus, TrainingJob
-from reef.train.harness_backend.backend import StepProgress
-from reef.train.harness_backend.component import (
+from aster.artifact.files import DirectoryFiles
+from aster.core.job_data import JobData
+from aster.harness.tree import HarnessTree, TreePatch
+from aster.train.component import JobStatus, TrainingJob
+from aster.train.harness_backend.backend import StepProgress
+from aster.train.harness_backend.component import (
     PROGRESS_FILE,
     HarnessTrainingComponent,
     ProgressFile,
     read_step_progress,
 )
-from reef.train.jobs import JobLoop, JobLoopState, RunningJob
+from aster.train.jobs import JobLoop, JobLoopState, RunningJob
 
 MARKER = TreePatch(changed_rules("marker rules\n"))
 
@@ -176,7 +176,7 @@ def test_starts_and_jobs_are_checked_before_a_job_runs(tmp_path: Path) -> None:
     # An import's directory holds the tree alone.
     component.check_artifact(DirectoryFiles(release))
     (release / ".gitattributes").write_text("* filter=lfs\n")
-    (release / "reef-artifact.json").write_text("{}\n")
+    (release / "aster-artifact.json").write_text("{}\n")
     start = component.import_start(release)
     assert Path(start).name == PI_SEED.apply(MARKER).checksum()
     assert HarnessTree.read(Path(start)) == PI_SEED.apply(MARKER) and component.import_start(release) == start

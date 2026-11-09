@@ -3,7 +3,7 @@
 Many contracts use the simplest families to drive the bridge, the runtime,
 and the driver:
 
-- ``sft`` is the family of the built-in SFT recipe (``reef.recipe.sft``).
+- ``sft`` is the family of the built-in SFT recipe (``aster.recipe.sft``).
   It uses Slime's ``sft_loss`` and refuses advantages.
 - ``pg`` uses Slime's ``policy_loss`` with one advantage for each sample.
   This module registers it as an *external* family, through the public
@@ -19,20 +19,20 @@ from argparse import Namespace
 
 import pytest
 
-from reef.dispatcher import Dispatcher
-from reef.train.slime_backend.algorithm import SlimeAlgorithm
-from reef.train.slime_backend.loss_families import register_loss_family
+from aster.dispatcher import Dispatcher
+from aster.train.slime_backend.algorithm import SlimeAlgorithm
+from aster.train.slime_backend.loss_families import register_loss_family
 
-# The source suite exercises the repository cookbook as well as Reef core.
-# Load those packages explicitly: production ``import reef`` deliberately does
+# The source suite exercises the repository cookbook as well as Aster core.
+# Load those packages explicitly: production ``import aster`` deliberately does
 # not, while importing a selected cookbook package registers its objective and
 # lazy loss-family reference in this test process. The built-in SFT and
-# dataset recipes are loaded the same way: ``import reef`` does not import them either.
+# dataset recipes are loaded the same way: ``import aster`` does not import them either.
 for _cookbook_package in (
-    "reef.recipe.sft",
-    "reef.recipe.dataset",
-    "reef.recipe.generated_tasks",
-    "reef.train.harness_backend",
+    "aster.recipe.sft",
+    "aster.recipe.dataset",
+    "aster.recipe.generated_tasks",
+    "aster.train.harness_backend",
     "recipes.openclawrl",
     "recipes.opd",
     "recipes.sao",
@@ -60,7 +60,7 @@ def quick_server_shutdown():
     """Make every in-process server check for shutdown every 10 ms instead of every 0.5 s.
 
     ``socketserver`` servers poll for ``shutdown()`` at ``poll_interval``, so each
-    stopped server (a capture proxy, a fake Reef, a serve socket) otherwise
+    stopped server (a capture proxy, a fake Aster, a serve socket) otherwise
     blocks its test for up to 0.5 s. Child processes keep the default."""
     with pytest.MonkeyPatch.context() as patch:
         quick = functools.partialmethod(socketserver.BaseServer.serve_forever, poll_interval=0.01)

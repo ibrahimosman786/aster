@@ -1,8 +1,8 @@
 # autoenvscaling
 
-**Status: beta.** AutoEnvScaling remains under `recipes/beta/autoenvscaling/` until complete, reproducible learning results are published. The tests validate the generator, the authors, the checks and the band against stand ins; they do not run pi, Claude Code or a model, and they do not establish learning performance. See [issue #422](https://github.com/Human-Agent-Society/reef/issues/422) for this classification.
+**Status: beta.** AutoEnvScaling remains under `recipes/beta/autoenvscaling/` until complete, reproducible learning results are published. The tests validate the generator, the authors, the checks and the band against stand ins; they do not run pi, Claude Code or a model, and they do not establish learning performance. See [issue #422](https://github.com/Human-Agent-Society/aster/issues/422) for this classification.
 
-AutoEnvScaling (preprint forthcoming) as a Reef task generator: a coding agent rebuilds recorded coding-agent sessions as Harbor tasks. The agent writes one task in a workspace from one session and the repository the session changed. It runs the task's oracle and nop check itself through a tool, and revises until the check passes. A pass-rate band marks the tasks that the Reasoning Agent can reach. With `author: prompt`, the same generator runs the generator service's one-reply prompt Designer on the same sessions, as the baseline ([the prompt Designer baseline](#the-prompt-designer-baseline)).
+AutoEnvScaling (preprint forthcoming) as an Aster task generator: a coding agent rebuilds recorded coding-agent sessions as Harbor tasks. The agent writes one task in a workspace from one session and the repository the session changed. It runs the task's oracle and nop check itself through a tool, and revises until the check passes. A pass-rate band marks the tasks that the Reasoning Agent can reach. With `author: prompt`, the same generator runs the generator service's one-reply prompt Designer on the same sessions, as the baseline ([the prompt Designer baseline](#the-prompt-designer-baseline)).
 
 ## Results
 
@@ -42,11 +42,11 @@ beta/autoenvscaling/
   examples/tinker/serve.yaml   a Tinker deployment with the generator service and the generated-task recipe
 ```
 
-AutoEnvScaling is a task generator. The deployment selects it in `pipeline.record2sample.config.generator`. The built-in generated-task recipe (`reef.recipe.generated_tasks:GeneratedTaskRecipe`) hands the tasks to the training component, which runs them and trains on them. Its stages and their settings are described in [generated tasks](../../../docs/reference/configuration.rst#generated-tasks).
+AutoEnvScaling is a task generator. The deployment selects it in `pipeline.record2sample.config.generator`. The built-in generated-task recipe (`aster.recipe.generated_tasks:GeneratedTaskRecipe`) hands the tasks to the training component, which runs them and trains on them. Its stages and their settings are described in [generated tasks](../../../docs/reference/configuration.rst#generated-tasks).
 
 ## The generator
 
-`AutoEnvScalingGenerator` implements `reef.recipe.generated_tasks.TaskGenerator`. One round of the recipe is one generation:
+`AutoEnvScalingGenerator` implements `aster.recipe.generated_tasks.TaskGenerator`. One round of the recipe is one generation:
 
 1. `generate` takes the next `count` sessions of the sources file. The author rebuilds each session as a task (see [the author](#the-author)).
 2. Admission holds each task to the generator service's parser and authoring checks, the rules a prompt Designer's reply is held to. Its Dockerfile gets a last step that keeps the repository's history up to the base commit only (below).
@@ -88,7 +88,7 @@ Three kinds of failure end differently:
 
 - **An outage** is a failure the author does not cause: the session or the repository could not be fetched, the sandbox did not start, or a model call failed while the run's budget still had calls. The generation ends, and its report keeps the outage as its error. Validated tasks made before it stay in the task store, and its training tasks still run. The outage's session counts as taken.
 - **The agent's own limits** are not outages: a run that spent `max_model_calls`, ran out of time or hit its reply budget leaves its task as it stands, and admission checks it like any other task.
-- **An oracle check that cannot run**, because the generator service failed, ends the round. `GET /reef/status` shows it as the round's last error, the generation's report names it, and the task store keeps the tasks that the round published before the failure. So does a rollout request of a refusing calibration that the generator service fails ([solver calibration](#solver-calibration)). A test review that cannot run is recorded instead (see [the task checks](#the-task-checks)).
+- **An oracle check that cannot run**, because the generator service failed, ends the round. `GET /aster/status` shows it as the round's last error, the generation's report names it, and the task store keeps the tasks that the round published before the failure. So does a rollout request of a refusing calibration that the generator service fails ([solver calibration](#solver-calibration)). A test review that cannot run is recorded instead (see [the task checks](#the-task-checks)).
 
 ### The report and the task store
 
@@ -108,8 +108,8 @@ The generator's `config` keys:
 | `count` | 8 | sessions in each generation |
 | `band_low`, `band_high` | 0.25, 0.75 | the pass-rate band; null is no bound |
 | `agent_model` | required | the Designer's model |
-| `agent_reef_url` | required | the Reef that serves `agent_model`, records its calls and holds the sessions |
-| `agent_token_env` | `REEF_TOKEN` | the environment variable that holds that Reef's token |
+| `agent_aster_url` | required | the Aster that serves `agent_model`, records its calls and holds the sessions |
+| `agent_token_env` | `ASTER_TOKEN` | the environment variable that holds that Aster's token |
 | `agent_api` | `openai` | `openai`, `responses` or `anthropic`; the prompt Designer takes `openai` or `responses` |
 | `max_checks` | 6 | the agent's checks that ran, in one run |
 | `max_model_calls` | 250 | the agent's model calls in one run; Claude Code's turns (`--max-turns`) |
@@ -119,7 +119,7 @@ The generator's `config` keys:
 | `adaptive` | false | vary tasks outside the band in later generations ([adaptive generation](#adaptive-generation)); needs `author: agent` |
 | `variant_share` | 0.5 | with `adaptive`, the largest share of a generation's slots that go to variants, rounded down; a share that gives no slot is refused |
 
-Set `eval_fraction` and `split_seed` in `pipeline.record2sample.config`, outside the generator configuration. Their defaults are 0.0 and 0. The task store keeps each published task's split, not these settings. After a restart, published tasks keep their split and new tasks are placed with the settings in force. Reef does not refuse a changed `eval_fraction` or `split_seed`, so keep both fixed for the life of a scenario.
+Set `eval_fraction` and `split_seed` in `pipeline.record2sample.config`, outside the generator configuration. Their defaults are 0.0 and 0. The task store keeps each published task's split, not these settings. After a restart, published tasks keep their split and new tasks are placed with the settings in force. Aster does not refuse a changed `eval_fraction` or `split_seed`, so keep both fixed for the life of a scenario.
 
 ## The author
 
@@ -127,11 +127,11 @@ The author is pi, Reefine's pinned coding agent, in an E2B sandbox. It reads the
 
 Its one tool, `task_check`, runs the workspace's task through admission and Harbor's oracle and nop agents on the generator service, and answers with both rewards and, for a failing task, the reason. A check that could not run uses up none of `max_checks`.
 
-The agent holds no credential. Its model calls go through a loopback gateway that sends each one to `agent_reef_url` under the generator's scenario, with the token from `agent_token_env` and the tags `role: designer`, `generation` and `index`, so each call is an inference record. A run lasts at most `agent_timeout_seconds` and makes at most `max_model_calls` model calls. Each run keeps the task and pi's session log in `state_dir/<scenario>/runs/<generation>-<index>/`.
+The agent holds no credential. Its model calls go through a loopback gateway that sends each one to `agent_aster_url` under the generator's scenario, with the token from `agent_token_env` and the tags `role: designer`, `generation` and `index`, so each call is an inference record. A run lasts at most `agent_timeout_seconds` and makes at most `max_model_calls` model calls. Each run keeps the task and pi's session log in `state_dir/<scenario>/runs/<generation>-<index>/`.
 
 ### Claude Code as the author
 
-With `author_harness: claude-code`, the agent is Claude Code, at the version Reef pins, in the same sandbox, with the same inputs, rules and checks. It is signed in with a Claude Code OAuth token that its owner made with `claude setup-token`:
+With `author_harness: claude-code`, the agent is Claude Code, at the version Aster pins, in the same sandbox, with the same inputs, rules and checks. It is signed in with a Claude Code OAuth token that its owner made with `claude setup-token`:
 
 ```yaml
 pipeline:
@@ -149,14 +149,14 @@ pipeline:
 export CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-...   # the variable claude_token_env names
 ```
 
-- Claude Code sends every model call itself, straight to Anthropic, and Reef records none of them. The generator still reads the sessions from `agent_reef_url` with the token from `agent_token_env`, and the test review still calls `agent_model` there through `agent_api`.
+- Claude Code sends every model call itself, straight to Anthropic, and Aster records none of them. The generator still reads the sessions from `agent_aster_url` with the token from `agent_token_env`, and the test review still calls `agent_model` there through `agent_api`.
 - The author passes the token through the existing sandbox environment. The sandbox launcher puts environment values in bubblewrap's command arguments, so the token can appear in process arguments and launcher diagnostics. Claude Code removes it from the environment of its shell commands.
 - The author redacts its log and error messages and replaces the token in retained run files and file names. It refuses a check of a task that holds the token, including through a symbolic link. Such a task is not admitted, and generation ends with stage `credential`: the token may have left the sandbox. Make a new token before the next run.
-- The agent checks its task with the command `python3 "$REEF_AUTHOR_CHECK"`, the same check as pi's tool. The command waits up to 9 minutes; for a longer check it prints `state: running` and the `--wait <check_id>` command that waits again.
+- The agent checks its task with the command `python3 "$ASTER_AUTHOR_CHECK"`, the same check as pi's tool. The command waits up to 9 minutes; for a longer check it prints `state: running` and the `--wait <check_id>` command that waits again.
 - A run ends at `agent_timeout_seconds` or after `max_model_calls` turns, Claude Code's own limit; either way its task stands. Any other error of Claude Code's (a spent plan, a refused token) is an outage.
-- The task names one source record, the session's, so a variant keeps its parent's split. Its metadata names the transcript, `designer_transcript`, relative to `state_dir/<scenario>/`, and `designer_harness: claude-code`. Each run keeps Claude Code's transcript under `claude/projects/` in its run directory. Reef deletes Claude Code's other state there, which can hold the account's email.
+- The task names one source record, the session's, so a variant keeps its parent's split. Its metadata names the transcript, `designer_transcript`, relative to `state_dir/<scenario>/`, and `designer_harness: claude-code`. Each run keeps Claude Code's transcript under `claude/projects/` in its run directory. Aster deletes Claude Code's other state there, which can hold the account's email.
 
-Reef refuses at startup a token that is missing or is no Claude Code OAuth token (`sk-ant-oat...`). It also refuses an `agent_sandbox_options.env_from` variable that would win over the run's own setup: an `ANTHROPIC_*` or `CLAUDE_*` variable, a `*BASE_URL*` or `*PROXY*` variable, a variable the run sets (such as `HOME`, `DISABLE_ERROR_REPORTING` or `BASH_MAX_TIMEOUT_MS`), or a variable whose value holds the token.
+Aster refuses at startup a token that is missing or is no Claude Code OAuth token (`sk-ant-oat...`). It also refuses an `agent_sandbox_options.env_from` variable that would win over the run's own setup: an `ANTHROPIC_*` or `CLAUDE_*` variable, a `*BASE_URL*` or `*PROXY*` variable, a variable the run sets (such as `HOME`, `DISABLE_ERROR_REPORTING` or `BASH_MAX_TIMEOUT_MS`), or a variable whose value holds the token.
 
 ## The band
 
@@ -174,7 +174,7 @@ The band marks a task after the recipe trained on it. The calibration measures t
 
 Upstream also gives a task below the band one rollout with hints from the reference solution. Only its proposer revision feedback reads that reward. This generator has no such feedback, so the calibration runs no hint rollout.
 
-The calibration is the last task check in `validate`, so it runs only when the oracle check, a refusing contamination check and a refusing test review all pass. It asks the generator service (`POST /rollouts`) for rollouts of the task's copy on the arm `calibration`, with `calibration_model`. Without it, the rollouts use the generator service's default model: its deployment's `inference.upstream-model`, else its `model-path`. In the example's Tinker deployment, that is the policy in training, `Qwen/Qwen3-8B`. When you save the tasks first, as below, on [`recipes/basic/external-provider.yaml`](../../basic/external-provider.yaml), it is that provider's `gpt-4o`, so the calibration measures `gpt-4o` and not the policy; name the solver in `calibration_model` when that deployment's Reef can serve it. The agent is the generator service's own (`generator.agent`). Reef keeps no record of these rollouts, and nothing trains on them.
+The calibration is the last task check in `validate`, so it runs only when the oracle check, a refusing contamination check and a refusing test review all pass. It asks the generator service (`POST /rollouts`) for rollouts of the task's copy on the arm `calibration`, with `calibration_model`. Without it, the rollouts use the generator service's default model: its deployment's `inference.upstream-model`, else its `model-path`. In the example's Tinker deployment, that is the policy in training, `Qwen/Qwen3-8B`. When you save the tasks first, as below, on [`recipes/basic/external-provider.yaml`](../../basic/external-provider.yaml), it is that provider's `gpt-4o`, so the calibration measures `gpt-4o` and not the policy; name the solver in `calibration_model` when that deployment's Aster can serve it. The agent is the generator service's own (`generator.agent`). Aster keeps no record of these rollouts, and nothing trains on them.
 
 The calibration has a mode:
 
@@ -288,20 +288,20 @@ List the sessions in a sources file:
 ]
 ```
 
-`record_id` and `scenario` name an inference record on the Designer's Reef (import sessions with `POST /reef/records/batch`). `commit` is the commit the session started from, and `path` is where the task's environment checks the repository out. The Designer's Reef serves `agent_model`, for example a record-only deployment such as [`recipes/basic/external-provider.yaml`](../../basic/external-provider.yaml) on another port. Its `inference.timeout-s` must allow one agent turn. Then:
+`record_id` and `scenario` name an inference record on the Designer's Aster (import sessions with `POST /aster/records/batch`). `commit` is the commit the session started from, and `path` is where the task's environment checks the repository out. The Designer's Aster serves `agent_model`, for example a record-only deployment such as [`recipes/basic/external-provider.yaml`](../../basic/external-provider.yaml) on another port. Its `inference.timeout-s` must allow one agent turn. Then:
 
 ```bash
-export REEF_TOKEN=reef-local REEF_AUTOENVSCALING_STATE_DIR="$PWD/work/autoenvscaling"   # and TINKER_API_KEY, E2B_API_KEY
-export REEF_AUTOENVSCALING_SOURCES_PATH="$PWD/sources.json"
-export REEF_AUTOENVSCALING_DESIGNER_URL=http://127.0.0.1:8901 REEF_AUTOENVSCALING_DESIGNER_TOKEN=<its token>
-reef serve -c recipes/beta/autoenvscaling/examples/tinker/serve.yaml
-curl -s -X POST -H "Authorization: Bearer $REEF_TOKEN" -H "Content-Type: application/json" \
-  -d '{"name": "autoenvscaling"}' http://127.0.0.1:8900/reef/scenarios
-curl -s -X POST -H "Authorization: Bearer $REEF_AUTOENVSCALING_DESIGNER_TOKEN" -H "Content-Type: application/json" \
-  -d '{"name": "autoenvscaling"}' "$REEF_AUTOENVSCALING_DESIGNER_URL/reef/scenarios"
+export ASTER_TOKEN=aster-local ASTER_AUTOENVSCALING_STATE_DIR="$PWD/work/autoenvscaling"   # and TINKER_API_KEY, E2B_API_KEY
+export ASTER_AUTOENVSCALING_SOURCES_PATH="$PWD/sources.json"
+export ASTER_AUTOENVSCALING_DESIGNER_URL=http://127.0.0.1:8901 ASTER_AUTOENVSCALING_DESIGNER_TOKEN=<its token>
+aster serve -c recipes/beta/autoenvscaling/examples/tinker/serve.yaml
+curl -s -X POST -H "Authorization: Bearer $ASTER_TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "autoenvscaling"}' http://127.0.0.1:8900/aster/scenarios
+curl -s -X POST -H "Authorization: Bearer $ASTER_AUTOENVSCALING_DESIGNER_TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "autoenvscaling"}' "$ASTER_AUTOENVSCALING_DESIGNER_URL/aster/scenarios"
 ```
 
-`reef serve` creates no scenario on its own. The first `POST /reef/scenarios` above creates the training scenario, and round 0 starts when the recipe's pipeline first looks for job data after that. The second one creates the same scenario on the Designer's Reef, which records the Designer's model calls under it and answers only a scenario that exists. Each generation writes `generations/autoenvscaling/generation-<n>.json` under the state directory. The recipe keeps each task, its split and its rollout result in the scenario's task store.
+`aster serve` creates no scenario on its own. The first `POST /aster/scenarios` above creates the training scenario, and round 0 starts when the recipe's pipeline first looks for job data after that. The second one creates the same scenario on the Designer's Aster, which records the Designer's model calls under it and answers only a scenario that exists. Each generation writes `generations/autoenvscaling/generation-<n>.json` under the state directory. The recipe keeps each task, its split and its rollout result in the scenario's task store.
 
 Optional, for an upstream that serves only the Responses API (a ChatGPT plan): set `agent_api: responses` for the agent, and `model_name: "openai/responses/{model}"` in `generator.agent` for the Reasoning Agent's Harbor agent.
 
@@ -318,13 +318,13 @@ The built-in generated-task recipe trains a generation's tasks only after the wh
    from pathlib import Path
 
    from recipes.beta.autoenvscaling import AutoEnvScalingGenerator
-   from reef.pipeline_context import PipelineContext
-   from reef.recipe.generated_tasks import GeneratedTaskSamples, GeneratedTaskSettings
-   from reef.recipe.generated_tasks.processor import GenerationJob, next_generation
-   from reef.storage.samples import SampleStore
-   from reef.storage.sql_data import SQLiteDataStore
-   from reef.storage.sqlite import SQLiteScenarioStorage
-   from reef.storage.tasks import LocalTaskFileStore
+   from aster.pipeline_context import PipelineContext
+   from aster.recipe.generated_tasks import GeneratedTaskSamples, GeneratedTaskSettings
+   from aster.recipe.generated_tasks.processor import GenerationJob, next_generation
+   from aster.storage.samples import SampleStore
+   from aster.storage.sql_data import SQLiteDataStore
+   from aster.storage.sqlite import SQLiteScenarioStorage
+   from aster.storage.tasks import LocalTaskFileStore
 
 
    async def save_tasks(generator_config: dict[str, object], rounds: int, state_dir: str) -> None:
@@ -357,14 +357,14 @@ The built-in generated-task recipe trains a generation's tasks only after the wh
 2. **Train from the saved tasks.** Start the example in the environment of [Run it](#run-it) with `rounds` at the number of generations that step 1 built, and create the scenario as there. Those generations are complete, so the recipe generates no more: it saves their train tasks as task items that the scenario uses and trains them, up to `buffer_size` tasks in one job.
 
    ```bash
-   reef serve -c recipes/beta/autoenvscaling/examples/tinker/serve.yaml --pipeline.record2sample.config.rounds 4
+   aster serve -c recipes/beta/autoenvscaling/examples/tinker/serve.yaml --pipeline.record2sample.config.rounds 4
    ```
 
 ## Requirements
 
 - For Claude Code as the agent, a Claude Code OAuth token in `claude_token_env`.
-- For the agent, a cloud sandbox: an E2B API key in `E2B_API_KEY` and the `e2b` extra (`pip install 'reef-infra[e2b]'`), or with `agent_sandbox: modal`, Modal's credentials (`MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`, or `~/.modal.toml`) and the `modal` extra. The sandbox runs pi, or Claude Code, from an image Reef builds on first use.
-- For the agent, `git` on the Reef host, for the repository snapshots.
+- For the agent, a cloud sandbox: an E2B API key in `E2B_API_KEY` and the `e2b` extra (`pip install 'aster-infra[e2b]'`), or with `agent_sandbox: modal`, Modal's credentials (`MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`, or `~/.modal.toml`) and the `modal` extra. The sandbox runs pi, or Claude Code, from an image Aster builds on first use.
+- For the agent, `git` on the Aster host, for the repository snapshots.
 - Docker and the `harbor` command line on the generator service's host, as for SPADE.
 
-Known limits: with `agent_reef_url` on the training deployment itself, the agent's calls share the training scenario, and the recipe's record-to-sample stage keeps the ones no report references in memory. A long run should record them on a separate Designer's Reef, as the example does. No run has used the Claude Code image on E2B or Modal yet, so start `author_harness: claude-code` with one session.
+Known limits: with `agent_aster_url` on the training deployment itself, the agent's calls share the training scenario, and the recipe's record-to-sample stage keeps the ones no report references in memory. A long run should record them on a separate Designer's Aster, as the example does. No run has used the Claude Code image on E2B or Modal yet, so start `author_harness: claude-code` with one session.

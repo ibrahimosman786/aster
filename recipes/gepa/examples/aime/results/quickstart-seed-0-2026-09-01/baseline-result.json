@@ -85,7 +85,7 @@
   ],
   "evaluations_per_arm": 450,
   "exact_score_vector_match": false,
-  "failed_reef_indices": [],
+  "failed_aster_indices": [],
   "lower_confidence_bound": -0.051319580495503114,
   "noninferiority_margin": 0.1,
   "official_score": 0.22,
@@ -591,9 +591,9 @@
   ],
   "prompt": "You are a helpful assistant. Answer the question. Put your final answer in the format '### <answer>'",
   "prompt_sha256": "fd61d4bd0526c2802d8b41d0a31c6a5d96c55983a89c27358735488277106fc2",
-  "reef_minus_official_score": -0.013333333333333336,
-  "reef_score": 0.20666666666666667,
-  "reef_scores": [
+  "aster_minus_official_score": -0.013333333333333336,
+  "aster_score": 0.20666666666666667,
+  "aster_scores": [
     0.0,
     0.0,
     0.0,
@@ -1060,7 +1060,7 @@
       "reasoning_tokens": 0,
       "requests": 450
     },
-    "reef": {
+    "aster": {
       "cached_input_tokens": 0,
       "input_tokens": 59179,
       "output_tokens": 2034849,

@@ -1,4 +1,4 @@
-"""Stand-ins for AutoEnvScaling's tests: sessions and sources, an author, a sandbox, a Reef and a generator.
+"""Stand-ins for AutoEnvScaling's tests: sessions and sources, an author, a sandbox, an Aster and a generator.
 
 The generator service itself is :class:`~tests.support.task_service_stubs.StandInGenerator`.
 """
@@ -36,13 +36,13 @@ from recipes.beta.autoenvscaling import author as author_module
 from recipes.beta.autoenvscaling import load_sources, workspace_reply
 from recipes.beta.autoenvscaling.author import AgentTools, ModelCalls, RecordingGateway, TaskVariant
 from recipes.beta.autoenvscaling.checks import PassRateBand
-from reef.core.tasks import HarborTask
-from reef.execution.sandbox.e2b import E2BExecutor, E2BSession
-from reef.execution.sandbox.process import ProcessOutcome, ProgramExecutor, ProgramLaunchError, SandboxProgram
-from reef.harness.harbor.rollouts import TaskRollout
-from reef.recipe.generated_tasks.generator import GeneratedTaskResult, RejectedTask, RolledOutTask
-from reef.record2sample.generator import GeneratorError, WrittenTask
-from reef.record2sample.generator.inputs import TaskGenerationRequest
+from aster.core.tasks import HarborTask
+from aster.execution.sandbox.e2b import E2BExecutor, E2BSession
+from aster.execution.sandbox.process import ProcessOutcome, ProgramExecutor, ProgramLaunchError, SandboxProgram
+from aster.harness.harbor.rollouts import TaskRollout
+from aster.recipe.generated_tasks.generator import GeneratedTaskResult, RejectedTask, RolledOutTask
+from aster.record2sample.generator import GeneratorError, WrittenTask
+from aster.record2sample.generator.inputs import TaskGenerationRequest
 
 
 def stand_in_e2b_package(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -137,9 +137,9 @@ def run_agent(
     has_behaviour_rule: bool = True,
     variant: TaskVariant | None = None,
 ) -> None:
-    """The agent's run in ``tmp_path / "run"`` over a scripted sandbox, its calls through a gateway to no Reef."""
+    """The agent's run in ``tmp_path / "run"`` over a scripted sandbox, its calls through a gateway to no Aster."""
     author = AgentAuthor(
-        reef_url="http://127.0.0.1:9",
+        aster_url="http://127.0.0.1:9",
         token=None,
         scenario="autoenvscaling",
         model="designer",
@@ -183,12 +183,12 @@ SESSION = {
 }
 
 
-def serving_reef(reply: str) -> tuple[ThreadingHTTPServer, list[dict[str, Any]]]:
-    """A stand-in Reef: it serves ``SESSION`` as every record and answers each model call with ``reply`` and a
+def serving_aster(reply: str) -> tuple[ThreadingHTTPServer, list[dict[str, Any]]]:
+    """A stand-in Aster: it serves ``SESSION`` as every record and answers each model call with ``reply`` and a
     receipt, in the dialect of the route called; the calls it took are listed."""
     calls: list[dict[str, Any]] = []
 
-    class Reef(BaseHTTPRequestHandler):
+    class Aster(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
             self.answer(json.dumps({"payload": SESSION}).encode(), {})
 
@@ -205,7 +205,7 @@ def serving_reef(reply: str) -> tuple[ThreadingHTTPServer, list[dict[str, Any]]]
                 if self.path == "/v1/responses"
                 else {"choices": [{"message": {"role": "assistant", "content": reply}}]}
             )
-            self.answer(json.dumps(answer).encode(), {"x-reef-agent-record-id": f"rec-{len(calls)}"})
+            self.answer(json.dumps(answer).encode(), {"x-aster-agent-record-id": f"rec-{len(calls)}"})
 
         def answer(self, data: bytes, headers: Mapping[str, str]) -> None:
             self.send_response(200)
@@ -219,7 +219,7 @@ def serving_reef(reply: str) -> tuple[ThreadingHTTPServer, list[dict[str, Any]]]
         def log_message(self, format: str, *args: object) -> None:
             return None
 
-    server = ThreadingHTTPServer(("127.0.0.1", 0), Reef)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Aster)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server, calls
 
@@ -450,6 +450,6 @@ def generating_config(tmp_path: Path, **fields: object) -> dict[str, object]:
         "state_dir": str(tmp_path / "state"),
         "sources_path": str(sources_file(tmp_path, 2)),
         "agent_model": "gpt-6-sol",
-        "agent_reef_url": "http://127.0.0.1:8901",
+        "agent_aster_url": "http://127.0.0.1:8901",
         **fields,
     }

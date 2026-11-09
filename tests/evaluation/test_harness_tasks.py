@@ -1,17 +1,17 @@
 """The tasks each harness step evaluates: the seed tasks, then the prompts collected from failing traffic.
 
 ``EvaluationTasks.for_step`` takes a step's trace samples and the collection
-state the previous step committed; Reef screens, dedupes and caps what it
+state the previous step committed; Aster screens, dedupes and caps what it
 collects. The end-to-end run of collection through a step is in
-``tests/reef_service/test_harness_recipe.py``.
+``tests/aster_service/test_harness_recipe.py``.
 """
 
 from __future__ import annotations
 
 from tests.support.harness_steps import traced
 
-from reef.evaluation.harness import EvaluationTasks, TaskCollector
-from reef.evaluation.harness.tasks import prompt_of
+from aster.evaluation.harness import EvaluationTasks, TaskCollector
+from aster.evaluation.harness.tasks import prompt_of
 
 SEED = ("task one",)
 
@@ -56,7 +56,7 @@ def test_collection_caps_each_tagged_client_and_exempts_untagged() -> None:
     assert second.collected_clients == {"alice": 2, "bob": 2}
 
 
-def test_a_collector_picks_the_prompts_and_reef_still_screens_and_caps_them() -> None:
+def test_a_collector_picks_the_prompts_and_aster_still_screens_and_caps_them() -> None:
     key = "sk-476-POLICY-KEY-0123456789abcdef"
 
     class KeepMarked(TaskCollector):

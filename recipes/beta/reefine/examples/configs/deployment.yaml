@@ -1,12 +1,12 @@
 # Run from the repository root:
-# reef serve -c recipes/beta/reefine/examples/configs/deployment.yaml
+# aster serve -c recipes/beta/reefine/examples/configs/deployment.yaml
 # The Reefine recipe (beta) with its state under recipes/beta/reefine/examples/work/,
 # training_mode manual and the evaluation's policy set to floor. ./run.sh starts it,
 # installs the served tree and runs run.py <demo>.
-reef:
+aster:
   host: 127.0.0.1
   port: 8901
-  token: reef-local
+  token: aster-local
   run-dir: recipes/beta/reefine/examples/work/deployment/stack
 
 recipe:
@@ -22,8 +22,8 @@ recipe:
       # Each step's workspace (its tree, material, calls and output) and the history of every candidate, one
       # directory per scenario.
       state_dir: recipes/beta/reefine/examples/work/deployment/harness
-      # No binary: at startup reef installs the descriptor's pinned pi under
-      # ~/.local/share/reef-harness/pi, which the demo's show session runs too.
+      # No binary: at startup aster installs the descriptor's pinned pi under
+      # ~/.local/share/aster-harness/pi, which the demo's show session runs too.
       # Set evolution.binary to a path to use an install of your own instead.
       evaluation:
         # The floor runs the candidate alone on the health task and publishes it when the task passes: it checks
@@ -32,23 +32,23 @@ recipe:
         policy: floor
         scorer: recipes.beta.reefine.scorer:AnswerScorer
         tasks:
-          - '[health] Run the shell command `echo reef-ok` with your shell tool and reply with its exact output
+          - '[health] Run the shell command `echo aster-ok` with your shell tool and reply with its exact output
             as a plain word alone on the last line.'
       # No seed: the first tree is the recipe's own (recipes/beta/reefine/seed), the starter skill.
     # One step per request and no failure driven step between them: the measurement counts a step per request.
     training-mode: manual
 
 # Every kept tree serves at once, except one that changes an extension: an evolved extension runs in pi's process
-# with your privileges, so a person activates it (POST /reef/scenarios/{scenario}/activate).
+# with your privileges, so a person activates it (POST /aster/scenarios/{scenario}/activate).
 activation:
   module: always
   config:
     review_kinds: [extension]
 
 inference:
-  upstream-url: ${REEF_UPSTREAM_URL:?}
-  upstream-model: ${REEF_UPSTREAM_MODEL:?}
-  upstream-api-key: ${REEF_UPSTREAM_API_KEY}
+  upstream-url: ${ASTER_UPSTREAM_URL:?}
+  upstream-model: ${ASTER_UPSTREAM_MODEL:?}
+  upstream-api-key: ${ASTER_UPSTREAM_API_KEY}
 storage:
   agent-record-dir: recipes/beta/reefine/examples/work/deployment/agent-record
   artifact-repository: recipes/beta/reefine/examples/work/deployment/artifacts.git

@@ -11,13 +11,13 @@ from urllib.parse import quote
 from aiohttp import ClientError, ClientSession, ClientTimeout, web
 
 SCENARIO = os.environ.get("OPD_ROUTING_SCENARIO", "route-opd-smoke")
-MARKER = "REEF_TEACHER_CONTROL"
+MARKER = "ASTER_TEACHER_CONTROL"
 NATIVE_URL = os.environ.get("OPD_NATIVE_URL", "http://127.0.0.1:8900").rstrip("/")
 TEACHER_URL = os.environ.get("OPD_TEACHER_URL", "http://127.0.0.1:30001").rstrip("/")
 
 
 def sampling_digest(payload: dict) -> str:
-    """Identify the prompt, seed and sampling parameters shared across the two Reef records."""
+    """Identify the prompt, seed and sampling parameters shared across the two Aster records."""
     fields = {key: payload[key] for key in ("messages", "seed", "temperature", "top_p", "max_tokens")}
     return hashlib.sha256(json.dumps(fields, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
@@ -26,10 +26,10 @@ def target_app(role: str, session: ClientSession) -> web.Application:
     """One provider alias forwarding to its native backend, with at most one generation per experiment input."""
     student = role == "student"
     base = NATIVE_URL if student else TEACHER_URL
-    token = os.environ["REEF_TOKEN"] if student else os.environ.get("OPD_TEACHER_API_KEY")
+    token = os.environ["ASTER_TOKEN"] if student else os.environ.get("OPD_TEACHER_API_KEY")
     headers = {"Authorization": f"Bearer {token}"} if token else {}
     if student:
-        headers["x-reef-scenario"] = SCENARIO
+        headers["x-aster-scenario"] = SCENARIO
     served_model = (
         os.environ.get("OPD_STUDENT_MODEL", "Qwen3-0.6B") if student else os.environ.get("OPD_TEACHER_MODEL")
     )
@@ -78,13 +78,13 @@ def target_app(role: str, session: ClientSession) -> web.Application:
                 result = await reply.json()
                 if not isinstance(result, dict) or not result.get("choices"):
                     raise ValueError("Backend returned no chat choices")
-                receipt = reply.headers.get("x-reef-agent-record-id")
+                receipt = reply.headers.get("x-aster-agent-record-id")
             generation_seconds = time.monotonic() - started
             artifact = None
             if student:
                 if not receipt:
-                    raise web.HTTPBadGateway(text="Native student response has no Reef receipt")
-                record_url = f"{base}/reef/scenarios/{quote(SCENARIO, safe='')}/records/{quote(receipt, safe='')}"
+                    raise web.HTTPBadGateway(text="Native student response has no Aster receipt")
+                record_url = f"{base}/aster/scenarios/{quote(SCENARIO, safe='')}/records/{quote(receipt, safe='')}"
                 async with session.get(record_url, headers=headers, allow_redirects=False) as reply:
                     if reply.status != 200:
                         raise web.HTTPBadGateway(text=f"Native record lookup returned HTTP {reply.status}")
@@ -113,8 +113,8 @@ def target_app(role: str, session: ClientSession) -> web.Application:
 
 
 async def main() -> None:
-    if not os.environ.get("REEF_TOKEN"):
-        raise SystemExit("Set REEF_TOKEN to the native OPD Reef token")
+    if not os.environ.get("ASTER_TOKEN"):
+        raise SystemExit("Set ASTER_TOKEN to the native OPD Aster token")
     async with ClientSession(timeout=ClientTimeout(total=1800), trust_env=False) as session, AsyncExitStack() as stack:
         for role, port in (("student", 18911), ("teacher", 18912)):
             runner = web.AppRunner(target_app(role, session), access_log=None)

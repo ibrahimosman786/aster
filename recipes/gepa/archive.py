@@ -4,7 +4,7 @@ GEPA keeps its whole search in one state object: every program
 it ever proposed, that program's per-instance validation scores, the Pareto
 front each instance induces, a round-robin cursor per candidate, and the
 metric-call budget spent so far. The method keeps this object in its
-``state/archive.json`` (``Archive.to_state``), which Reef commits with each
+``state/archive.json`` (``Archive.to_state``), which Aster commits with each
 step, so a step that fails or is never committed cannot advance the search.
 
 Two rules are GEPA's and are reproduced exactly:

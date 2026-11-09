@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from reef.core.weight_layout import WeightFiles
-from reef.inference.interfaces import AdapterEngine
-from reef.inference.residency import (
+from aster.core.weight_layout import WeightFiles
+from aster.inference.interfaces import AdapterEngine
+from aster.inference.residency import (
     AdapterCapacityExhausted,
     AdapterEvictionFailed,
     AdapterResidencyError,
@@ -237,7 +237,7 @@ def test_capacity_and_names_must_be_well_formed(engine: FakeEngine) -> None:
 
 
 class AmbiguousEngine(FakeEngine):
-    """Loads the adapter, then the reply is lost: Reef sees a timeout."""
+    """Loads the adapter, then the reply is lost: Aster sees a timeout."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -267,7 +267,7 @@ def test_ambiguous_load_timeout_is_cleaned_up_and_the_retry_succeeds() -> None:
     engine.ambiguous.add(name)
     with pytest.raises(AdapterResidencyError, match="could not load"):
         manager.activate("a", "v2", engine, files=FILES)
-    # Deterministic outcome: Reef counts no slot, and the engine was told to
+    # Deterministic outcome: Aster counts no slot, and the engine was told to
     # drop the name, so neither side holds v2 after the ambiguous attempt.
     assert current(manager, "a") == "v1"
     assert name not in engine.resident

@@ -6,7 +6,7 @@ import math
 
 import pytest
 
-from reef.core.serving_config import ServingConfig
+from aster.core.serving_config import ServingConfig
 
 
 @pytest.mark.unit

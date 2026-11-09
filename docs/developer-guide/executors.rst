@@ -3,14 +3,14 @@ Training components, serving and executors
 
 Aster's runtime has three boundaries. Each one has its own contract:
 
-- A **training component** (``reef.train.component.TrainingComponent``) runs
+- A **training component** (``aster.train.component.TrainingComponent``) runs
   whole training jobs with its framework's own training loop and saves
   checkpoints. Aster submits jobs and reads their status. It does not drive
   optimizer steps.
-- An **inference runtime** (``reef.inference.interfaces.InferenceRuntime``)
+- An **inference runtime** (``aster.inference.interfaces.InferenceRuntime``)
   admits requests and serves the weights that Aster published. It never
   trains.
-- An **executor** (``reef.execution.executor.Executor``) launches workers and
+- An **executor** (``aster.execution.executor.Executor``) launches workers and
   carries ordered control RPC, health checks and shutdown. Configuration
   selects a concrete executor; callers use the same methods.
 
@@ -77,7 +77,7 @@ Each ``SavedCheckpoint`` has a ``path`` (what a later job starts from) and a
 ``artifact_path`` (the weights that serving loads, without training state).
 
 A weight trainer has one training component, and it drives the component
-through ``reef.train.jobs.JobLoop``:
+through ``aster.train.jobs.JobLoop``:
 
 #. When no job runs, the trainer reserves ready job data. The pipeline's
    sample-to-job stage gives the job's parameters, by the kind of its samples. The job's backend is the
@@ -111,7 +111,7 @@ carries its own start. The Slime component does not: its workers hold one set
 of weights, so a Slime deployment trains one scenario. The inference runtime
 must also serve each scenario its own weights.
 
-``reef.train.local_jobs.LocalJobComponent`` is the base of the built-in
+``aster.train.local_jobs.LocalJobComponent`` is the base of the built-in
 components. It keeps each job in a directory under the component's job root:
 ``job.json``, ``checkpoints.json`` and, once the job ended, ``result.json``.
 It runs jobs one at a time in a thread. A subclass implements ``check_job``
@@ -129,12 +129,12 @@ Serving loads only the weights that a job saved and Aster published. It loads
 them when a scenario starts, when a committed snapshot is activated, and when
 a person activates a snapshot. No trainer holds a serving engine.
 
-``reef.inference.serving`` has two runtimes over an ``InferenceBackend``:
+``aster.inference.serving`` has two runtimes over an ``InferenceBackend``:
 
 - ``AdapterServingRuntime`` serves each scenario its own PEFT adapter on one
   base model. Requests name the adapter per scenario. At most
   ``adapter_capacity`` adapters are resident.
-  ``reef.inference.residency.AdapterResidencyManager`` evicts a leaked
+  ``aster.inference.residency.AdapterResidencyManager`` evicts a leaked
   adapter first, then the oldest-activated adapter that is no scenario's
   current one.
 - ``FullWeightServingRuntime`` serves one scenario's full Hugging Face
@@ -148,9 +148,9 @@ reuses an ID for other weights. Loading content that the engines already serve
 does nothing.
 
 The ``inference`` section selects the serving, not the training backend
-(``reef.service.deploy.serving``). With ``inference.serving: engines``,
+(``aster.service.deploy.serving``). With ``inference.serving: engines``,
 ``aster serve`` starts a local **inference component** (``python -m
-reef.inference.remote``) as the ``inference`` service, unless
+aster.inference.remote``) as the ``inference`` service, unless
 ``inference.remote`` names a component that runs elsewhere. The control plane
 reaches the component through ``RemoteInferenceBackend`` and the runtime kind
 ``remote_serving``. The training component's ``artifact_format`` chooses the
@@ -167,7 +167,7 @@ dead ones), loads each scenario's active selection into them, and resumes.
 Engine supervision
 ------------------
 
-``reef.inference.recovery.InferenceControl`` pauses, resumes and recovers the
+``aster.inference.recovery.InferenceControl`` pauses, resumes and recovers the
 engines of one inference service. The engine integration implements its two
 hooks:
 
@@ -180,13 +180,13 @@ partial pause failure still fences replacement engines. Recovery stops
 monitoring and replaces dead engines. It pauses them again when generation
 was paused. A failed recovery keeps generation paused. Only ``resume`` lets
 the engines serve again. Each engine actor implements
-``reef.inference.interfaces.InferenceEngine``, the per-engine vocabulary that
+``aster.inference.interfaces.InferenceEngine``, the per-engine vocabulary that
 the group and the backend call by name.
 
 Engine health monitoring
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-``reef.inference.recovery.EngineHealthMonitor`` owns probe scheduling.
+``aster.inference.recovery.EngineHealthMonitor`` owns probe scheduling.
 ``pause()`` disables new checks. It waits for the active probe or retirement
 to finish before the owner can replace or terminate engines. The monitor
 discards a late probe failure after the pause begins. A drain timeout leaves
@@ -210,10 +210,10 @@ owning controller.
 Independent SGLang backend
 --------------------------
 
-``reef/inference/sglang/`` owns the chat backend, SGLang plugin, native
+``aster/inference/sglang/`` owns the chat backend, SGLang plugin, native
 engine process, router, Ray engine groups and inference lifecycle. Native
 ``ServerArgs`` and ``launch_server`` come directly from SGLang, not from
-Slime. The runtime-load-ID value type lives in ``reef.inference.interfaces``.
+Slime. The runtime-load-ID value type lives in ``aster.inference.interfaces``.
 
 Install ``aster-infra[sglang]`` for Python-side inference dependencies and install
 native SGLang in the selected GPU environment. This extra does not install
@@ -222,7 +222,7 @@ Slime or Megatron.
 Engines load published weights from files. The engine control worker's
 ``load_weights_from_disk`` reloads full weights through SGLang's
 ``update_weights_from_disk``. Its ``load_adapter_from_disk`` loads an adapter
-through ``load_lora_adapter_from_disk``. The plugin name ``reef`` is
+through ``load_lora_adapter_from_disk``. The plugin name ``aster`` is
 preserved.
 
 CPU tests cover native launch bindings, multi-node rendezvous, shared placement,
@@ -233,13 +233,13 @@ Actual GPU execution and backend combinations still require acceptance testing.
 Slime integration
 -----------------
 
-``reef.train.slime_backend.component.SlimeTrainingComponent`` runs in the
+``aster.train.slime_backend.component.SlimeTrainingComponent`` runs in the
 HTTP service's process and holds no GPU. It parses Slime's arguments once at
 startup and, for each job, starts a driver process
-(``reef.train.slime_backend.driver``) with the job's directory. The driver owns
+(``aster.train.slime_backend.driver``) with the job's directory. The driver owns
 one Ray session and runs ``SlimeJobRunner``: Slime's actor (and critic) workers
 and, for a dataset job or a task job, Slime's own rollout engines
-(``reef.train.slime_backend.rollout_group``). The engines belong to Slime's
+(``aster.train.slime_backend.rollout_group``). The engines belong to Slime's
 serving session, a detached ``ServingCluster`` named after the save root, which
 the first such job's driver creates and the next drivers attach to through
 Slime's ``create_rollout_manager``. The session holds the engines, their router
@@ -250,7 +250,7 @@ placement and starts no engines. A driver records each saved checkpoint in the
 job's directory, where the component reports it, and releases its workers (and
 the GPUs it placed) when it exits. The session's actors run under a process
 lease of their own, recorded with the session's name in the save root's
-``reef-serving.json``, so a driver's process cleanup leaves them running; the
+``aster-serving.json``, so a driver's process cleanup leaves them running; the
 component disposes the session and retires that lease when it closes
 (``driver --dispose``). Serving never shares GPUs with training; with
 ``--colocate`` the rollout engines share the training GPUs, and Slime moves the
@@ -337,7 +337,7 @@ Torch or SGLang. Only declared local GPU requirements probe CUDA capacity.
 
 .. code:: python
 
-   from reef.execution.executor import Executor, ExecutorConfig, WorkerSpec, resolve
+   from aster.execution.executor import Executor, ExecutorConfig, WorkerSpec, resolve
 
    class Counter:
        def __init__(self, rank):
@@ -436,7 +436,7 @@ Slime worker executors
 placement, rank-zero rendezvous and the memory-saver environment. RPC goes
 through the shared ``RayExecutor``.
 
-``--reef-executor-backend`` in ``training.options`` selects another worker
+``--aster-executor-backend`` in ``training.options`` selects another worker
 executor. The executor receives these values in ``ExecutorConfig.options``:
 
 - ``args``, the parsed Slime arguments.
@@ -613,7 +613,7 @@ definitions.
 
 Ray executors share a process-wide runtime, initialized only when needed.
 Without an external address, Aster starts a local cluster using the deployment's
-visible GPUs. Set ``RAY_ADDRESS`` (or the deployment's ``reef.ray_address``) to
+visible GPUs. Set ``RAY_ADDRESS`` (or the deployment's ``aster.ray_address``) to
 connect to an external cluster; connection errors never fall back to local.
 Aster borrows an already initialized Ray connection and leaves it intact.
 Otherwise, the last owner disconnects. Aster stops only a local cluster that
@@ -630,7 +630,7 @@ satisfied. Stacks without Ray services or declared Ray training or rollout
 roles do not start Ray.
 
 The service stack keeps the runtime alive through service shutdown. It
-publishes the actual address as ``reef.ray_address`` in runtime snapshots. It
+publishes the actual address as ``aster.ray_address`` in runtime snapshots. It
 also supplies ``RAY_ADDRESS`` to later services, including the HTTP service
 and the inference component. A managed local stack needs no ``ray-head``
 service or fixed port. Explicitly managed heads remain supported: connect to
@@ -657,7 +657,7 @@ local service that must be reachable from remote consumers must declare a
 routable ``advertise_host``. Aster prepares eligible services together:
 executors acquire placement and publish ``${endpoints.SERVICE_NAME}`` before
 their service processes start. Each service receives a private node-local
-config snapshot through ``REEF_CONFIG``. The snapshot holds every endpoint
+config snapshot through ``ASTER_CONFIG``. The snapshot holds every endpoint
 published so far, including those of independent peers prepared in the same
 batch. A reference to a producer behind dependencies still requires that
 producer to be prepared first. Aster does not rewrite ordinary ``127.0.0.1``
@@ -699,7 +699,7 @@ cleanup, bounded probes and owner-lease loss. To run the real Ray/HTTP tests:
 
 .. code:: bash
 
-   REEF_TEST_RAY=1 python -m pytest tests/reef_service/test_service_executor_ray.py
+   ASTER_TEST_RAY=1 python -m pytest tests/aster_service/test_service_executor_ray.py
 
 These are control-plane tests, not a GPU SGLang/Megatron validation or a
 multi-machine networking benchmark.

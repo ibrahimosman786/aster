@@ -1,4 +1,4 @@
-"""The two skills of the stream: the reference datasets, their scorers, and the Reef calls.
+"""The two skills of the stream: the reference datasets, their scorers, and the Aster calls.
 
 Shared by the agent container (``stage.py`` drives a stage's training stream)
 and the judge container (``score.py`` scores the served model on every
@@ -23,18 +23,18 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
-from reef_client import ReefClient
+from reef_client import AsterClient
 
 TASKS = ("tooluse", "science")
-MODEL = "reef"  # the model name the requests carry; Reef's SGLang serves it
+MODEL = "aster"  # the model name the requests carry; Aster's SGLang serves it
 #: The reference's evaluation windows (``eval_tooluse.py``, ``eval_science.py``), greedy.
 EVAL_MAX_TOKENS = {"tooluse": 1024, "science": 2048}
 #: The reference checkout the container images clone at its pin.
 DATA_DIR = Path(os.environ.get("SDFT_DATA_DIR", "/opt/self-distillation/data"))
 
-SERVICE_URL = os.environ.get("REEF_SERVICE_URL", "http://host.docker.internal:28902")
-TOKEN = os.environ.get("REEF_TOKEN", "reef-local")
-SCENARIO = os.environ.get("REEF_SCENARIO", "sdft-skills")
+SERVICE_URL = os.environ.get("ASTER_SERVICE_URL", "http://host.docker.internal:28902")
+TOKEN = os.environ.get("ASTER_TOKEN", "aster-local")
+SCENARIO = os.environ.get("ASTER_SCENARIO", "sdft-skills")
 
 #: The service is gone or rejecting requests; waiting cannot help.
 SERVICE_GONE = -1
@@ -125,14 +125,14 @@ def wave_schedule(count: int, epochs: int, prompts_per_step: int, seed: int) -> 
     ]
 
 
-def make_client(timeout_s: float = 1800.0) -> ReefClient:
-    return ReefClient(SERVICE_URL, token=TOKEN, timeout_s=timeout_s)
+def make_client(timeout_s: float = 1800.0) -> AsterClient:
+    return AsterClient(SERVICE_URL, token=TOKEN, timeout_s=timeout_s)
 
 
 def ask(
-    client: ReefClient, messages: Sequence[dict[str, str]], *, temperature: float, max_tokens: int
+    client: AsterClient, messages: Sequence[dict[str, str]], *, temperature: float, max_tokens: int
 ) -> tuple[str, str, int]:
-    """One chat completion through Reef: the text, its receipt, and its completion token count."""
+    """One chat completion through Aster: the text, its receipt, and its completion token count."""
     response, agent_record_id = client.inference_with_record(
         SCENARIO,
         "/v1/chat/completions",
@@ -142,7 +142,7 @@ def ask(
 
 
 def ask_all(
-    client: ReefClient,
+    client: AsterClient,
     prompts: Sequence[Sequence[dict[str, str]]],
     *,
     temperature: float,
@@ -156,7 +156,7 @@ def ask_all(
         )
 
 
-def evaluate(client: ReefClient, task: str, *, concurrency: int = 64) -> dict[str, Any]:
+def evaluate(client: AsterClient, task: str, *, concurrency: int = 64) -> dict[str, Any]:
     """Accuracy of the served model on a task's test split, decoded greedily as the reference does."""
     examples = test_examples(task)
     started = time.time()
@@ -180,7 +180,7 @@ def evaluate(client: ReefClient, task: str, *, concurrency: int = 64) -> dict[st
 
 def training_step_count() -> int | None:
     """Training steps committed so far; ``None`` while the service is busy, 0 before the scenario exists."""
-    request = urllib.request.Request(f"{SERVICE_URL}/reef/status", headers={"Authorization": f"Bearer {TOKEN}"})
+    request = urllib.request.Request(f"{SERVICE_URL}/aster/status", headers={"Authorization": f"Bearer {TOKEN}"})
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
             payload = json.loads(response.read())
@@ -203,7 +203,7 @@ def wait_for_training(expected: int, timeout_s: float) -> int:
     while True:
         count = training_step_count()
         if count == SERVICE_GONE:
-            raise RuntimeError(f"the Reef service at {SERVICE_URL} is gone or rejects scenario {SCENARIO}")
+            raise RuntimeError(f"the Aster service at {SERVICE_URL} is gone or rejects scenario {SCENARIO}")
         if count is not None and count >= expected:
             return count
         if time.time() > deadline:

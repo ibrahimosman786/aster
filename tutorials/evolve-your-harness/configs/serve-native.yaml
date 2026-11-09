@@ -1,8 +1,8 @@
-# The same stack as serve.yaml on reef's native harness: `./run.sh native`.
+# The same stack as serve.yaml on aster's native harness: `./run.sh native`.
 # The loop's tools and loop hooks are files of the tree, so the method may
 # change what the agent can do, not only what it is told.
 
-reef:
+aster:
   host: 127.0.0.1
   port: 8900
   # Unset ASTER_TOKEN leaves this loopback demo without authentication; set it to require a Bearer token.
@@ -11,7 +11,7 @@ reef:
   run-dir: work/stack
 
 recipe:
-  implementation: reef.recipe.harness:HarnessEvolutionRecipe
+  implementation: aster.recipe.harness:HarnessEvolutionRecipe
 
   config:
     evolution:
@@ -22,16 +22,16 @@ recipe:
       # one call to the served model turns the failing traces into one change
       # of a skill, tool, hook, agent or the loop graph.
       method: tutorials.evolve-your-harness.harness.plugins:NativeMethod
-      # No binary: the native loop is reef's own. run.sh puts a reef-native
-      # launcher for this checkout on PATH; an installed reef ships the script.
-      # The first tree, a directory relative to the one run.sh starts Reef in: the loop's starter tools
+      # No binary: the native loop ships with Aster. run.sh puts an aster-native
+      # launcher for this checkout on PATH; an install ships the script.
+      # The first tree, a directory relative to the one run.sh starts Aster in: the loop's starter tools
       # (read_file, write_file, run_bash, execute), its loop guard hook and main
       # graph, which the method may retune or replace, plus the starter skill.
-      # It carries no provider: Reef renders its own model binding into each
+      # It carries no provider: Aster renders its own model binding into each
       # evaluation run.
       seed: seeds/native
       # Each scenario's history (the score cache) and step records,
-      # relative to the directory run.sh starts Reef in, as every path in this file is.
+      # relative to the directory run.sh starts Aster in, as every path in this file is.
       state_dir: work/harness
       evaluation:
         # The same grader as the pi variant, over the native trajectory.

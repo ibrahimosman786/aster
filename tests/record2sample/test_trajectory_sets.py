@@ -7,10 +7,10 @@ from dataclasses import replace
 import pytest
 from tests.support.conversations import conversation, turn
 
-from reef.core import AgentRecord, RequestType
-from reef.core.plugins import PluginConfigError
-from reef.record2sample import ReportSamples, ReportSet, TrajectorySamples
-from reef.train import PipelineContext
+from aster.core import AgentRecord, RequestType
+from aster.core.plugins import PluginConfigError
+from aster.record2sample import ReportSamples, ReportSet, TrajectorySamples
+from aster.train import PipelineContext
 
 
 def report(record_id: str, *references: str, score: float = 1.0) -> AgentRecord:
@@ -70,8 +70,8 @@ def trajectory_stage(idle: float = 10.0) -> TrajectorySamples:
 
 def test_a_trajectory_forms_its_set_after_its_last_call_was_idle(monkeypatch) -> None:
     clock = [100.0]
-    monkeypatch.setattr("reef.record2sample.trajectories.time.monotonic", lambda: clock[0])
-    monkeypatch.setattr("reef.record2sample.trajectories.time.time", lambda: clock[0])
+    monkeypatch.setattr("aster.record2sample.trajectories.time.monotonic", lambda: clock[0])
+    monkeypatch.setattr("aster.record2sample.trajectories.time.time", lambda: clock[0])
     stage = trajectory_stage()
     stage.push(conversation("call-1", 1, created_at=100.0))
     stage.push(report("r1", "call-1"))
@@ -92,8 +92,8 @@ def test_a_trajectory_forms_its_set_after_its_last_call_was_idle(monkeypatch) ->
 
 def test_a_trajectory_read_after_its_idle_time_forms_its_set_at_once(monkeypatch) -> None:
     # A restarted samples process reads old records again: the idle time counts from each call, not from the read.
-    monkeypatch.setattr("reef.record2sample.trajectories.time.monotonic", lambda: 50.0)
-    monkeypatch.setattr("reef.record2sample.trajectories.time.time", lambda: 1000.0)
+    monkeypatch.setattr("aster.record2sample.trajectories.time.monotonic", lambda: 50.0)
+    monkeypatch.setattr("aster.record2sample.trajectories.time.time", lambda: 1000.0)
     stage = trajectory_stage()
     stage.push(conversation("call-1", 1, created_at=900.0))
     stage.push(conversation("call-2", 2, created_at=995.0))
@@ -106,7 +106,7 @@ def test_a_trajectory_read_after_its_idle_time_forms_its_set_at_once(monkeypatch
 
 
 def test_a_retried_call_ends_with_the_trajectory_that_replaced_it(monkeypatch) -> None:
-    monkeypatch.setattr("reef.record2sample.trajectories.time.monotonic", lambda: 0.0)
+    monkeypatch.setattr("aster.record2sample.trajectories.time.monotonic", lambda: 0.0)
     stage = trajectory_stage()
     first = conversation("first", 1)
     stage.push(first)
@@ -122,7 +122,7 @@ def test_a_retried_call_ends_with_the_trajectory_that_replaced_it(monkeypatch) -
 
 def test_a_branch_that_shares_calls_with_an_earlier_set_ends_without_a_set(monkeypatch, caplog) -> None:
     clock = [0.0]
-    monkeypatch.setattr("reef.record2sample.trajectories.time.monotonic", lambda: clock[0])
+    monkeypatch.setattr("aster.record2sample.trajectories.time.monotonic", lambda: clock[0])
     stage = trajectory_stage()
     stage.push(conversation("call-1", 1))
     stage.push(conversation("call-2", 2))

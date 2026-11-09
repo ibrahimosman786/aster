@@ -5,7 +5,7 @@ Supervised fine-tuning (SFT) trains the served model to give a target
 response to a recorded request. The loss is the cross-entropy of the target
 tokens. Use SFT to train on demonstrations that a harness reports. You can
 also use it to train on a dataset that you import. SFT ships with
-``aster-infra`` as ``reef.recipe.sft:SFTRecipe``.
+``aster-infra`` as ``aster.recipe.sft:SFTRecipe``.
 
 +-------------+------------------------------------------------------------+
 | Evolves     | model weights                                              |
@@ -15,7 +15,7 @@ also use it to train on a dataset that you import. SFT ships with
 +-------------+------------------------------------------------------------+
 | Loss family | ``sft`` (Slime's ``sft_loss``, Tinker's ``cross_entropy``) |
 +-------------+------------------------------------------------------------+
-| Package     | ``reef/recipe/sft/``                                       |
+| Package     | ``aster/recipe/sft/``                                       |
 +-------------+------------------------------------------------------------+
 | Pipeline    | reported feedback, singleton                               |
 +-------------+------------------------------------------------------------+
@@ -52,7 +52,7 @@ SFT has two pipeline stages
   ``TrajectorySample`` from it: the report's last call as an ATIF trajectory,
   with the target as the final agent turn, the only turn that trains. The
   sample holds no tokens. ``max_tokens`` travels with it as
-  ``extra.reef.max_tokens``. The stage never finds a sample stale. An SFT target
+  ``extra.aster.max_tokens``. The stage never finds a sample stale. An SFT target
   is fixed text, not tokens that an older model version sampled. Thus the
   stage takes no ``max_staleness`` and refuses the key.
 - ``SFTJobData`` puts the samples into job data in use order: reports in
@@ -68,7 +68,7 @@ a sample that cannot render or that is longer than ``max_tokens``, and counts
 it in the job metric ``unrenderable_samples``.
 
 The ``sft`` objective, built in on Slime and on Tinker, sends no advantages. On Slime, the
-``sft`` loss family in ``reef/train/slime_backend/sft.py`` selects Slime's
+``sft`` loss family in ``aster/train/slime_backend/sft.py`` selects Slime's
 ``sft_loss``. On Tinker, the built-in ``sft`` family trains Tinker's
 ``cross_entropy`` on the target tokens (``training.backend: tinker``). Both
 losses read no old-policy log probs. Thus the objective accepts more than
@@ -173,7 +173,7 @@ Each stage reads only its own ``config``.
 .. code:: yaml
 
    recipe:
-     implementation: reef.recipe.sft:SFTRecipe
+     implementation: aster.recipe.sft:SFTRecipe
    pipeline:
      record2sample:
        config:
@@ -252,7 +252,7 @@ with every job:
 .. code:: yaml
 
    recipe:
-     implementation: reef.recipe.sft:SFTRecipe
+     implementation: aster.recipe.sft:SFTRecipe
      config:
        job_parameters:
          scheduling:
@@ -286,7 +286,7 @@ SFT, then RL on uploaded tasks
 ------------------------------
 
 The recipe gives parameters to trajectory jobs only. An uploaded train task
-(a task item in the ``train`` split, ``POST /reef/namespaces/{owner}/data/tasks``) trains in ``manual``
+(a task item in the ``train`` split, ``POST /aster/namespaces/{owner}/data/tasks``) trains in ``manual``
 mode, for a request whose ``parameters`` give its job's objective and
 rollouts. The recipe gives task jobs no objective, so a request without one is
 refused. Thus one scenario runs SFT first and then RL:

@@ -13,9 +13,9 @@ from pathlib import Path
 
 import pytest
 
-from reef.core.tasks import read_harbor_task, write_harbor_task
-from reef.record2sample.generator import GeneratedHarborTask, HarborReply, OracleUnavailable, harbor_task, oracle_check
-from reef.record2sample.generator.harbor import (
+from aster.core.tasks import read_harbor_task, write_harbor_task
+from aster.record2sample.generator import GeneratedHarborTask, HarborReply, OracleUnavailable, harbor_task, oracle_check
+from aster.record2sample.generator.harbor import (
     HarborRuns,
     content_hash,
     dockerfile_logical_lines,
@@ -131,7 +131,7 @@ def test_the_task_carries_the_files_the_hint_beside_the_solution_and_the_metadat
         "step": 9,
         "index": 1,
         "difficulty": "easy",
-        "reef": {"digest": task.digest, "source_agent_record_ids": ["rec-designer-3"]},
+        "aster": {"digest": task.digest, "source_agent_record_ids": ["rec-designer-3"]},
     }
     assert document["environment"]["network_mode"] == "no-network" and document["agent"]["timeout_sec"] == 900
     assert document["verifier"] == {"timeout_sec": 300, "user": "root"}, "the verifier reads root only state"

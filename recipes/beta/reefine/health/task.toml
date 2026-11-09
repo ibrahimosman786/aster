@@ -1,10 +1,10 @@
 version = "1.0"
 
 [metadata]
-author_name = "Reef"
+author_name = "Aster"
 difficulty = "easy"
 category = "health"
-tags = ["reef", "reefine", "health"]
+tags = ["aster", "reefine", "health"]
 
 [verifier]
 timeout_sec = 30.0

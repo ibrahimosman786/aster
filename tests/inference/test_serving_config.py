@@ -10,18 +10,18 @@ from aiohttp.test_utils import TestClient, TestServer
 from tests.support._policy_recipe import TestPolicyRecipe
 from tests.support.runtime_stubs import StubInferenceRuntime, StubTrainingComponent, runtime_bindings
 
-from reef.artifact import InMemoryRepositoryBackend
-from reef.core.values import JsonValue
-from reef.dispatcher import Dispatcher
-from reef.dispatcher.serving import ServingWorker
-from reef.inference.interfaces import FixedEngineClients, InferenceHandler
-from reef.service.app import create_app
-from reef.service.inference_service import build_inference_app
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.sqlite import SQLiteScenarioStorage
+from aster.artifact import InMemoryRepositoryBackend
+from aster.core.values import JsonValue
+from aster.dispatcher import Dispatcher
+from aster.dispatcher.serving import ServingWorker
+from aster.inference.interfaces import FixedEngineClients, InferenceHandler
+from aster.service.app import create_app
+from aster.service.inference_service import build_inference_app
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.sqlite import SQLiteScenarioStorage
 
-CHAT = {"model": "reef", "messages": [{"role": "user", "content": "hello"}]}
-HEADERS = {"x-reef-scenario": "math"}
+CHAT = {"model": "aster", "messages": [{"role": "user", "content": "hello"}]}
+HEADERS = {"x-aster-scenario": "math"}
 
 
 class ScalingRuntime(StubInferenceRuntime):
@@ -101,12 +101,12 @@ def test_a_changed_serving_config_reaches_the_engine_and_each_request_without_an
             TestClient(TestServer(create_app(control))) as control_client,
             TestClient(TestServer(inference_app)) as inference_client,
         ):
-            assert (await control_client.post("/reef/scenarios", json={"name": "math"})).status == 201
+            assert (await control_client.post("/aster/scenarios", json={"name": "math"})).status == 201
             assert await asyncio.to_thread(worker.run_once)
             assert runtime.applied == [("math", {})] and len(runtime.activated) == 1
 
             update = {"serving_config": {"weights": {"temperature": 0.3, "min_replicas": 1}}}
-            response = await control_client.post("/reef/scenarios/math/update", json=update)
+            response = await control_client.post("/aster/scenarios/math/update", json=update)
             assert response.status == 200, await response.text()
             changed = await response.json()
             assert changed["serving_config"] == {"weights": {"temperature": 0.3, "min_replicas": 1}}
@@ -122,8 +122,8 @@ def test_a_changed_serving_config_reaches_the_engine_and_each_request_without_an
 
             # Null removes a field; the other field stays.
             removal = {"serving_config": {"weights": {"temperature": None}}}
-            assert (await control_client.post("/reef/scenarios/math/update", json=removal)).status == 200
-            settings = await (await control_client.get("/reef/scenarios/math/settings")).json()
+            assert (await control_client.post("/aster/scenarios/math/update", json=removal)).status == 200
+            settings = await (await control_client.get("/aster/scenarios/math/settings")).json()
             assert settings["serving_config"] == {"weights": {"min_replicas": 1}}
             assert settings["effective_serving_config"] == {"weights": {"temperature": 1.0, "min_replicas": 1}}
             assert await asyncio.to_thread(worker.run_once)
@@ -163,10 +163,10 @@ def test_a_refused_serving_config_answers_400_and_stores_nothing(serving, update
 
     async def run() -> None:
         async with TestClient(TestServer(create_app(control))) as client:
-            assert (await client.post("/reef/scenarios", json={"name": "math"})).status == 201
-            response = await client.post("/reef/scenarios/math/update", json={"serving_config": update})
+            assert (await client.post("/aster/scenarios", json={"name": "math"})).status == 201
+            response = await client.post("/aster/scenarios/math/update", json={"serving_config": update})
             assert response.status == 400, await response.text()
-            settings = await (await client.get("/reef/scenarios/math/settings")).json()
+            settings = await (await client.get("/aster/scenarios/math/settings")).json()
             assert settings["serving_config"] == {}
             assert settings["effective_serving_config"] == {"weights": {"min_replicas": 0, "temperature": 1.0}}
 

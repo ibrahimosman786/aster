@@ -9,15 +9,15 @@ from tests.support.component_trainers import _records
 from tests.support.runtime_stubs import StubInferenceRuntime, StubTrainingComponent
 from tests.support.samples_service import make_samples
 
-from reef.artifact import InMemoryRepositoryBackend
-from reef.core.served_models import ScenarioModel, ServedArtifact
-from reef.core.training_request import normalize_training_request_payload
-from reef.observability import NullExperimentTracker
-from reef.scenario.factory import ScenarioFactory
-from reef.storage.job_data import read_job_data
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.sqlite import SQLiteScenarioStorage
-from reef.train.training_requests import TrainingRequestQueue
+from aster.artifact import InMemoryRepositoryBackend
+from aster.core.served_models import ScenarioModel, ServedArtifact
+from aster.core.training_request import normalize_training_request_payload
+from aster.observability import NullExperimentTracker
+from aster.scenario.factory import ScenarioFactory
+from aster.storage.job_data import read_job_data
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.sqlite import SQLiteScenarioStorage
+from aster.train.training_requests import TrainingRequestQueue
 
 
 @pytest.fixture

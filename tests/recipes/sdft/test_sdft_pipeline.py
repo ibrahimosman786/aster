@@ -1,4 +1,4 @@
-"""Reef-side SDFT pipeline: the demonstration composition, the recipe and the Slime wire payload.
+"""Aster-side SDFT pipeline: the demonstration composition, the recipe and the Slime wire payload.
 
 Everything here is torch/ray free so it runs in the minimal CI gate; the
 shared processor is covered in ``test_distill_processor.py`` and the tensor
@@ -20,21 +20,21 @@ from tests.support.runtime_stubs import runtime_bindings
 from recipes.sdft import SDFTRecipe
 from recipes.sdft.processor import DEFAULT_CONTEXT_TEMPLATE, SDFTSamples, SDFTSettings
 from recipes.sdft.slime import SdftObjective, SdftSettings
-from reef.core import AgentRecord, RequestType
-from reef.core.chat_rendering import TeacherRequest, rendered_job_data
-from reef.core.reports import TeacherContextReport
-from reef.core.trajectories import source_record_id
-from reef.recipe.errors import RecipeConfigError
-from reef.recipe.registry import build_recipe, recipe_class_for
-from reef.record2sample.distill import student_call
-from reef.sample2job import DistillJobData
-from reef.train import PipelineContext
-from reef.train.algos.schedule import StepScheduling
-from reef.train.pipeline import TrainingPipeline
-from reef.train.slime_backend.data_builder import to_slime_rollout_data
-from reef.train.slime_backend.loss_families import resolve_loss_family
-from reef.train.slime_backend.reef_adapters.preparation import prepare_slime_job
-from reef.train.types import JobData
+from aster.core import AgentRecord, RequestType
+from aster.core.chat_rendering import TeacherRequest, rendered_job_data
+from aster.core.reports import TeacherContextReport
+from aster.core.trajectories import source_record_id
+from aster.recipe.errors import RecipeConfigError
+from aster.recipe.registry import build_recipe, recipe_class_for
+from aster.record2sample.distill import student_call
+from aster.sample2job import DistillJobData
+from aster.train import PipelineContext
+from aster.train.algos.schedule import StepScheduling
+from aster.train.pipeline import TrainingPipeline
+from aster.train.slime_backend.data_builder import to_slime_rollout_data
+from aster.train.slime_backend.loss_families import resolve_loss_family
+from aster.train.slime_backend.aster_adapters.preparation import prepare_slime_job
+from aster.train.types import JobData
 
 QUESTION = "What is the boiling point of water?"
 REPLY = "About 90 degrees."

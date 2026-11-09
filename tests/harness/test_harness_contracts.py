@@ -2,14 +2,14 @@
 
 import pytest
 
-from reef.execution.sandbox.process import ProgramExecutor
-from reef.harness.adapters.descriptor import ExecutionValidator
-from reef.harness.runners.native import HookListener, Next, ToolRunner
-from reef.harness.runners.native.artifact_client import ArtifactUpdateListener, EventWriter
-from reef.harness.runners.native.enforce import Enforcer, Tool
-from reef.harness.runners.native.graph import Host, TurnLoop
-from reef.harness.runners.native.selftools import ServeState
-from reef.harness.runners.native.serve import EventSink
+from aster.execution.sandbox.process import ProgramExecutor
+from aster.harness.adapters.descriptor import ExecutionValidator
+from aster.harness.runners.native import HookListener, Next, ToolRunner
+from aster.harness.runners.native.artifact_client import ArtifactUpdateListener, EventWriter
+from aster.harness.runners.native.enforce import Enforcer, Tool
+from aster.harness.runners.native.graph import Host, TurnLoop
+from aster.harness.runners.native.selftools import ServeState
+from aster.harness.runners.native.serve import EventSink
 
 
 @pytest.mark.parametrize(

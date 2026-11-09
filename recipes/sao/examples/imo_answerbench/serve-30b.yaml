@@ -8,14 +8,14 @@
 # stream.py, which keeps that many rollouts in flight. The paper's 128 per
 # step is out of reach on this budget; 8 is what fits the generation budget.
 # Checkpoints and artifacts go to SAO_CKPT_DIR. The training node writes the
-# checkpoints and the Reef service reads them, so both must see that directory.
+# checkpoints and the Aster service reads them, so both must see that directory.
 #
 # Started by run.sh with SAO_SERVE_YAML=serve-30b.yaml SAO_DRIVER=stream.py.
 
-reef:
+aster:
   host: 127.0.0.1
   port: 8900
-  token: reef-local
+  token: aster-local
   run-dir: work/stack
   ready-timeout: 3600
 
@@ -27,7 +27,7 @@ inference:
   timeout-s: 1800
   options:
     router-port: "30000"
-    # Required by Reef's SGLang inference backend (#432).
+    # Required by Aster's SGLang inference backend (#432).
     disable-radix-cache: true
     incremental-streaming-output: true
     # Eight concurrent 61k-token rollouts: the KV pool must leave room for the
@@ -64,7 +64,7 @@ training:
     rollout-batch-size: "${training.config.global_batch_size}"
     global-batch-size: "${training.config.global_batch_size}"
     micro-batch-size: "1"
-    # Qwen3-30B-A3B architecture flags Reef does not derive from the HF config.
+    # Qwen3-30B-A3B architecture flags Aster does not derive from the HF config.
     padded-vocab-size: "151936"
     position-embedding-type: "rope"
     swiglu: true
@@ -102,7 +102,7 @@ training:
     optimizer-offload-fraction: "1.0"
     use-precision-aware-optimizer: true
     no-save-optim: true
-    reef-checkpoint-min-free-space-fraction: "0.03"
+    aster-checkpoint-min-free-space-fraction: "0.03"
     lr: "1e-6"
     lr-decay-style: "constant"
     loss-type: "policy_loss"
@@ -128,7 +128,7 @@ storage:
 observability:
   wandb:
     enabled: false
-    project: reef
+    project: aster
     tags: []
     mode: online
     directory: work/wandb

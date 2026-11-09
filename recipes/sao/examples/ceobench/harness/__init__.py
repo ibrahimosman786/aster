@@ -1,8 +1,8 @@
-"""CEO-Bench's bash agent, served by Reef.
+"""CEO-Bench's bash agent, served by Aster.
 
 ``harness.agent`` is the benchmark's agent loop and ``harness.tools`` its
 tools; ``harness.harbor_agent`` plays it as one Harbor trial with its model
-calls served by Reef, and ``harness.report`` credits each finished week to
+calls served by Aster, and ``harness.report`` credits each finished week to
 its decision turns and posts the reports. The export is lazy: importing this
 package must not require Harbor.
 """

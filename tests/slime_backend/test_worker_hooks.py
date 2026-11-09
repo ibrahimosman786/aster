@@ -9,7 +9,7 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from reef.train.slime_backend.reef_adapters import worker_hooks
+from aster.train.slime_backend.aster_adapters import worker_hooks
 
 
 def _stub_module(monkeypatch: pytest.MonkeyPatch, name: str, **attributes):
@@ -30,12 +30,12 @@ def test_node_address_honors_deployment_override(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(misc, "get_free_port", lambda *, start_port, consecutive: start_port + consecutive)
     monkeypatch.setattr(http_utils, "get_host_info", lambda: ("worker", "[2001:db8::1]"))
 
-    assert worker_hooks.reef_node_ip_and_free_port(12000, 3) == ("2001:db8::1", 12003)
+    assert worker_hooks.aster_node_ip_and_free_port(12000, 3) == ("2001:db8::1", 12003)
 
 
 @pytest.mark.unit
 def test_rollout_ray_environment_preserves_host_and_local_proxy_bypass() -> None:
-    values = worker_hooks.reef_rollout_env_vars(
+    values = worker_hooks.aster_rollout_env_vars(
         {
             "SLIME_HOST_IP": "[2001:db8::1]",
             "NO_PROXY": "metadata.internal,localhost",
@@ -52,7 +52,7 @@ def test_rollout_ray_environment_preserves_host_and_local_proxy_bypass() -> None
         "2001:db8::1",
     ]
     assert values["no_proxy"] == values["NO_PROXY"]
-    assert worker_hooks.reef_rollout_env_vars({}) == {}
+    assert worker_hooks.aster_rollout_env_vars({}) == {}
 
 
 @pytest.mark.unit
@@ -70,14 +70,14 @@ def test_external_batch_and_step_size_hooks_are_idempotent(monkeypatch: pytest.M
         loss_function=lambda _args, batch, _count, step_size, _logits: (batch, step_size),
     )
 
-    from reef.train.slime_backend.loss_families import LOSS_FAMILIES
+    from aster.train.slime_backend.loss_families import LOSS_FAMILIES
 
     # The forwarded keys come from the family's declaration alone: the spec
     # resolved from loss_family (the direct-start_bridge fallback) unioned
-    # with the driver-stamped reef_external_batch_keys.
+    # with the driver-stamped aster_external_batch_keys.
     args = types.SimpleNamespace(
         loss_family="openclawrl",
-        reef_external_batch_keys=LOSS_FAMILIES.resolve("openclawrl").external_batch_keys,
+        aster_external_batch_keys=LOSS_FAMILIES.resolve("openclawrl").external_batch_keys,
     )
     worker_hooks._install_external_batch_keys(args)
     wrapped_get_batch = model.get_batch
@@ -102,7 +102,7 @@ def test_external_batch_and_step_size_hooks_are_idempotent(monkeypatch: pytest.M
 
 
 @pytest.mark.unit
-def test_metric_and_rollout_logging_hooks_keep_reef_fields_local(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_metric_and_rollout_logging_hooks_keep_aster_fields_local(monkeypatch: pytest.MonkeyPatch) -> None:
     logged: list[object] = []
     logging_utils = _stub_module(
         monkeypatch,
@@ -138,11 +138,11 @@ def test_metric_and_rollout_logging_hooks_keep_reef_fields_local(monkeypatch: py
         "topk_log_probs": [torch.tensor([[-0.2]])],
         "producing_artifact_ids": ["artifact-4"],
     }
-    from reef.train.slime_backend.loss_families import LOSS_FAMILIES
+    from aster.train.slime_backend.loss_families import LOSS_FAMILIES
 
     log_args = types.SimpleNamespace(
         loss_family="openclawrl",
-        reef_rollout_log_skip_keys=LOSS_FAMILIES.resolve("openclawrl").rollout_log_skip_keys,
+        aster_rollout_log_skip_keys=LOSS_FAMILIES.resolve("openclawrl").rollout_log_skip_keys,
     )
     assert data.log_rollout_data(3, log_args, values) == "stored"
     assert "topk_log_probs" not in captured[0]
@@ -320,15 +320,15 @@ def test_policy_gradient_hook_replaces_only_worker_globals(monkeypatch: pytest.M
         "slime.backends.megatron_utils.loss",
         compute_cispo_loss=lambda ppo_kl, log_probs, advantages, eps_clip, eps_clip_high: ("slime", eps_clip),
     )
-    args = SimpleNamespace(custom_pg_loss_function_path="reef.loss", advantage_estimator="grpo")
+    args = SimpleNamespace(custom_pg_loss_function_path="aster.loss", advantage_estimator="grpo")
     worker_hooks._install_pg_primitive(args)
     wrapped = loss.compute_cispo_loss
     worker_hooks._install_pg_primitive(args)
     assert loss.compute_cispo_loss is wrapped
     assert loss.compute_cispo_loss("kl", "logp", "adv", 0.1, 0.2) == (args, "kl", "logp", "adv")
-    # Routing the estimator to cispo is the driver's job (configure_reef_loss_args).
+    # Routing the estimator to cispo is the driver's job (configure_aster_loss_args).
     assert args.advantage_estimator == "grpo"
-    assert loaded == ["reef.loss"]
+    assert loaded == ["aster.loss"]
     # A job of a family without a primitive reaches Slime's own CISPO loss.
     args.custom_pg_loss_function_path = None
     assert loss.compute_cispo_loss("kl", "logp", "adv", 0.1, 0.2) == ("slime", 0.1)
@@ -336,7 +336,7 @@ def test_policy_gradient_hook_replaces_only_worker_globals(monkeypatch: pytest.M
 
 @pytest.mark.unit
 def test_score_centering_adds_to_the_family_loss_and_skips_the_critic(monkeypatch: pytest.MonkeyPatch) -> None:
-    from reef.train.slime_backend.score_centering import term
+    from aster.train.slime_backend.score_centering import term
 
     monkeypatch.setattr(
         term,
@@ -361,7 +361,7 @@ def test_score_centering_adds_to_the_family_loss_and_skips_the_critic(monkeypatc
     worker_hooks._install_score_centering(custom)
     worker_hooks._install_score_centering(custom)
     assert custom.custom_loss_function_path == worker_hooks.SCORE_CENTERED_CUSTOM_LOSS_PATH
-    assert custom.reef_score_centering_base_loss_path == "family.loss"
+    assert custom.aster_score_centering_base_loss_path == "family.loss"
     misc = importlib.import_module("slime.utils.misc")
     monkeypatch.setattr(misc, "load_function", {"family.loss": lambda *_: (5, {"loss": 5})}.__getitem__)
     assert term.score_centered_custom_loss(custom, {}, None, None) == (6, {"loss": 5, "score_centering_term": 1})
@@ -407,7 +407,7 @@ def test_objective_initializers_chain_user_hooks(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(worker_hooks, "_install_pg_primitive", lambda _args: calls.append("pg"))
     monkeypatch.setattr(worker_hooks, "_install_score_centering", lambda _args: calls.append("score_centering"))
     args = SimpleNamespace(
-        reef_chained_megatron_init_path="custom.init",
+        aster_chained_megatron_init_path="custom.init",
         loss_family="openclawrl",
     )
 
@@ -423,7 +423,7 @@ def test_objective_initializers_chain_user_hooks(monkeypatch: pytest.MonkeyPatch
         "resolve_args_loss_family",
         lambda args: SimpleNamespace(configure_critic_args=lambda value: configured.append((args.loss_family, value))),
     )
-    critic = SimpleNamespace(loss_family="sao", reef_chained_critic_args_hook_path="custom.critic")
+    critic = SimpleNamespace(loss_family="sao", aster_chained_critic_args_hook_path="custom.critic")
     worker_hooks.configure_critic_objective(critic)
     assert calls[-1] == "custom.critic"
     assert configured == [("sao", critic)]
@@ -433,7 +433,7 @@ def test_objective_initializers_chain_user_hooks(monkeypatch: pytest.MonkeyPatch
 def test_learning_rate_schedule_sets_each_optimizer_step_and_chains_the_user_hook(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from reef.train.learning_rate import LearningRateSchedule, LearningRateScheduleState
+    from aster.train.learning_rate import LearningRateSchedule, LearningRateScheduleState
 
     chained: list[tuple[object, ...]] = []
     misc = importlib.import_module("slime.utils.misc")
@@ -442,8 +442,8 @@ def test_learning_rate_schedule_sets_each_optimizer_step_and_chains_the_user_hoo
     optimizer = SimpleNamespace(param_groups=groups)
     schedule_state = LearningRateScheduleState(LearningRateSchedule("warmup", 1e-4, warmup_steps=4), completed_steps=2)
     args = SimpleNamespace(
-        reef_chained_before_train_step_hook_path="user.before_step",
-        reef_learning_rate_schedule_state=schedule_state.to_dict(),
+        aster_chained_before_train_step_hook_path="user.before_step",
+        aster_learning_rate_schedule_state=schedule_state.to_dict(),
     )
 
     worker_hooks.apply_learning_rate_schedule(args, 7, 1, "model", optimizer, "scheduler")
@@ -454,7 +454,7 @@ def test_learning_rate_schedule_sets_each_optimizer_step_and_chains_the_user_hoo
     assert worker_hooks.APPLIED_LEARNING_RATE.value == pytest.approx(7.5e-5)
 
     # Without a schedule Slime's scheduler keeps the rate it set.
-    args.reef_learning_rate_schedule_state = None
+    args.aster_learning_rate_schedule_state = None
     worker_hooks.apply_learning_rate_schedule(args, 7, 2, "model", optimizer, "scheduler")
     assert [group["lr"] for group in groups] == pytest.approx([7.5e-5, 3.75e-5, 7.5e-5])
     assert worker_hooks.APPLIED_LEARNING_RATE.value is None
@@ -501,4 +501,4 @@ def test_switching_a_loss_family_replaces_the_previous_familys_hooks() -> None:
     args.score_centering = True
     worker_hooks.switch_loss_family(args)
     assert args.custom_loss_function_path == worker_hooks.SCORE_CENTERED_CUSTOM_LOSS_PATH
-    assert args.reef_score_centering_base_loss_path == "recipes.tttd.slime.objective.tttd_loss"
+    assert args.aster_score_centering_base_loss_path == "recipes.tttd.slime.objective.tttd_loss"

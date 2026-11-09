@@ -8,7 +8,7 @@
 # Mechanical adaptations, each marked in place: vendored import paths; the
 # max_seq_lens kwarg dropped (older get_log_probs_and_entropy signature);
 # and the knobs upstream reads from OPENCLAW_TOPK_* env vars read from
-# ``args`` instead (reef carries them as --openclawrl-* flags; defaults match
+# ``args`` instead (aster carries them as --openclawrl-* flags; defaults match
 # the paper launcher). Selection is extracted; tensor arithmetic is preserved.
 #
 # S^q and ell_old on it are upstream's: the old actor's top-K and its
@@ -29,7 +29,7 @@ from slime.backends.megatron_utils.loss import get_log_probs_and_entropy, get_re
 from slime.utils.ppo_utils import compute_approx_kl, compute_policy_loss
 
 from recipes.openclawrl.slime.selection import select_teacher_topk
-from reef.train.slime_backend.algorithm import objective
+from aster.train.slime_backend.algorithm import objective
 
 logger = logging.getLogger(__name__)
 
@@ -347,7 +347,7 @@ def _opd_one_sample(
 
 # The objective's knobs ride ``args`` (stamped as openclawrl_* by the
 # spec's apply_driver_options), not the process environment. Upstream
-# passes them through ray's runtime-env; reef's Megatron actors would have
+# passes them through ray's runtime-env; aster's Megatron actors would have
 # received them only by raylet inheritance, and a knob that silently falls
 # back to a DIFFERENT value than the one configured is the worst kind of
 # default -- ``adv_diff_clip`` used to fall back to 2.0 where every config
@@ -357,7 +357,7 @@ def _opd_one_sample(
 
 @objective("custom_advantage_function_path")
 def openclawrl_advantages(args: Namespace, rollout_data: dict) -> None:
-    """Keep Reef's advantages through Slime's old-policy preparation pass."""
+    """Keep Aster's advantages through Slime's old-policy preparation pass."""
     advantages = rollout_data.get("advantages")
     if advantages is None:
         raise ValueError("OpenClaw-RL top-K requires externally supplied advantages")
@@ -673,7 +673,7 @@ def openclawrl_loss(
     return loss, reported
 
 
-@objective("reef_actor_init_hook_path")
+@objective("aster_actor_init_hook_path")
 def openclawrl_actor_init(actor: Any) -> None:
     """Back up the frozen base weights as the Megatron teacher.
 
@@ -724,7 +724,7 @@ def _same_weights(backuper: Any, left: str, right: str) -> bool:
     return all(torch.equal(left_weights[name], right_weights[name]) for name in left_weights)
 
 
-@objective("reef_actor_pre_train_hook_path")
+@objective("aster_actor_pre_train_hook_path")
 def openclawrl_actor_pre_train(actor: Any, rollout_data: dict) -> None:
     """Compute the student's top-K S^q and ell_old on it with the weights the step starts from, then run the
     frozen-teacher K-loop over the batch's hint candidates at S^q."""
@@ -733,7 +733,7 @@ def openclawrl_actor_pre_train(actor: Any, rollout_data: dict) -> None:
     from slime.observability.timer import timer
 
     from recipes.openclawrl.slime.teacher import compute_openclaw_teacher_cands
-    from reef.train.slime_backend.distill.teacher import student_topk
+    from aster.train.slime_backend.distill.teacher import student_topk
 
     args = actor.args
     budget = int(getattr(args, "max_tokens_per_gpu", 0) or args.seq_length)

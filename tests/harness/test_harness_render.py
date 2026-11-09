@@ -1,4 +1,4 @@
-"""Guarantees of reef.harness.tree.render and the bundled adapter descriptors."""
+"""Guarantees of aster.harness.tree.render and the bundled adapter descriptors."""
 
 from __future__ import annotations
 
@@ -15,15 +15,15 @@ import yaml
 
 from tests.support.harness_render import descriptor_data, write_descriptor
 
-from reef.core.model_metadata import ModelMetadata
-from reef.harness.adapters import BUILTIN_ADAPTERS, available_adapters, get_adapter
-from reef.harness.adapters.codex.render import bundled_model_catalog
-from reef.harness.adapters.common.frontmatter import with_skill_frontmatter
-from reef.harness.adapters.descriptor import AdapterDescriptor, AdapterRenderer, DescriptorError, load_descriptor
-from reef.harness.adapters.hermes.render import DEFAULT_IDENTITY
-from reef.harness.adapters.opencode.render import read_frontmatter
-from reef.harness.tasks.model_binding import ModelBinding, ModelBindingError
-from reef.harness.tree import HarnessTree, RenderError, render_tree, validate_tree
+from aster.core.model_metadata import ModelMetadata
+from aster.harness.adapters import BUILTIN_ADAPTERS, available_adapters, get_adapter
+from aster.harness.adapters.codex.render import bundled_model_catalog
+from aster.harness.adapters.common.frontmatter import with_skill_frontmatter
+from aster.harness.adapters.descriptor import AdapterDescriptor, AdapterRenderer, DescriptorError, load_descriptor
+from aster.harness.adapters.hermes.render import DEFAULT_IDENTITY
+from aster.harness.adapters.opencode.render import read_frontmatter
+from aster.harness.tasks.model_binding import ModelBinding, ModelBindingError
+from aster.harness.tree import HarnessTree, RenderError, render_tree, validate_tree
 
 GOLDENS = Path(__file__).parent / "data" / "harness_goldens"
 
@@ -148,12 +148,12 @@ def test_a_python_tree_is_a_program_with_an_entry_point_and_gets_its_model_in_a_
     (problem,) = problems({"program/main.py": "def broken(:\n"}, python)
     assert problem.startswith("program/main.py: the module does not compile")
 
-    binding = ModelBinding(base_url="http://reef:8901", model="m", api_key="k")
+    binding = ModelBinding(base_url="http://aster:8901", model="m", api_key="k")
     rendered = render({"program/main.py": main}, python, binding)
     assert rendered["program/main.py"] == main
     assert json.loads(rendered["program/model.json"]) == {
         "api": "openai",
-        "base_url": "http://reef:8901/v1",
+        "base_url": "http://aster:8901/v1",
         "api_key": "k",
         "model": "m",
     }
@@ -188,9 +188,9 @@ def test_codex_binding_uses_the_responses_api() -> None:
 
     binding = ModelBinding(base_url="http://127.0.0.1:9", model="m1", api_key="k-1", api="responses")
     config_toml = tomllib.loads(render({}, CODEX, binding)["codex/config.toml"])
-    assert config_toml["model"] == "m1" and config_toml["model_provider"] == "reef"
-    assert config_toml["model_providers"]["reef"] == {
-        "name": "Reef",
+    assert config_toml["model"] == "m1" and config_toml["model_provider"] == "aster"
+    assert config_toml["model_providers"]["aster"] == {
+        "name": "Aster",
         "base_url": "http://127.0.0.1:9/v1",
         "wire_api": "responses",
         "supports_websockets": False,
@@ -225,7 +225,7 @@ def test_codex_run_argv_pins_approvals_and_web_search_off_over_the_config() -> N
 
 
 def test_codex_renders_a_command_as_a_skill_and_refuses_one_that_shares_a_skills_name() -> None:
-    """Codex loads no custom prompts, so a command is a skill of the plugin, typed as $reef:name."""
+    """Codex loads no custom prompts, so a command is a skill of the plugin, typed as $aster:name."""
     command = {"commands/reefine.md": "File the text after $reefine as a request."}
     files = render(command, CODEX)
     assert files["plugin/skills/reefine/SKILL.md"] == (
@@ -241,11 +241,11 @@ def test_codex_renders_a_command_as_a_skill_and_refuses_one_that_shares_a_skills
 def test_codex_run_installs_the_plugin_as_codex_plugin_add_does() -> None:
     """A run's CODEX_HOME holds the plugin's copy and the two config entries that codex plugin add writes."""
     files = render({"skills/fix/SKILL.md": "# Fix"}, CODEX)
-    assert files["codex/plugins/cache/reef/reef/0.0.0/skills/fix/SKILL.md"] == files["plugin/skills/fix/SKILL.md"]
-    assert json.loads(files["plugin/.codex-plugin/plugin.json"])["name"] == "reef"
+    assert files["codex/plugins/cache/aster/aster/0.0.0/skills/fix/SKILL.md"] == files["plugin/skills/fix/SKILL.md"]
+    assert json.loads(files["plugin/.codex-plugin/plugin.json"])["name"] == "aster"
     config_toml = tomllib.loads(files["codex/config.toml"])
-    assert config_toml["marketplaces"]["reef"] == {"source_type": "local", "source": "{root}"}
-    assert config_toml["plugins"]["reef@reef"] == {"enabled": True}
+    assert config_toml["marketplaces"]["aster"] == {"source_type": "local", "source": "{root}"}
+    assert config_toml["plugins"]["aster@aster"] == {"enabled": True}
 
 
 def test_codex_requires_the_responses_dialect() -> None:
@@ -258,10 +258,10 @@ def test_codex_requires_the_responses_dialect() -> None:
 
 
 @pytest.mark.parametrize(
-    "data", [{"model": "gpt-5"}, {"model_provider": "reef"}, {"model_providers": {"reef": {"name": "Reef"}}}]
+    "data", [{"model": "gpt-5"}, {"model_provider": "aster"}, {"model_providers": {"aster": {"name": "Aster"}}}]
 )
 def test_codex_refuses_a_tree_that_sets_what_the_binding_writes(data: dict[str, object]) -> None:
-    with pytest.raises(RenderError, match="Reef's model binding writes it"):
+    with pytest.raises(RenderError, match="Aster's model binding writes it"):
         render(config(data), CODEX)
 
 
@@ -286,9 +286,9 @@ def test_codex_catalog_uses_bound_capabilities(reasoning: bool) -> None:
     ],
 )
 def test_codex_rejects_model_metadata_from_a_tree(metadata: dict[str, object]) -> None:
-    # Only Reef's model binding writes the model metadata, whatever it holds.
+    # Only Aster's model binding writes the model metadata, whatever it holds.
     with pytest.raises(
-        RenderError, match=re.escape("must not set models in codex/models.json: Reef's model binding writes it")
+        RenderError, match=re.escape("must not set models in codex/models.json: Aster's model binding writes it")
     ):
         render(config({"models": {"m": metadata}}, "models"), CODEX)
 
@@ -348,11 +348,11 @@ def test_dsh_render_steps_emit_the_patch_layer_the_env_file_and_skill_frontmatte
     assert by_id["session-persistence-jsonl"]["config"] == {"compression": "none", "root": "dshHomePath('sessions')"}
     assert "root: !!js 'dshHomePath(''sessions'')'" in files[DSH_PATCH]
     assert by_id["session-telemetry-otel"] == {"id": "session-telemetry-otel", "disabled": True}
-    route = by_id["llm-pi-ai"]["config"]["providers"]["reef"]
-    assert route["baseURL"] == "http://127.0.0.1:9/v1" and route["apiKeyEnv"] == "REEF_API_KEY"
-    assert by_id["agent-default-model"]["config"] == {"provider": "reef", "model": "m1"}
+    route = by_id["llm-pi-ai"]["config"]["providers"]["aster"]
+    assert route["baseURL"] == "http://127.0.0.1:9/v1" and route["apiKeyEnv"] == "ASTER_API_KEY"
+    assert by_id["agent-default-model"]["config"] == {"provider": "aster", "model": "m1"}
     assert patch[-1] == {"insert": [{"id": "extension-tracer", "name": "./extensions/tracer.mjs"}]}
-    assert files["dsh/.env"] == "REEF_API_KEY=k-1\n"
+    assert files["dsh/.env"] == "ASTER_API_KEY=k-1\n"
     # A skill without frontmatter gets name and description; a command is a user invocable skill.
     assert (
         files["dsh/skills/notes/SKILL.md"]
@@ -366,7 +366,7 @@ def test_dsh_render_steps_emit_the_patch_layer_the_env_file_and_skill_frontmatte
         "---\r\nname: own\r\ndescription: mine\r\n---\r\nBody.\r\n",
     ):
         assert render({"skills/own/SKILL.md": own}, DSH)["dsh/skills/own/SKILL.md"] == own
-    # The web profile reef-dsh web boots: the same defaults and binding (the tree's primary config targets the
+    # The web profile aster-dsh web boots: the same defaults and binding (the tree's primary config targets the
     # headless patch alone), the headless profile's extension by relative path, and a manifest that reads the patch
     # once.
     web = yaml.safe_load(files[DSH_WEB_PATCH].replace("!!js ", ""))
@@ -450,7 +450,7 @@ def test_dsh_command_with_its_own_frontmatter_stays_user_only() -> None:
 def test_dsh_command_frontmatter_that_cannot_be_written_again_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
     """A header that loaded can still fail to be written again (nesting the writer recurses on); that is a refusal
     of the tree, never an exception out of render."""
-    import reef.harness.adapters.dsh.render as dsh_render
+    import aster.harness.adapters.dsh.render as dsh_render
 
     def deep(*args: object, **kwargs: object) -> str:
         raise RecursionError("maximum recursion depth exceeded")
@@ -469,21 +469,21 @@ def test_dsh_command_frontmatter_that_cannot_be_written_again_is_refused(monkeyp
     ],
 )
 def test_dsh_binds_both_profiles_in_every_dialect(api, route_api, base_url) -> None:
-    """The headless and the web patch each carry the same Reef route and default model, in the dialect bound."""
+    """The headless and the web patch each carry the same Aster route and default model, in the dialect bound."""
     binding = ModelBinding(base_url="http://127.0.0.1:9", model="m1", api_key="k-1", api=api)
     files = render(SOURCES["dsh"], DSH, binding)
     route = {
-        "displayName": "Reef",
-        "apiKeyEnv": "REEF_API_KEY",
+        "displayName": "Aster",
+        "apiKeyEnv": "ASTER_API_KEY",
         "api": route_api,
         "baseURL": base_url,
         "models": [{"id": "m1"}],
     }
     for patch_path in (DSH_PATCH, DSH_WEB_PATCH):
         by_id = {row["id"]: row for row in yaml.safe_load(files[patch_path].replace("!!js ", "")) if "id" in row}
-        assert by_id["llm-pi-ai"]["config"] == {"providers": {"reef": route}}, patch_path
-        assert by_id["agent-default-model"]["config"] == {"provider": "reef", "model": "m1"}, patch_path
-    assert files["dsh/.env"] == "REEF_API_KEY=k-1\n"
+        assert by_id["llm-pi-ai"]["config"] == {"providers": {"aster": route}}, patch_path
+        assert by_id["agent-default-model"]["config"] == {"provider": "aster", "model": "m1"}, patch_path
+    assert files["dsh/.env"] == "ASTER_API_KEY=k-1\n"
 
 
 def test_dsh_locks_refuse_a_patch_that_breaks_the_run() -> None:
@@ -644,13 +644,13 @@ EVIL_PROVIDER = {"evil": {"npm": "@ai-sdk/openai-compatible", "options": {"baseU
 #: The model binding's shape with an endpoint of the tree's own; the only key a tree can hold is an empty one.
 BINDING_COPY = {
     "provider": {
-        "reef": {
+        "aster": {
             "npm": "@ai-sdk/openai-compatible",
             "options": {"baseURL": "http://127.0.0.1:9/v1", "apiKey": ""},
             "models": {"x": {}},
         }
     },
-    "model": "reef/x",
+    "model": "aster/x",
 }
 
 
@@ -658,12 +658,12 @@ BINDING_COPY = {
     ("data", "message"),
     [
         ({"provider": EVIL_PROVIDER}, "on provider in"),
-        ({"provider": {"reef": {"options": {"baseURL": "http://127.0.0.1:9/v1"}}}}, "on provider in"),
+        ({"provider": {"aster": {"options": {"baseURL": "http://127.0.0.1:9/v1"}}}}, "on provider in"),
         (BINDING_COPY, "on provider in"),
-        ({"model": "reef/other"}, "on model in"),
-        ({"small_model": "reef/served"}, r"on small_model in plugin/config\.json: Reef's model binding"),
-        ({"disabled_providers": ["reef"]}, "on disabled_providers in"),
-        ({"enabled_providers": ["reef", "opencode"]}, "on enabled_providers in"),
+        ({"model": "aster/other"}, "on model in"),
+        ({"small_model": "aster/served"}, r"on small_model in plugin/config\.json: Aster's model binding"),
+        ({"disabled_providers": ["aster"]}, "on disabled_providers in"),
+        ({"enabled_providers": ["aster", "opencode"]}, "on enabled_providers in"),
         ({"enabled_providers": []}, "on enabled_providers in"),
         ({"agent": {"build": {"model": "evil/m"}}}, r"on agent\.build\.model in"),
         ({"mode": {"chat": {"model": "evil/m"}}}, r"on mode\.chat\.model in"),
@@ -671,7 +671,7 @@ BINDING_COPY = {
     ],
 )
 def test_opencode_render_refuses_a_tree_that_chooses_the_model(data: dict, message: str) -> None:
-    """Reef's plugin merges the tree's config over opencode's own, after the binding, so the tree's config names no
+    """Aster's plugin merges the tree's config over opencode's own, after the binding, so the tree's config names no
     provider and chooses no model, with the binding or without it."""
     for binding in (None, ModelBinding("http://127.0.0.1:8900", "served")):
         with pytest.raises(RenderError, match=message):
@@ -684,8 +684,8 @@ def test_opencode_render_admits_the_model_binding(api: str) -> None:
     binding = ModelBinding(base_url="http://127.0.0.1:8900", model="served", api_key="k", api=api)
     files = render_tree(HarnessTree({}), OPENCODE, binding.config_overlays(OPENCODE, models=("other/big",)))
     config_json = json.loads(files["opencode/opencode.json"])
-    assert config_json["model"] == "reef/served"
-    assert set(config_json["provider"]["reef"]["models"]) == {"served", "other/big"}
+    assert config_json["model"] == "aster/served"
+    assert set(config_json["provider"]["aster"]["models"]) == {"served", "other/big"}
 
 
 def test_opencode_validation_refuses_a_tree_that_copies_the_binding() -> None:
@@ -693,8 +693,8 @@ def test_opencode_validation_refuses_a_tree_that_copies_the_binding() -> None:
     publish the binding's shape with an endpoint of its own."""
 
     def copy_problems(api_key: str) -> tuple[str, ...]:
-        reef = {**BINDING_COPY["provider"]["reef"], "options": {"baseURL": "http://127.0.0.1:9/v1", "apiKey": api_key}}
-        return problems(config({**BINDING_COPY, "provider": {"reef": reef}}), OPENCODE)
+        aster = {**BINDING_COPY["provider"]["aster"], "options": {"baseURL": "http://127.0.0.1:9/v1", "apiKey": api_key}}
+        return problems(config({**BINDING_COPY, "provider": {"aster": aster}}), OPENCODE)
 
     (empty,) = copy_problems("")
     assert "on provider in" in empty
@@ -704,9 +704,9 @@ def test_opencode_validation_refuses_a_tree_that_copies_the_binding() -> None:
 
 def test_opencode_runs_offer_only_the_binding_provider() -> None:
     """Without a provider list opencode also offers its own zen provider, so a model choice the check missed would
-    leave Reef; the descriptor lists only the binding's provider. A run does not search the web, so the env
+    leave Aster; the descriptor lists only the binding's provider. A run does not search the web, so the env
     does not register opencode's websearch tool."""
-    assert json.loads(render({}, OPENCODE)["opencode/opencode.json"])["enabled_providers"] == ["reef"]
+    assert json.loads(render({}, OPENCODE)["opencode/opencode.json"])["enabled_providers"] == ["aster"]
     assert "OPENCODE_ENABLE_EXA" not in OPENCODE.env
 
 
@@ -972,12 +972,12 @@ def test_claude_takes_no_setting_from_a_tree(data: dict) -> None:
 def test_claude_renders_the_plugin_with_its_rules_as_an_output_style_and_its_hooks() -> None:
     hooks = {"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "node x.mjs"}]}]}}
     files = render({"rules.md": "Run the tests first.\n", **config(hooks, "hooks")}, CLAUDE)
-    assert json.loads(files["plugin/.claude-plugin/plugin.json"]) == {"name": "reef"}
-    style = files["plugin/output-styles/reef.md"]
+    assert json.loads(files["plugin/.claude-plugin/plugin.json"]) == {"name": "aster"}
+    style = files["plugin/output-styles/aster.md"]
     assert "force-for-plugin: true" in style and style.endswith("Run the tests first.\n")
     assert json.loads(files["plugin/hooks/hooks.json"]) == hooks
     # No hooks, no hooks file; no rules, no output style.
-    assert not {"plugin/hooks/hooks.json", "plugin/output-styles/reef.md"} & set(render({}, CLAUDE))
+    assert not {"plugin/hooks/hooks.json", "plugin/output-styles/aster.md"} & set(render({}, CLAUDE))
 
 
 @pytest.mark.parametrize("value", [None, "enable", False])
@@ -988,11 +988,11 @@ def test_claude_render_keeps_deep_link_registration_off(value: object) -> None:
         render(config({"disableDeepLinkRegistration": value}), CLAUDE)
 
 
-def test_pi_settings_admit_only_what_reefs_extension_applies() -> None:
-    """A pi package carries no settings.json pi reads, so Reef's extension applies the one setting a tree may hold."""
+def test_pi_settings_admit_only_what_asters_extension_applies() -> None:
+    """A pi package carries no settings.json pi reads, so Aster's extension applies the one setting a tree may hold."""
     files = render(config({"defaultTools": []}), PI)
     assert json.loads(files["plugin/settings.json"]) == {"defaultTools": []}
-    assert "setActiveTools" in files["plugin/extensions/reef/index.ts"]
+    assert "setActiveTools" in files["plugin/extensions/aster/index.ts"]
     for data in ({"compaction": {"enabled": False}}, {"defaultThinkingLevel": "high"}, {"defaultTools": ["bash"]}):
         with pytest.raises(RenderError, match=re.escape("plugin/settings.json")):
             render(config(data), PI)
@@ -1066,7 +1066,7 @@ def test_adapter_renderer_steps_run_in_order_on_their_own_files() -> None:
     assert files["plugin/skills/notes/SKILL.md"] == "# NOTES SKILL\n\nKEEP SHORT NOTES.\n"
     assert json.loads(files["plugin/settings.json"])["defaultTools"] == []
 
-    # The render refuses a key Reef's model binding writes whatever the adapter's renderer does.
+    # The render refuses a key Aster's model binding writes whatever the adapter's renderer does.
     with pytest.raises(RenderError, match=re.escape("must not set defaultModel in pi-agent/settings.json")):
         render(config({"defaultModel": "other/m"}, "agent"), descriptor)
 
@@ -1097,9 +1097,9 @@ def test_an_adapter_renderer_step_must_be_a_static_method() -> None:
 @pytest.mark.parametrize(
     ("reference", "message"),
     [
-        ("reef.harness.adapters.pi.render", "must be 'package.module:ClassName'"),
-        ("reef.harness.adapters.pi.render:Missing", "cannot import"),
-        ("reef.harness.adapters.descriptor:ExecutionValidator", "must name a class that inherits"),
+        ("aster.harness.adapters.pi.render", "must be 'package.module:ClassName'"),
+        ("aster.harness.adapters.pi.render:Missing", "cannot import"),
+        ("aster.harness.adapters.descriptor:ExecutionValidator", "must name a class that inherits"),
     ],
 )
 def test_a_renderer_must_name_an_adapter_renderer_class(tmp_path, reference: str, message: str) -> None:

@@ -1,14 +1,14 @@
 """Figure 3 of arXiv:2601.19897 through reef-eval: one model learns Tool Use, then Science Q&A, by SDFT.
 
 The stream is two Harbor tasks, ``harbor/tooluse`` then ``harbor/science``,
-run under ``harness:HarborAgent``. Each stage is a fresh Reef stack started
+run under ``harness:HarborAgent``. Each stage is a fresh Aster stack started
 from the previous stage's exported weights, the way the reference
 implementation chains its single-task runs; the stack's recipe is the
 ``sdft`` recipe (``serve.yaml``) and its learning-rate schedule spans
 exactly the stage's steps. The stack takes eight GPUs (four for the actor,
 four for the rollout engines) and one host port, and the stream names it, so
 a second stream on other GPUs and another port (``CUDA_VISIBLE_DEVICES``,
-``REEF_PORT``) runs beside it: a smoke beside the full run.
+``ASTER_PORT``) runs beside it: a smoke beside the full run.
 
 For each stage:
 
@@ -49,14 +49,14 @@ STAGES = ("tooluse", "science")
 TRAINING_PROMPTS = {"tooluse": 4046, "science": 2674}
 #: The rows' ``arm`` tag in the Lab store.
 ARM = "sdft"
-#: The stack's GPUs (eight comma-separated ids) and the host port its Reef publishes.
+#: The stack's GPUs (eight comma-separated ids) and the host port its Aster publishes.
 DEFAULT_GPUS = "0,1,2,3,4,5,6,7"
 DEFAULT_PORT = 28902
 #: serve.yaml's lr-warmup-iters; Megatron requires the decay span to be longer.
 LR_WARMUP_STEPS = 10
-AGENT = {"name": "harness:HarborAgent", "model_name": "reef"}
+AGENT = {"name": "harness:HarborAgent", "model_name": "aster"}
 #: The stack's container name prefix, as docker-compose.yaml fixes it; the stream's name follows.
-CONTAINER = "reef-sdft-skills"
+CONTAINER = "aster-sdft-skills"
 #: Container paths: the base model under the models mount, a stage's export under the run mount.
 BASE_MODEL = "/root/models/Qwen2.5-7B-Instruct"
 EXPERIMENT_MOUNT = "/var/lib/experiment"
@@ -88,8 +88,8 @@ def stack_environment(stream: str) -> dict[str, str]:
         raise ValueError(f"CUDA_VISIBLE_DEVICES must name eight GPUs, got {gpus}")
     return {
         "STACK": stream,
-        "REEF_HOST_PORT": os.environ.get("REEF_PORT", str(DEFAULT_PORT)),
-        **{f"REEF_GPU_{index}": gpu.strip() for index, gpu in enumerate(gpus)},
+        "ASTER_HOST_PORT": os.environ.get("ASTER_PORT", str(DEFAULT_PORT)),
+        **{f"ASTER_GPU_{index}": gpu.strip() for index, gpu in enumerate(gpus)},
     }
 
 
@@ -102,7 +102,7 @@ def compose(stream: str, *arguments: str, environment: dict[str, str]) -> None:
 
 
 def start_stack(stream: str, model_path: str, steps: int, stage_dir: Path) -> None:
-    """Start the Reef stack on ``model_path`` with a schedule over ``steps``; state goes to ``stage_dir``.
+    """Start the Aster stack on ``model_path`` with a schedule over ``steps``; state goes to ``stage_dir``.
 
     A smoke run's few steps still get a schedule longer than the warmup, as
     Megatron insists; its learning rate then never leaves the warmup ramp.
@@ -134,7 +134,7 @@ async def run_stream(stream: str, seed: int) -> None:
         stage_dir = RUN_DIR / stream / ARM / task
         tags = {"stream": stream, "arm": ARM, "position": position, "seed": seed}
         # The scenario names the stage; the task's compose file hands it to both containers.
-        os.environ["REEF_SCENARIO"] = f"{stream}-{ARM}-{task}"
+        os.environ["ASTER_SCENARIO"] = f"{stream}-{ARM}-{task}"
         os.environ["SDFT_SEED"] = str(seed)
         key = f"{stream}@{position:03d}:{ARM}:{task}:seed{seed}"
         row = lab.store.get(key)
@@ -163,7 +163,7 @@ def main() -> None:
     )
     parser.add_argument("--seed", type=int, default=42, help="the training order's seed")
     arguments = parser.parse_args()
-    for variable in ("REEF_TOKEN", "REEF_IMAGE", "MODEL_DIR", "REEF_ROOT"):
+    for variable in ("ASTER_TOKEN", "ASTER_IMAGE", "MODEL_DIR", "ASTER_ROOT"):
         if not os.environ.get(variable):
             sys.exit(f"run.py: {variable} is not set; run.sh sets it")
     asyncio.run(run_stream(arguments.stream, arguments.seed))

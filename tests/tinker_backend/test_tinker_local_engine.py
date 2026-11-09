@@ -1,4 +1,4 @@
-"""Tinker training in process, its adapters served by Reef's engines on an inference component (CPU contracts)."""
+"""Tinker training in process, its adapters served by Aster's engines on an inference component (CPU contracts)."""
 
 from __future__ import annotations
 
@@ -13,33 +13,33 @@ import yaml
 from tests.support.job_data import job_data_ref
 from tests.support.runtime_stubs import RunningEngines
 
-from reef.artifact.artifact import Artifact
-from reef.core.errors import RuntimeConfigError
-from reef.core.weight_layout import ArtifactFormat, ArtifactWeights
-from reef.inference.interfaces import InferenceBackend, InferenceHandler
-from reef.inference.remote.runtime import RemoteServingRuntimeFactory
-from reef.inference.residency import adapter_name
-from reef.inference.serving import AdapterServingRuntime
-from reef.service.assembly import connect_training_component
-from reef.service.deploy.config_utils import DeployConfigError
-from reef.service.deploy.orchestrator import resolve_deployment_config
-from reef.service.deploy.service_config import service_config_from_mapping
-from reef.service.deploy.serving import serving_runtime_config
-from reef.service.deploy.training import local_model_required
-from reef.tinker.weights import TinkerSamplerWeights
-from reef.train.algos.signals import TrainingSignal
-from reef.train.component import TrainingJob, job_id_for
-from reef.train.tinker_backend.checkpoint import TinkerCheckpoint
-from reef.train.tinker_backend.component import TinkerTrainingComponent
-from reef.train.tinker_backend.launch import TinkerDeployment
-from reef.train.tinker_backend.objectives import (
+from aster.artifact.artifact import Artifact
+from aster.core.errors import RuntimeConfigError
+from aster.core.weight_layout import ArtifactFormat, ArtifactWeights
+from aster.inference.interfaces import InferenceBackend, InferenceHandler
+from aster.inference.remote.runtime import RemoteServingRuntimeFactory
+from aster.inference.residency import adapter_name
+from aster.inference.serving import AdapterServingRuntime
+from aster.service.assembly import connect_training_component
+from aster.service.deploy.config_utils import DeployConfigError
+from aster.service.deploy.orchestrator import resolve_deployment_config
+from aster.service.deploy.service_config import service_config_from_mapping
+from aster.service.deploy.serving import serving_runtime_config
+from aster.service.deploy.training import local_model_required
+from aster.tinker.weights import TinkerSamplerWeights
+from aster.train.algos.signals import TrainingSignal
+from aster.train.component import TrainingJob, job_id_for
+from aster.train.tinker_backend.checkpoint import TinkerCheckpoint
+from aster.train.tinker_backend.component import TinkerTrainingComponent
+from aster.train.tinker_backend.launch import TinkerDeployment
+from aster.train.tinker_backend.objectives import (
     TinkerObjective,
     register_tinker_objective,
     unregister_tinker_objective,
 )
-from reef.train.types import JobData, TrajectorySample
+from aster.train.types import JobData, TrajectorySample
 
-TOKENS = ("REEF_REMOTE_CONTROL_TOKEN", "REEF_REMOTE_INFERENCE_TOKEN")
+TOKENS = ("ASTER_REMOTE_CONTROL_TOKEN", "ASTER_REMOTE_INFERENCE_TOKEN")
 #: What the engines load: the adapter at each snapshot's sampler path, at the configs' LoRA rank.
 ENGINE_ADAPTERS = ArtifactFormat("adapter", 16, ("all",))
 
@@ -176,7 +176,7 @@ def item(sample):
             "agent": {"name": "test"},
             "steps": [{"step_id": 1}],
             "extra": {
-                "reef": {
+                "aster": {
                     "training": {
                         "tokens": [10 + sample, 11, 20, 21],
                         "loss_mask": [1, 0],
@@ -213,8 +213,8 @@ def serving_config(config):
 
 def build(config, monkeypatch, engines):
     """The component and serving runtime the HTTP service builds, over the SDK double and the engine double."""
-    monkeypatch.setattr("reef.train.tinker_backend.client.TinkerSDKClient", RemoteClient)
-    monkeypatch.setattr("reef.tinker.sampling.TinkerSDKSampler", UnusedSampler)
+    monkeypatch.setattr("aster.train.tinker_backend.client.TinkerSDKClient", RemoteClient)
+    monkeypatch.setattr("aster.tinker.sampling.TinkerSDKSampler", UnusedSampler)
     seen = {}
 
     def serve(factory, config, model_path, recipe_config, environ):
@@ -252,16 +252,16 @@ def train(component, inference, objective, scenario, sample, start=None):
     return checkpoint, inference.activate_checkpoint(Artifact.local(Path(checkpoint.artifact_path)), scenario=scenario)
 
 
-def test_local_engines_run_on_an_inference_component_that_reef_serve_starts(tmp_path):
+def test_local_engines_run_on_an_inference_component_that_aster_serve_starts(tmp_path):
     config, _ = resolve_deployment_config(local_engine_config(tmp_path), None, tmp_path / "serve.yaml")
     component, http = config["services"]
-    assert (component["name"], http["name"], http["depends_on"]) == ("inference", "reef", ["inference"])
-    url = config["reef"]["inference_remote"]["url"]
+    assert (component["name"], http["name"], http["depends_on"]) == ("inference", "aster", ["inference"])
+    url = config["aster"]["inference_remote"]["url"]
     port = url.rsplit(":", 1)[1]
     assert url.startswith("http://127.0.0.1:")
     assert component["command"][1:9] == [
         "-m",
-        "reef.inference.remote",
+        "aster.inference.remote",
         "--engine",
         "sglang",
         "--host",
@@ -281,22 +281,22 @@ def test_local_engines_run_on_an_inference_component_that_reef_serve_starts(tmp_
     assert not local_model_required(config)
     serving = serving_config(config)
     assert serving["type"] == "remote_serving" and serving["artifact_format"] == ENGINE_ADAPTERS.to_dict()
-    assert serving["weights"]["module"] == "reef.tinker.weights:TinkerSamplerWeights"
+    assert serving["weights"]["module"] == "aster.tinker.weights:TinkerSamplerWeights"
     assert serving["remote"]["url"] == url and serving["engine"] == "sglang"
     assert (serving["num_gpus"], serving["tensor_parallel_size"]) == (2, 1)
 
 
 def test_remote_engines_keep_the_section_and_start_no_local_component(tmp_path):
     config, _ = resolve_deployment_config(remote_engine_config(tmp_path), None, tmp_path / "serve.yaml")
-    assert [service["name"] for service in config["services"]] == ["reef"]
-    assert config["reef"]["inference_remote"] == {
+    assert [service["name"] for service in config["services"]] == ["aster"]
+    assert config["aster"]["inference_remote"] == {
         "url": "https://gpu-host.example",
-        "control_token_env": "REEF_REMOTE_CONTROL_TOKEN",
+        "control_token_env": "ASTER_REMOTE_CONTROL_TOKEN",
         "inference_token_env": "GPU_HOST_TOKEN",
         "startup_timeout_s": 3600.0,
         "model_path": "Qwen/Qwen3-8B",
     }
-    assert serving_config(config)["remote"] == config["reef"]["inference_remote"]
+    assert serving_config(config)["remote"] == config["aster"]["inference_remote"]
 
 
 def test_the_factory_builds_the_component_and_serves_each_scenarios_adapter(
@@ -364,7 +364,7 @@ def test_a_restart_serves_a_saved_release_and_trains_from_it(tmp_path, monkeypat
 def test_engine_topologies_refuse_conflicting_inputs_before_starting(tmp_path, monkeypatch):
     for change, match in (
         ({"training": {"colocate": True}}, "training.colocate"),
-        ({"inference": {"options": {"enable-lora": True}}}, "enable-lora is managed by Reef"),
+        ({"inference": {"options": {"enable-lora": True}}}, "enable-lora is managed by Aster"),
         ({"training": {"options": {"lora-rank": 0}}}, "training.options"),
         ({"execution": {"training": "ray"}}, "in-process training owns its execution"),
     ):
@@ -391,8 +391,8 @@ def test_engine_topologies_refuse_conflicting_inputs_before_starting(tmp_path, m
 def test_engines_serve_tinker_adapters_only_on_an_engine_that_loads_them(tmp_path, monkeypatch):
     for name in TOKENS:
         monkeypatch.setenv(name, f"{name.lower()}-value")
-    monkeypatch.setattr("reef.train.tinker_backend.client.TinkerSDKClient", RemoteClient)
-    monkeypatch.setattr("reef.tinker.sampling.TinkerSDKSampler", UnusedSampler)
+    monkeypatch.setattr("aster.train.tinker_backend.client.TinkerSDKClient", RemoteClient)
+    monkeypatch.setattr("aster.tinker.sampling.TinkerSDKSampler", UnusedSampler)
     raw = remote_engine_config(tmp_path)
     monkeypatch.setenv("GPU_HOST_TOKEN", "gpu-host-token")
     raw["inference"]["backend"] = "vllm"
@@ -408,7 +408,7 @@ def test_tinker_samples_in_process_without_engines(tmp_path):
     raw = local_engine_config(tmp_path)
     raw["inference"] = {"model-path": "Qwen/Qwen3-8B"}
     config, _ = resolve_deployment_config(raw, None, tmp_path / "serve.yaml")
-    assert [service["name"] for service in config["services"]] == ["reef"]
+    assert [service["name"] for service in config["services"]] == ["aster"]
     assert not local_model_required(config)
     assert not TinkerDeployment.requires_local_model
     assert serving_config(config)["type"] == "tinker"

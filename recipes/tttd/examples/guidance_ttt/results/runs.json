@@ -6,7 +6,7 @@
       "task": "polyomino",
       "task_id": "polyomino_packing",
       "run_name": "polyomino-qwen3-14b-openrouter-glm52-g8x16-s30-20260814",
-      "framework": "Reef",
+      "framework": "Aster",
       "status": "completed",
       "models": {
         "guidance": "Qwen/Qwen3-14B",
@@ -58,7 +58,7 @@
       "task": "trimul",
       "task_id": "trimul",
       "run_name": "trimul-qwen3-14b-openrouter-glm52-g8x16-s30-20260815",
-      "framework": "Reef",
+      "framework": "Aster",
       "status": "completed",
       "models": {
         "guidance": "Qwen/Qwen3-14B",

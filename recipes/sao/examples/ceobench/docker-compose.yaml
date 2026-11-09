@@ -1,13 +1,13 @@
-# The Reef training stack for CEO-Bench (Reef, Ray, Slime/Megatron, SGLang) in
-# the reef image. run.sh supplies image, paths, GPU pool, and a per-run token.
+# The Aster training stack for CEO-Bench (Aster, Ray, Slime/Megatron, SGLang) in
+# the aster image. run.sh supplies image, paths, GPU pool, and a per-run token.
 # The simulator roles are external services (the benchmark's Anthropic
 # defaults, or a local OpenAI-compatible server) and are not started here.
 services:
-  reef:
-    image: ${REEF_IMAGE}
-    container_name: reef-ceobench
-    command: reef serve -c /workspace/Reef/recipes/sao/examples/ceobench/serve.yaml
-    # Host networking: the task container reaches Reef on the machine's IP,
+  aster:
+    image: ${ASTER_IMAGE}
+    container_name: aster-ceobench
+    command: aster serve -c /workspace/Aster/recipes/sao/examples/ceobench/serve.yaml
+    # Host networking: the task container reaches Aster on the machine's IP,
     # and the serving engines bind to that same IP.
     network_mode: host
     ipc: host
@@ -19,21 +19,21 @@ services:
             - driver: nvidia
               # Four actor GPUs (the critic on the same GPUs) and a two-GPU rollout engine.
               device_ids:
-                - "${REEF_GPU_0:-0}"
-                - "${REEF_GPU_1:-1}"
-                - "${REEF_GPU_2:-2}"
-                - "${REEF_GPU_3:-3}"
-                - "${REEF_GPU_4:-4}"
-                - "${REEF_GPU_5:-5}"
+                - "${ASTER_GPU_0:-0}"
+                - "${ASTER_GPU_1:-1}"
+                - "${ASTER_GPU_2:-2}"
+                - "${ASTER_GPU_3:-3}"
+                - "${ASTER_GPU_4:-4}"
+                - "${ASTER_GPU_5:-5}"
               capabilities: [gpu]
     volumes:
       - ${MODEL_DIR}:/root/models
-      - ${RUN_DIR}:/var/lib/reef
-      - ${REEF_ROOT}:/workspace/Reef
+      - ${RUN_DIR}:/var/lib/aster
+      - ${ASTER_ROOT}:/workspace/Aster
     environment:
       RAY_ADDRESS: ${RAY_ADDRESS:-}
-      REEF_TOKEN: ${REEF_TOKEN}
-      PYTHONPATH: /workspace/Reef:/root/Megatron-LM
+      ASTER_TOKEN: ${ASTER_TOKEN}
+      PYTHONPATH: /workspace/Aster:/root/Megatron-LM
       # Two resident 27B bases beside one step's activations leave little
       # slack; expandable segments keep the caching allocator from fragmenting.
       PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True

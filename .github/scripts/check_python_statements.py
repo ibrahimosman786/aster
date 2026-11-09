@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Ban optimization-sensitive assert and delete statements in Reef source."""
+"""Ban optimization-sensitive assert and delete statements in Aster source."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE_ROOT = ROOT / "reef"
+SOURCE_ROOT = ROOT / "aster"
 
 
 @dataclass(frozen=True, order=True)
@@ -52,7 +52,7 @@ def main() -> int:
         print("Python statement policy failed: use explicit checks and mutation APIs instead of assert or del.")
         return 1
 
-    print("Python statement policy passed (no assert or del statements in reef/).")
+    print("Python statement policy passed (no assert or del statements in aster/).")
     return 0
 
 

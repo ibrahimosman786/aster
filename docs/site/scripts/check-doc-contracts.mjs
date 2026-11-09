@@ -11,7 +11,7 @@ function read(path) {
 }
 
 const configSource = read("recipes/basic/local-sglang.yaml");
-const routesDirectory = resolve(repoRoot, "reef/service/routes");
+const routesDirectory = resolve(repoRoot, "aster/service/routes");
 const homeSource = read("docs/site/app/page.tsx");
 const wireGuide = read("docs/reference/http-api.rst");
 const rootReadme = read("README.md");
@@ -55,11 +55,11 @@ function readTerminologyFiles(directory, extensions) {
   });
 }
 
-// The routes of every app, and the routes that every app shares (``reef/service/web.py``: ``/healthz``).
-const routeFiles = [...readRouteFiles(routesDirectory), resolve(repoRoot, "reef/service/web.py")];
+// The routes of every app, and the routes that every app shares (``aster/service/web.py``: ``/healthz``).
+const routeFiles = [...readRouteFiles(routesDirectory), resolve(repoRoot, "aster/service/web.py")];
 const routeSource = routeFiles.map(read).join("\n");
 
-const serviceConfig = configSource.match(/^reef:\s*\n((?:[ \t]+.*\n?)*)/m)?.[1];
+const serviceConfig = configSource.match(/^aster:\s*\n((?:[ \t]+.*\n?)*)/m)?.[1];
 const port = serviceConfig?.match(/^[ \t]+port:\s*["']?(\d+)/m)?.[1];
 if (!port) {
   throw new Error("Could not derive the Aster port from recipes/basic/local-sglang.yaml");
@@ -74,7 +74,7 @@ const routes = [
   method: method.toUpperCase(),
   path: path.replace(/\{(\w+):(?:[^{}]|\{[^{}]*\})*\}/g, "{$1}"),
 }));
-if (!routes.length) throw new Error("Could not derive aiohttp routes from reef/service/routes");
+if (!routes.length) throw new Error("Could not derive aiohttp routes from aster/service/routes");
 
 const health = routes.find(({ method, path }) => method === "GET" && path.includes("health"))?.path;
 if (!health) throw new Error("Could not derive the Aster health route");
@@ -106,7 +106,7 @@ const terminologyFiles = [
   resolve(repoRoot, "README.zh.md"),
   ...readTerminologyFiles(resolve(repoRoot, "docs"), documentationExtensions),
   ...readTerminologyFiles(resolve(repoRoot, "recipes"), documentationExtensions),
-  ...readTerminologyFiles(resolve(repoRoot, "reef"), documentationExtensions),
+  ...readTerminologyFiles(resolve(repoRoot, "aster"), documentationExtensions),
   ...readTerminologyFiles(resolve(repoRoot, "tutorials"), documentationExtensions),
 ];
 const droppedConcepts = [
@@ -133,7 +133,7 @@ for (const path of terminologyFiles) {
 const droppedIdentifiers = [
   ["execution_runtime", /\bexecution_runtime\b/],
   ["ScenarioLineage", /\bScenarioLineage\b/],
-  ["scenario.lineage module", /reef\.scenario\.lineage/],
+  ["scenario.lineage module", /aster\.scenario\.lineage/],
   ["evidence progress key", /["']evidence["']\s*:/],
   ["scored records", /\bscored records\b/i],
   // Records vocabulary unification (AgentData* -> AgentRecord/RecordStore/...).
@@ -150,11 +150,11 @@ const droppedIdentifiers = [
   // The old pairing interlock base's candidate type; the reported-feedback
   // processor replaced it (recipe processor class names survive as adapters).
   ["PairedCandidate", /\bPairedCandidate\b/],
-  // The online_grpo example arm is gone. This scan covers reef/**.py only, so the
+  // The online_grpo example arm is gone. This scan covers aster/**.py only, so the
   // identifier stays mentionable in docs and benchmark history notes.
   ["online_grpo", /\bonline_grpo\b/],
 ];
-for (const path of readTerminologyFiles(resolve(repoRoot, "reef"), sourceExtensions)) {
+for (const path of readTerminologyFiles(resolve(repoRoot, "aster"), sourceExtensions)) {
   const source = readFileSync(path, "utf8");
   for (const [name, pattern] of droppedIdentifiers) {
     if (pattern.test(source)) {
@@ -180,7 +180,7 @@ const simplifiedTerminology = [
 const preservedModelPrompts = new Map([
   [
     // Native Codex prompts must match the pinned CLI; keep catalog keys and other values checked.
-    "reef/harness/adapters/codex/bundled_models.json",
+    "aster/harness/adapters/codex/bundled_models.json",
     /(^[ \t]*"(?:base_instructions|persistent_instructions|instructions_template|classifier_instructions|policy|policy_template)": ")((?:[^"\\\n]|\\.)*)(")/gm,
   ],
   [
@@ -188,7 +188,7 @@ const preservedModelPrompts = new Map([
     /(^_JUDGE_SYSTEM_PROMPT = \(\n)((?:[ \t]+(?:"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*')[ \t]*\n)+)(\))/gm,
   ],
   [
-    "recipes/meta_harness/results/reef_harness.py",
+    "recipes/meta_harness/results/aster_harness.py",
     /(^[ \t]+_REVIEW_GATE = """)([\s\S]*?)(""")/gm,
   ],
 ]);
@@ -205,10 +205,10 @@ function terminologySource(path, source) {
   // Preserve SR's JSON field spelling only at its wire boundary and in its tests.
   // Surrounding text and identifiers still follow the repository's terminology.
   if ([
-    "reef/service/routing_preview.py",
-    "tests/reef_service/routing/routing_fakes.py",
-    "tests/reef_service/routing/test_routing_preview.py",
-    "tests/reef_service/routing/test_routing.py",
+    "aster/service/routing_preview.py",
+    "tests/aster_service/routing/routing_fakes.py",
+    "tests/aster_service/routing/test_routing_preview.py",
+    "tests/aster_service/routing/test_routing.py",
   ].includes(path)) {
     source = source.replace(/(["'])selection_provenance(?=\1|\.)/g, "$1selection_metadata");
   }

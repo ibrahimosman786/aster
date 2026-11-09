@@ -1,0 +1,200 @@
+# TTT-as-a-Service image — built ON TOP of slime's published training image.
+#
+# The base (slimerl/slime) ships the full serving + RL-training stack in the
+# /opt/sglang virtual environment: CUDA 13.0, torch 2.13, Slime-patched SGLang
+# 0.5.21 (/sgl-workspace/sglang), Megatron-Core 0.19.2 (/root/Megatron-LM),
+# Transformer Engine 2.18, flash-attention and ray, all pinned by the
+# constraints file that the base's PIP_CONSTRAINT names for every pip install.
+# Aster installs its reviewed Slime pin over the
+# image copy and keeps all Aster-specific behavior in its own adapter package.
+#
+# One image serves every role (pick by command):
+#   sglang         python -m sglang.launch_server --model-path <M> ...
+#   aster           python -m aster.service (internal config-driven child;
+#                  Slime trains in this process)
+#   inference      python -m aster.inference.remote (the serving engines)
+#   ray-head       ray start --head --block ...
+#   basic-example  python -m recipes.basic
+#   tests          pytest tests/aster_service -q
+#
+# Build:   docker build -f docker/Dockerfile.aster -t aster .
+# Deploy:  aster serve -c recipes/basic/local-sglang.yaml
+#          (sglang + aster; see docker/README.md for other demos)
+#
+# NOTE: Qwen3.5 hybrid (linear-attention) models produced garbage at tp>1 on
+# sglang v0.5.9 (upstream #20763; fixed by #19070, merged 2026-02-25 — one day
+# after the v0.5.9 tag). The base image's SGLang 0.5.21 contains the fix, so
+# tp>1 is expected to work; it has not yet been re-validated on this image.
+
+# The base that Slime's pin (pyproject.toml, dependency group runtime) was released with,
+# by digest: the tag was re-pushed on 2026-11-03 with Megatron-LM ae76c60e6 (Megatron-Core
+# 0.20.0), whose get_model reads a run config that only Slime 8a53b680 or newer sets.
+ARG SLIME_IMAGE_TAG=nightly-dev-20261027a-cu130@sha256:2a7437aa771ddcd5928054d4a143a5ac1a10776ead3cf7d641b93dbec51371f4
+FROM slimerl/slime:${SLIME_IMAGE_TAG} AS aster-common
+
+WORKDIR /workspace/Aster
+
+# The base already has transformers 5.12.1 (the first release line with the
+# qwen3_5 architecture, and the last before qwen3_asr, which collides with
+# SGLang's own registration) and peft, which the HF trainer backend's LoRA uses.
+RUN python -c "import transformers, peft; assert transformers.__version__ == '5.12.1', transformers.__version__"
+
+# opencode CLI — AI coding agent available inside the container.
+# Pinned GitHub release, x86_64 build (verified against the base image).
+# Kept above COPY so repo changes don't bust this layer's cache.
+ARG OPENCODE_VERSION=1.18.4
+RUN curl -fsSL "https://github.com/sst/opencode/releases/download/v${OPENCODE_VERSION}/opencode-linux-x64.tar.gz" \
+      | tar -xzf - -C /usr/local/bin \
+    && opencode --version
+
+# Aster's serving engines run the base image's SGLang, with Slime's own patch:
+# they load each published checkpoint from disk (full weights or a LoRA
+# adapter) and report the runtime load ID through Aster's SGLang plugin
+# (aster.inference.sglang.plugin), which also opens the weight-update session
+# that this SGLang requires around Slime's weight transfer.
+
+# FlashInfer 0.7.2.post1 over the base image's 0.6.18. Before 0.7.0
+# FlashInfer's attention used a finite 5e4 as "infinity" (upstream issue
+# #2896, fixed by PR #4401), which silently corrupts attention for some
+# prompts: on RTX PRO 6000 (sm_120), SGLang's flashinfer backend scored
+# Qwen2.5-1.5B tokens up to 11 nats away from HF and Megatron, so rollout
+# log-probs no longer matched the trained policy and every correction that
+# reads them (SAO's ratio, TIS, score centering) trained on the error. In one
+# SAO run, the mean train/rollout log-prob gap was 0.007 before the fix and
+# 1e-6 after it. The JIT cache holds the kernels for every architecture.
+# The base's constraints pin 0.6.18, so this step lifts them; --no-deps keeps
+# the base's torch and CUDA stack.
+RUN pip uninstall -y flashinfer-cubin flashinfer-jit-cache flashinfer-python && \
+    PIP_CONSTRAINT= pip install --no-cache-dir --no-deps "flashinfer-python==0.7.2.post1" && \
+    PIP_CONSTRAINT= pip install --no-cache-dir --no-deps --index-url https://flashinfer.ai/whl/cu130 \
+        "flashinfer-jit-cache==0.7.2.post1+cu130" && \
+    grep -q "numeric_limits<float>::infinity()" \
+        "$(python -c 'import flashinfer, pathlib; print(pathlib.Path(flashinfer.__file__).parent)')/data/include/flashinfer/math.cuh"
+
+COPY . .
+
+# Replace the image's Slime distribution with Aster's exact pin. Install Slime
+# with --no-deps, and without the base's constraints, which name the image's
+# own Slime, to keep the base image's CUDA-matched dependency set. Install
+# Aster with its core dependencies under the base's constraints, so no core
+# dependency moves a package the stack pinned. pyproject.toml keeps GPU
+# packages out of that list.
+RUN pip uninstall -y slime && \
+    PIP_CONSTRAINT= pip install --no-cache-dir --no-deps --group runtime && \
+    pip install --no-cache-dir -e .
+
+# The base installs SGLang, Megatron-Core (with megatron.training) and Slime
+# editable into its environment, so nothing goes on PYTHONPATH: an entry
+# would also win over a ``pip install -e`` of a mounted checkout, silently
+# running the baked-in copy instead (observed 2026-09-01). The `recipes`
+# cookbook resolves from the working directory the stack runs in, matching a
+# from-checkout deployment.
+# VIRTUAL_ENV makes the README's `uv pip install ...` lines install into the
+# base environment, never into a `.venv` bind-mounted with a checkout.
+ENV PYTHONUNBUFFERED=1 \
+    SGLANG_DISABLE_CUDNN_CHECK=1 \
+    VIRTUAL_ENV=/opt/sglang
+
+# Slime's first import chain (sglang server args -> transformers ->
+# scipy) is exactly where a broken compiled stack surfaces at runtime; walking
+# it here turns that class of drift into a build failure.
+RUN python -c "from sglang.srt.server_args import ServerArgs; import transformers, scipy.linalg, importlib.util; \
+               assert importlib.util.find_spec('megatron.training'), 'megatron.training is not importable'"
+
+# `aster serve --help` loads the CLI, the deployment config and the record
+# storage modules without a GPU. A missing core dependency fails the build here.
+RUN aster serve --help > /dev/null
+
+# Qwen3.5's fused Q/K norm + RoPE + gate kernel must rotate image tokens with
+# all three M-RoPE rows, as SGLang does from sgl-project/sglang#34446
+# (e635577431) on; before it, the kernel read only the temporal row. The base
+# image's SGLang has the fix; the build fails on a base without it.
+RUN python -c "import inspect, torch; from types import SimpleNamespace; \
+               from sglang.srt.models.qwen3_5 import Qwen3_5AttentionDecoderLayer; \
+               from sglang.srt.layers.rotary_embedding.mrope import MRotaryEmbedding; \
+               assert 'mrope_axis_map=' in inspect.getsource(Qwen3_5AttentionDecoderLayer.forward_prepare_cuda_fused); \
+               rope = SimpleNamespace(mrope_section=[11, 11, 10], rotary_dim=64, mrope_interleaved=True, \
+                                      mrope_interleaved_glm=False, cos_sin_cache=torch.empty(0)); \
+               assert MRotaryEmbedding._build_axis_map(rope).tolist() == [0, 1, 2] * 10 + [0, 1]"
+
+# Slime's Qwen3.5 trainer runs the transformers vision tower. Five of its ops
+# round differently from SGLang's vision tower. So in bf16, the trainer's image
+# features differ from the rollout's by 5 to 10 percent. The module makes the
+# trainer use SGLang's kernels and encode each image in its own call. Then the
+# features are bit-identical to the engine under the conditions in
+# docker/README.md. The patch makes Slime's Qwen3.5 vision loader call the
+# module. The step is skipped when Slime already calls it. The check below
+# fails the build when transformers is outside the range that the module
+# supports, because the module then does nothing. It also fails when SGLang no
+# longer has the RoPE function that the module imports.
+# Remove the module, the patch, this step and
+# tests/slime_backend/test_qwen3_5_vision_numerics.py when the Slime pin has
+# the change.
+RUN SLIME_MODELS=$(python -c "import importlib.util, pathlib; \
+        print(pathlib.Path(importlib.util.find_spec('slime_plugins.models.qwen3_5_vl').origin).parent)") && \
+    if ! grep -q "match_sglang_vision_numerics" "$SLIME_MODELS/qwen3_5_vl.py"; then \
+        cp docker/patch/slime_qwen3_5_vision_numerics.py "$SLIME_MODELS/qwen3_5_vision_numerics.py" && \
+        git -C "$SLIME_MODELS" apply -p3 "$PWD/docker/patch/slime_qwen3_5_vl_vision_numerics.patch"; \
+    fi && \
+    grep -q "match_sglang_vision_numerics(vision_model)" "$SLIME_MODELS/qwen3_5_vl.py" && \
+    python -c "from slime_plugins.models.qwen3_5_vision_numerics import transformers_api_supported; \
+               from sglang.srt.layers.rotary_embedding.utils import apply_rotary_pos_emb_native; \
+               assert transformers_api_supported()"
+
+# With context parallel size 1, Slime's Qwen3.5-VL trainer rejects every packed
+# sequence with an odd length ("must be divisible by 2 * CP size 1"). So it
+# fails in the first training step. The patch returns the full packed stream
+# when cp_size is 1. THUDM/slime#2376 fixes the call site. This patch is a
+# helper-side variant of the same fix, which #2376 says would be directly
+# unit-testable. Both give the same indices at CP 1.
+# The step is skipped when the helper already handles cp_size 1. Remove the
+# patch, this step and tests/slime_backend/test_slime_thd_cp1_indices.py when
+# the Slime pin has a fix.
+RUN SLIME_MODELS=$(python -c "import importlib.util, pathlib; \
+        print(pathlib.Path(importlib.util.find_spec('slime_plugins.models.qwen3_5_vl_utils').origin).parent)") && \
+    if ! grep -q "if cp_size == 1:" "$SLIME_MODELS/qwen3_5_vl_utils.py"; then \
+        git -C "$SLIME_MODELS" apply -p3 "$PWD/docker/patch/slime_thd_cp1_indices.patch"; \
+    fi && \
+    python -c "import torch; from slime_plugins.models.qwen3_5_vl_utils import get_packed_cp_local_indices; \
+               assert get_packed_cp_local_indices([0, 3, 4, 7], 1, 0, torch.device('cpu')).tolist() == list(range(7))"
+
+# Megatron-Bridge supplies the PEFT LoRA implementation aster's LoRA path
+# applies (aster_adapters/megatron/lora.py) and the HF export that publishes
+# adapters. The base does not bundle it. 0.6.2 is the newest release that
+# imports against the base's Megatron-Core 0.19.2 (0.7.0 needs a newer core);
+# aster overrides its Qwen3_5ForConditionalGeneration registration with a
+# bridge for the layout slime builds
+# (aster_adapters/megatron/bridges/qwen3_5.py), which is what makes Qwen3.5
+# LoRA work. --no-deps because Bridge's newer dependency pins
+# (fast-hadamard-transform et al.) neither build here nor matter for LoRA.
+# Transformer Engine loads the CUDA driver at import, which a build has none of:
+# the check imports against the CUDA toolkit's driver stub.
+RUN pip install --no-cache-dir --no-deps "megatron-bridge==0.6.2" && \
+    DRIVER_STUB=$(mktemp -d) && ln -s /usr/local/cuda/lib64/stubs/libcuda.so "$DRIVER_STUB/libcuda.so.1" && \
+    LD_LIBRARY_PATH="$DRIVER_STUB:$LD_LIBRARY_PATH" python -c "from megatron.bridge.peft.lora import LoRA; \
+               from megatron.bridge.models.conversion.param_mapping import ReplicatedMapping" && \
+    rm -rf "$DRIVER_STUB"
+
+# Optional TTT-Discover target. It adds only the generated-program solver
+# dependencies used by recipes/tttd/examples/tttd/deployments/qwen3_8b_lora; LoRA serving
+# itself is in the common layer above.
+#
+# The experiment guide supplies the qualified SLIME_IMAGE_TAG digest at build
+# time, so deployments can advance that base independently of the default
+# Aster image after running their own GPU qualification.
+FROM aster-common AS tttd
+
+# The base's constraints keep its NumPy and CUDA-matched dependency stack.
+RUN pip install --no-cache-dir cvxpy && \
+    python -c "import cvxpy, numpy"
+
+CMD ["bash", "-c", "echo 'aster TTT-Discover image. Run python -m recipes.tttd.examples.tttd.deployments.qwen3_8b_lora.cluster'"]
+
+# Keep this target last so `docker build -f docker/Dockerfile.aster .` retains
+# the repository's default image behavior.
+FROM aster-common AS aster
+
+CMD ["bash", "-c", "echo 'aster image. Commands:' && \
+  echo '  sglang: python -m sglang.launch_server --model-path <MODEL> --tp 1 --port 30000' && \
+  echo '  aster:   aster serve -c recipes/basic/<stack>.yaml' && \
+  echo 'or a method stack from recipes/<method>/examples/'"]

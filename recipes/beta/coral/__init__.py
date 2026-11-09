@@ -1,9 +1,9 @@
-"""CORAL test-time training through Reef: one method, one package.
+"""CORAL test-time training through Aster: one method, one package.
 
-- ``middleware`` — the ASGI layer that stamps Reef scenario/tag headers onto
-  CORAL gateway traffic and captures Reef receipts.
+- ``middleware`` — the ASGI layer that stamps Aster scenario/tag headers onto
+  CORAL gateway traffic and captures Aster receipts.
 - ``journal`` — the append-only call journal correlation reads.
-- ``reporter`` — finalized CORAL attempts posted to ``/reef/report``.
+- ``reporter`` — finalized CORAL attempts posted to ``/aster/report``.
 - ``watcher`` — CORAL's on-disk attempt records, reported exactly once each.
 - ``processor``/``recipe`` — sibling groups as grouped relative-reward
   training units, reusing the tttd objective and loss family.
@@ -15,7 +15,7 @@ The runnable example lives in ``examples/coral_demo``.
 """
 
 from recipes.beta.coral.journal import CallJournal, CallRecord
-from recipes.beta.coral.middleware import ReefGatewayMiddleware
+from recipes.beta.coral.middleware import AsterGatewayMiddleware
 from recipes.beta.coral.recipe import CoralRecipe
 from recipes.beta.coral.reporter import AttemptReport, report_attempt
 from recipes.beta.coral.watcher import AttemptWatcher, FinalizedAttempt
@@ -27,6 +27,6 @@ __all__ = [
     "CallRecord",
     "CoralRecipe",
     "FinalizedAttempt",
-    "ReefGatewayMiddleware",
+    "AsterGatewayMiddleware",
     "report_attempt",
 ]

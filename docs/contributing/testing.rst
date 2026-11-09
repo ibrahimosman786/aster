@@ -15,9 +15,9 @@ Pytest uses importlib mode. Import shared helpers through ``tests.support`` or
 another scoped ``tests.<owner>`` module, so test packages do not shadow libraries.
 
 PostgreSQL record tests require ``uv pip install -e '.[postgres]'`` and a dedicated
-test database. Set ``REEF_TEST_POSTGRES_URL`` to its PostgreSQL URL, then run
+test database. Set ``ASTER_TEST_POSTGRES_URL`` to its PostgreSQL URL, then run
 ``pytest tests/storage/test_record_store_contract.py tests/storage/test_postgres_records.py``.
-Each test creates and drops a randomly named ``reef_test_*`` schema, so the test
+Each test creates and drops a randomly named ``aster_test_*`` schema, so the test
 role needs schema-creation permission. Without the variable these integration
 cases skip; with it configured, connection or driver errors fail the tests.
 CI supplies PostgreSQL 16 and runs these cases on all supported Python versions.
@@ -52,8 +52,8 @@ Ray processes:
 
 .. code:: bash
 
-   REEF_TEST_RAY=1 PYTHONPATH="$PWD" NO_PROXY='*' \
-     .venv/bin/python -m pytest tests/reef_service/test_service_executor_ray.py \
+   ASTER_TEST_RAY=1 PYTHONPATH="$PWD" NO_PROXY='*' \
+     .venv/bin/python -m pytest tests/aster_service/test_service_executor_ray.py \
        tests/inference/test_inference_control.py -q
 
 Install the Python dependencies from ``.[slime]`` first. These tests use
@@ -66,7 +66,7 @@ tests use four workers on a 4-vCPU runner. The source suite excludes tests marke
 ``sandbox``; a parallel GitHub-hosted matrix runs those tests serially on the
 same Python version. Both matrices collect all of ``tests/`` and use
 complementary marker selections, so each test belongs to exactly one group.
-The sandbox jobs set ``REEF_REQUIRE_SANDBOX=1``: a missing bubblewrap binary or
+The sandbox jobs set ``ASTER_REQUIRE_SANDBOX=1``: a missing bubblewrap binary or
 failed nested-jail preflight fails CI instead of silently skipping isolation
 checks. Local runs still skip these tests on unsupported hosts.
 
@@ -123,7 +123,7 @@ contract. The layout check rejects missing and duplicate entries.
 Run these tests outside the checkout, with Aster and its dependencies installed
 from wheels. Expose only the checkout's ``tests/`` and ``recipes/`` directories
 there, as the CI job does. Do not add the checkout root to ``PYTHONPATH``: its
-``reef/`` directory would hide the installed package being tested.
+``aster/`` directory would hide the installed package being tested.
 
 Run one area
 ------------
@@ -132,7 +132,7 @@ Hosted run acceptance is opt-in and creates paid E2B sandboxes and small
 OpenRouter model requests. Set ``E2B_API_KEY`` and ``OPENROUTER_API_KEY`` in the
 test process (never commit them), then run::
 
-    REEF_TEST_E2B=1 REEF_E2B_TEST_MODEL=deepseek/deepseek-v4.1-flash \
+    ASTER_TEST_E2B=1 ASTER_E2B_TEST_MODEL=deepseek/deepseek-v4.1-flash \
       .venv/bin/python -m pytest tests/smoke/test_e2b_run.py -q
 
 The tests exercise pi and Codex through the ordinary executor factory, model
@@ -149,7 +149,7 @@ The Modal sandbox has its own opt-in acceptance, which costs a few cents of
 Modal CPU time and needs Modal credentials (``MODAL_TOKEN_ID`` and
 ``MODAL_TOKEN_SECRET``, or ``~/.modal.toml``)::
 
-    REEF_TEST_MODAL=1 .venv/bin/python -m pytest tests/smoke/test_modal_sandbox.py -q
+    ASTER_TEST_MODAL=1 .venv/bin/python -m pytest tests/smoke/test_modal_sandbox.py -q
 
 It builds an image for a small npm program and checks one jailed process: the
 tunnel to this host, the workspace copy in and back, the read-only filesystem
@@ -162,7 +162,7 @@ need no GPU:
 .. code:: bash
 
    pytest tests/artifact/ -q
-   pytest tests/artifact/test_reef_artifacts.py -q
+   pytest tests/artifact/test_aster_artifacts.py -q
 
 Markers
 -------
@@ -172,7 +172,7 @@ Markers
 
 ``sandbox`` selects tests that need real nested bubblewrap jails. Reproduce
 the two source-suite groups with ``pytest tests -m 'not sandbox' -n 8`` and
-``REEF_REQUIRE_SANDBOX=1 pytest tests -m sandbox``. The second command requires
+``ASTER_REQUIRE_SANDBOX=1 pytest tests -m sandbox``. The second command requires
 a Linux host that supports nested jails.
 
 Coverage

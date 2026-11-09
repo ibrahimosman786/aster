@@ -41,8 +41,8 @@ from recipes.beta.autoenvscaling import generator as generator_module
 from recipes.beta.autoenvscaling.checks import PassRateBand
 from recipes.beta.autoenvscaling.generator import ParentTask
 from recipes.beta.autoenvscaling.sources import Repository, SessionSource
-from reef.core.plugins import PluginConfigError
-from reef.recipe.generated_tasks.generator import FailedTask, HeldOutTask, RejectedTask
+from aster.core.plugins import PluginConfigError
+from aster.recipe.generated_tasks.generator import FailedTask, HeldOutTask, RejectedTask
 
 
 @pytest.fixture(autouse=True)
@@ -218,7 +218,7 @@ def test_the_agent_gets_the_parent_and_its_pass_rate_and_the_variant_rules(
     (parent_dir / "tests" / "test.sh").write_text("#!/bin/sh\n")
     repository = tmp_path / "repository"
     repository.mkdir()
-    monkeypatch.setattr(author_module, "session_text", lambda reef, source: "the session")
+    monkeypatch.setattr(author_module, "session_text", lambda aster, source: "the session")
     monkeypatch.setattr(author_module, "repository_snapshot", lambda source, cache_dir: repository)
     seen: dict[str, object] = {}
     inputs: set[str] = set()
@@ -232,7 +232,7 @@ def test_the_agent_gets_the_parent_and_its_pass_rate_and_the_variant_rules(
 
     monkeypatch.setattr(AgentAuthor, "run", run)
     agent = AgentAuthor(
-        reef_url="http://127.0.0.1:9",
+        aster_url="http://127.0.0.1:9",
         token=None,
         scenario="autoenvscaling",
         model="designer",
@@ -291,7 +291,7 @@ def test_a_parent_refuses_a_name_that_is_not_a_task_name(name: str) -> None:
 
 def test_adaptive_requires_an_author_that_implements_variants(tmp_path: Path) -> None:
     designer = author_module.PromptAuthor(
-        reef_url="http://127.0.0.1:9", token=None, scenario="autoenvscaling", model="designer", api="openai"
+        aster_url="http://127.0.0.1:9", token=None, scenario="autoenvscaling", model="designer", api="openai"
     )
     with pytest.raises(ValueError, match="adaptive generation needs a VariantAuthor"):
         autoenvscaling(tmp_path, designer, count=2, is_adaptive=True)

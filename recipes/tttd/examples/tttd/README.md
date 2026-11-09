@@ -1,8 +1,8 @@
-# TTT-Discover on Reef
+# TTT-Discover on Aster
 
 This example implements the harness side of
 [Learning to Discover at Test Time](https://arxiv.org/abs/2601.16175). Its
-code is intentionally split so the Reef integration is visible and removable:
+code is intentionally split so the Aster integration is visible and removable:
 
 The [TTT-Discover guide](../../../../docs/user-guide/recipes/tttd.rst) explains the runtime
 sequence, a reduced smoke, trajectory configuration, and recovery behavior. This
@@ -18,17 +18,17 @@ harbor/               self-contained reef-eval/Harbor task definitions
     instruction.md       exact task prompt shown to the model
     environment/         container, judge service, canonical verifier
     tests/test.sh        asks the judge for the final result, writes reward
-harness/              agent harness (PUCT search + Reef adapter)
+harness/              agent harness (PUCT search + Aster adapter)
   search.py             Scorer callable + PUCT archive + search algorithm
   scorer.py             JudgeScorer (HTTP) + ProgramScorer (direct sandbox)
   sandbox.py             isolated subprocess execution for generated programs
-  agent.py              ReefTTTDiscoverHarness rollout/report adapter
+  agent.py              AsterTTTDiscoverHarness rollout/report adapter
   run_controller.py     training barrier + paired PUCT resume state
   harbor_agent.py       Harbor BaseAgent (imports harbor package)
-serve.yaml            Reef + Ray + Slime/Megatron + SGLang stack config
+serve.yaml            Aster + Ray + Slime/Megatron + SGLang stack config
 serve-tinker.yaml     the same method on Tinker's hosted LoRA training, no local GPU
 run.py                one reef-eval rollout owning the complete TTT trajectory
-run.sh                starts the reef training stack, then runs run.py
+run.sh                starts the aster training stack, then runs run.py
 pyproject.toml        makes the harness importable
 results/              formal result data, generated programs, and plots
 ```
@@ -53,42 +53,42 @@ return self._evaluate_response(parent, response)
 ```
 
 There is no report hook, transport protocol, receipt wrapper, or other
-Reef-shaped abstraction in the ordinary harness.
+Aster-shaped abstraction in the ordinary harness.
 
-## The changes needed for Reef
+## The changes needed for Aster
 
-Use the concrete Reef harness instead:
+Use the concrete Aster harness instead:
 
 ```python
-from reef_client import ReefClient
-from recipes.tttd.examples.tttd import ReefTTTDiscoverHarness
+from reef_client import AsterClient
+from recipes.tttd.examples.tttd import AsterTTTDiscoverHarness
 
-harness = ReefTTTDiscoverHarness(
-    ReefClient("http://reef-host:8900", token="secret"),
+harness = AsterTTTDiscoverHarness(
+    AsterClient("http://aster-host:8900", token="secret"),
     MyProblem(),
     "task instruction",
     scenario="my-single-discovery-problem",
     artifact_id="artifact:example",  # optional artifact already served by the scenario
-    model="reef",
+    model="aster",
 )
 best = harness.run(steps=50)
 ```
 
-`ReefTTTDiscoverHarness` reuses the request construction, evaluation, archive,
+`AsterTTTDiscoverHarness` reuses the request construction, evaluation, archive,
 and PUCT mechanics. Its overridden `_rollout` method contains the four actual
 integration changes in one place:
 
-1. Send inference through a scenario-scoped Reef endpoint. An optional
+1. Send inference through a scenario-scoped Aster endpoint. An optional
    `artifact_id` selects an artifact the scenario already serves. Omit it to use
    the active artifact.
 2. Retain the returned `agent_record_id` as the generation receipt.
-3. After the existing evaluator computes a reward, send a Reef report that
+3. After the existing evaluator computes a reward, send an Aster report that
    references that exact inference receipt.
 4. Include the rollout group's `comparison_set` so the scenario processor can
    construct grouped training data.
 
-The ordinary harness and problem do not import `ReefClient`, know the scenario
-name, retain inference IDs, or construct Reef report payloads.
+The ordinary harness and problem do not import `AsterClient`, know the scenario
+name, retain inference IDs, or construct Aster report payloads.
 
 The runtime flow is:
 
@@ -96,7 +96,7 @@ The runtime flow is:
 PUCT chooses G parents
   -> harness submits G × R OpenAI-compatible chat requests
   -> the TTTD inference backend renders each prompt once and calls SGLang /generate
-  -> Reef records each provider exchange and the adapter that answered, without tokens
+  -> Aster records each provider exchange and the adapter that answered, without tokens
   -> sandbox executes each generated program; the official verifier gives rewards
   -> harness reports every reward against its exact inference receipt
   -> TTTDSamples waits for the complete G × R step; TTTDJobData removes constant groups
@@ -159,12 +159,12 @@ serve). Nothing has to be
 exported first except `TTTD_TASK` — `run.py`, `harness/harbor_agent.py`, and
 `serve.yaml` each write out the values they use.
 
-Reef starts and stops the shared Ray runtime automatically; no `ray start`
+Aster starts and stops the shared Ray runtime automatically; no `ray start`
 or fixed Ray port is needed. `run.sh` defaults the local cluster's GPU pool to
 `CUDA_VISIBLE_DEVICES=0,1,2,3`; override it at launch to choose different GPUs.
 `training.config.num_gpus` sets the actor's GPUs and `inference.num-gpus` the
 engines'; training and serving never share a GPU. To use an existing cluster,
-set `RAY_ADDRESS`; its nodes control GPU visibility and Reef leaves it running
+set `RAY_ADDRESS`; its nodes control GPU visibility and Aster leaves it running
 on exit.
 
 We recommend allocating at least 256 GiB of host memory to the reference
@@ -187,7 +187,7 @@ and sizes the memory limits for it — the packing tasks need a longer context
 The step grid has one source: `groups_per_step` and `rollouts_per_group` under
 `pipeline.record2sample.config` in `serve.yaml`. `harness/harbor_agent.py`
 reads them as `GROUPS_PER_STEP` and `ROLLOUTS_PER_GROUP`, so the harness sends
-exactly the coordinates that Reef waits for. Slime's `--global-batch-size` in
+exactly the coordinates that Aster waits for. Slime's `--global-batch-size` in
 `serve.yaml` must equal their product. A one-step plumbing smoke sets the grid
 to 2 x 2 and
 `enable_thinking: false` in the stack's `training.config`, so a short completion
@@ -205,7 +205,7 @@ the model remotely (see the [Tinker guide](../../../../docs/user-guide/tinker.rs
 no GPU, Ray, or model download on this machine, the paper's LoRA, Adam, KL and
 sampling settings, and the reduced 2 x 2 grid for one step. Point the harness at
 it with `TTTD_STACK=serve-tinker.yaml`, export `TINKER_API_KEY` and
-`TTTD_STATE_DIR`, start `python -m reef serve -c serve-tinker.yaml` and run
+`TTTD_STATE_DIR`, start `python -m aster serve -c serve-tinker.yaml` and run
 `run.py` as `run.sh` does. Raise `rollouts_per_group` before reading anything
 into the update. Tinker's `batch-size` is the rollouts in one optimizer step.
 It must not exceed the grid's rollouts; equal to the grid, it trains one step
@@ -215,11 +215,11 @@ per grid.
 scenario records, and PUCT state; a second problem needs its own directory so
 the two cannot mix. `work/erdos_min_overlap/tttd-search-state.json` records a
 pending archive immediately after a search step and marks it committed only
-after Reef's durable training transaction advances the scenario and serves
+after Aster's durable training transaction advances the scenario and serves
 a new artifact.
 Restarting with the same scenario, task instruction, and sampling settings
 resumes that paired state; a missing or mismatched step fails closed instead
-of silently restarting PUCT against a later model checkpoint. Reef's scenario
+of silently restarting PUCT against a later model checkpoint. Aster's scenario
 step is the check: when a correctly restored step serves another artifact, for
 example after an operator activated one, the controller records that artifact.
 The controller refuses a state file of an older format; start a fresh scenario.
@@ -256,23 +256,23 @@ The integration reproduces:
 - raw continuous rewards linked to exact inference receipts;
 - Megatron Bridge LoRA with the paper configuration (`rank=32`, `alpha=32`)
   on QKV, attention output, and both MLP projections. The base parameters remain
-  frozen in both runtimes. Reef synchronizes the serving-native `lora_A` and
+  frozen in both runtimes. Aster synchronizes the serving-native `lora_A` and
   `lora_B` adapter tensors to SGLang.
 
-The deployment selects Reef's token-native SGLang chat backend. The public
+The deployment selects Aster's token-native SGLang chat backend. The public
 harness route remains `/v1/chat/completions`; inside the inference backend,
-Reef renders the prompt once and calls SGLang `/generate`. Serving records no
+Aster renders the prompt once and calls SGLang `/generate`. Serving records no
 tokens or log-probabilities: the training component renders each rollout with
 the model's chat template, and the actor computes the old-policy
 log-probabilities with the weights of the step's start. With
 `max_staleness: 0` these are the weights that sampled the grid. Slime refuses
-`--use-rollout-logprobs`. Reef routes every request to the scenario's own
+`--use-rollout-logprobs`. Aster routes every request to the scenario's own
 adapter revision; the harness never selects one and the
 backend never injects a fallback.
 
 New Slime configs should use the
 `recipes.tttd.slime.objective.*` custom-function paths.
-The former `reef_adapters.tttd.*` paths
+The former `aster_adapters.tttd.*` paths
 were removed; existing deployment configs must migrate to the backend-owned
 module path.
 
@@ -292,7 +292,7 @@ group, so this run used half of its rollout budget.
 | --- | --- |
 | Task | Erdős minimum-overlap program discovery |
 | Model | `Qwen/Qwen3-8B`, thinking enabled |
-| Runtime | Reef, Slime, Megatron, and SGLang LoRA serving |
+| Runtime | Aster, Slime, Megatron, and SGLang LoRA serving |
 | Hardware | `4 × NVIDIA B200`, using TP2 × DP2 |
 | Search grid | 8 groups × 32 rollouts |
 | Training | 50 steps, LoRA rank and alpha 32, Adam learning rate `4e-5` |

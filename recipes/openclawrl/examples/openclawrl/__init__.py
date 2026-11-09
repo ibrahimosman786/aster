@@ -1,7 +1,7 @@
 """OpenClaw-RL example: the harness side of the cookbook recipe.
 
 The method itself (next-state binary reward, arXiv:2603.10165) lives
-entirely in the reef package — the ``openclawrl`` recipe's processor
+entirely in the aster package — the ``openclawrl`` recipe's processor
 correlates sessions from recorded traffic and judges turns with its
 private PRM worker (``recipes/openclawrl/processor.py``).
 

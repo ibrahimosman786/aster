@@ -127,7 +127,7 @@ def test_evaluation_is_unreported_and_asks_one_choice_per_request(chemistry) -> 
     # The first question scores 2 of 4, the second 4 of 4.
     assert result["avg_at_n"] == pytest.approx(0.75)
     assert (result["n"], result["questions"]) == (4, 2)
-    # Reef's chat capture serves one choice per request, so no request asks for more.
+    # Aster's chat capture serves one choice per request, so no request asks for more.
     assert len(asked) == 8
     assert all("n" not in payload for payload in asked)
     assert all(payload["temperature"] == 0.6 and payload["top_p"] == 0.95 for payload in asked)

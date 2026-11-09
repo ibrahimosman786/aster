@@ -32,11 +32,11 @@ from recipes.sdpo import SDPOReport
 from recipes.sdpo.recipe import SDPORecipe
 from recipes.tttd import TTTDGroupedRolloutReport
 from recipes.tttd.recipe import TTTDRecipe
-from reef.core import AgentRecord, RequestType
-from reef.core.reports import ReportBase, TeacherContextReport
-from reef.core.training_request import normalize_training_request_payload
-from reef.execution.jobs import SupportsReceipt
-from reef.record2sample import (
+from aster.core import AgentRecord, RequestType
+from aster.core.reports import ReportBase, TeacherContextReport
+from aster.core.training_request import normalize_training_request_payload
+from aster.execution.jobs import SupportsReceipt
+from aster.record2sample import (
     GroupDecision,
     JudgedSamples,
     Record2Sample,
@@ -46,18 +46,18 @@ from reef.record2sample import (
     ReportGrouping,
     ReportSamples,
 )
-from reef.record2sample.assembly import SampleAssembly, SampleAssemblySettings
-from reef.record2sample.distill import DistillSamples
-from reef.record2sample.traces import TraceSamples
-from reef.sample2job import DistillJobData, Sample2Job, Sample2JobSettings
-from reef.sample2job.traces import TraceJobData
-from reef.storage.record_items import ItemRecordStore
-from reef.storage.sql_coordination import memory_coordination
-from reef.train import PipelineContext, Trainer
-from reef.train.jobs import JobLoop
-from reef.train.pipeline import PipelineSpec
-from reef.train.training_requests import ScenarioTrainingRequests
-from reef.train.types import JobData, Sample, TaskSample, TrajectorySample
+from aster.record2sample.assembly import SampleAssembly, SampleAssemblySettings
+from aster.record2sample.distill import DistillSamples
+from aster.record2sample.traces import TraceSamples
+from aster.sample2job import DistillJobData, Sample2Job, Sample2JobSettings
+from aster.sample2job.traces import TraceJobData
+from aster.storage.record_items import ItemRecordStore
+from aster.storage.sql_coordination import memory_coordination
+from aster.train import PipelineContext, Trainer
+from aster.train.jobs import JobLoop
+from aster.train.pipeline import PipelineSpec
+from aster.train.training_requests import ScenarioTrainingRequests
+from aster.train.types import JobData, Sample, TaskSample, TrajectorySample
 
 GOLDENS_PATH = Path(__file__).parent / "data" / "record_stage_job_data_goldens.json"
 
@@ -75,7 +75,7 @@ class Serve:
 @dataclass(frozen=True)
 class Train:
     """A client queues the training request ``request_id``, which names the stored samples ``sample_ids``, at
-    this step (``POST /reef/train``)."""
+    this step (``POST /aster/train``)."""
 
     request_id: str
     sample_ids: tuple[str, ...]

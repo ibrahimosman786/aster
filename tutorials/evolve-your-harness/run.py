@@ -2,24 +2,24 @@
 
 One pass on pi (``./run.sh``):
 
-    record - each task goes once through reef inference, so reef serves the
+    record - each task goes once through aster inference, so aster serves the
              reply and records the exchange against a receipt
     report - the reply is graded with the same grader the evaluation uses
              and the score is reported against the receipt; every valid report
              batches and triggers one evolve step - the method has the model
              rewrite rules.md from the failing attempts, real runs score
              the new tree, a win publishes
-    pull   - GET /reef/harness returns the winning tree; the files the
+    pull   - GET /aster/harness returns the winning tree; the files the
              winning step changed are printed
 
-On reef's native harness (``./run.sh native``) the same pass runs through a
-resident ``reef-native serve`` process, so the publish lands in a process
+On aster's native harness (``./run.sh native``) the same pass runs through a
+resident ``aster-native serve`` process, so the publish lands in a process
 that is already running:
 
     pull   - ``python3 run.py pull`` names the scenario, waits until
              inference serves its model, and writes the model binding at
-             this Reef under work/tree; run.sh then starts
-             ``reef-native serve`` there, which pulls the served source tree
+             this Aster under work/tree; run.sh then starts
+             ``aster-native serve`` there, which pulls the served source tree
              and follows the head
     turns  - ``python3 run.py native`` sends each task to the process as one
              turn, grades the reply, and reports the score against the
@@ -30,8 +30,8 @@ that is already running:
     again  - the first task goes to the same process once more, and the
              new session shows the stages of the mounted graph
 
-Start this through ./run.sh: it writes work/tasks.json and starts the Reef
-these constants point at, on pi (serve.yaml) or on reef's native harness
+Start this through ./run.sh: it writes work/tasks.json and starts the Aster
+these constants point at, on pi (serve.yaml) or on aster's native harness
 (./run.sh native, serve-native.yaml).
 """
 
@@ -43,14 +43,14 @@ import sys
 import time
 from pathlib import Path
 
-from reef_client import ReefClient, ReefClientError
+from reef_client import AsterClient, AsterClientError
 
 from harness import evolution
 
-SERVICE_URL = "http://127.0.0.1:8900"  # the Reef run.sh started
+SERVICE_URL = "http://127.0.0.1:8900"  # the Aster run.sh started
 SCENARIO = "harness-evolve-demo"  # this workload's isolated lane
-TOKEN = os.environ.get("ASTER_TOKEN", os.environ.get("REEF_TOKEN")) or None
-MODEL = os.environ.get("ASTER_UPSTREAM_MODEL", os.environ.get("REEF_UPSTREAM_MODEL")) or "qwen3-8b"
+TOKEN = os.environ.get("ASTER_TOKEN", os.environ.get("ASTER_TOKEN")) or None
+MODEL = os.environ.get("ASTER_UPSTREAM_MODEL", os.environ.get("ASTER_UPSTREAM_MODEL")) or "qwen3-8b"
 PULL_TIMEOUT_S = 900.0
 # run.sh polls the head every 5 s, but a poll that started during the evolve step waits behind the step's
 # lock until the client's 30 s timeout; the mount lands on the poll after that one.
@@ -65,16 +65,16 @@ TASKS_FILE = WORK / "tasks.json"
 # The native variant: the pulled tree the serve process runs, and the workspace its tools work in.
 TREE_DIR = WORK / "tree"
 SCRATCH_DIR = WORK / "scratch"
-RELEASE_FILE = ".reef-harness-release"
+RELEASE_FILE = ".aster-harness-release"
 #: The key the binding carries when the service wants no token: the native loop refuses an empty one.
-NO_TOKEN_API_KEY = "reef-no-token"
+NO_TOKEN_API_KEY = "aster-no-token"
 
 
 def main():
     tasks = json.loads(TASKS_FILE.read_text())
-    client = ReefClient(SERVICE_URL, token=TOKEN, timeout_s=300.0)
+    client = AsterClient(SERVICE_URL, token=TOKEN, timeout_s=300.0)
     # The inference routes serve only a scenario that exists: create it first.
-    client.post("/reef/scenarios", SCENARIO, {"name": SCENARIO})
+    client.post("/aster/scenarios", SCENARIO, {"name": SCENARIO})
     wait_for_inference(client)
 
     before = steps_before(client)
@@ -116,7 +116,7 @@ def main():
         print(f"no change passed the evaluation within {PULL_TIMEOUT_S:.0f}s; rerun ./run.sh for another attempt")
         return
 
-    manifest = client.get("/reef/harness", extra_headers={"x-reef-scenario": SCENARIO})
+    manifest = client.get("/aster/harness", extra_headers={"x-aster-scenario": SCENARIO})
     print(f"published: artifact {manifest['artifact_id']} (parent {manifest['parent_artifact_id']})")
     # The step's patch maps each tree path it changed to the new text, or to null for a removed file.
     evaluation = dict(manifest["evaluation"])
@@ -136,18 +136,18 @@ def wait_for_inference(client):
     ``INFERENCE_TIMEOUT_S``."""
     deadline = time.monotonic() + INFERENCE_TIMEOUT_S
     while time.monotonic() < deadline:
-        startup = client.get(f"/reef/scenarios/{SCENARIO}/inference/status")
+        startup = client.get(f"/aster/scenarios/{SCENARIO}/inference/status")
         if startup["state"] == "ready":
             return
         if startup["state"] == "failed":
-            raise SystemExit("inference did not start: check work/reef.log")
+            raise SystemExit("inference did not start: check work/aster.log")
         time.sleep(0.5)
-    raise SystemExit(f"inference did not start within {INFERENCE_TIMEOUT_S:.0f}s; check work/reef.log")
+    raise SystemExit(f"inference did not start within {INFERENCE_TIMEOUT_S:.0f}s; check work/aster.log")
 
 
 def training_rows(client):
     """The catalog's training rows, oldest first; a step in flight holds the catalog, so the caller may wait."""
-    rows = client.get("/reef/harness/artifacts", extra_headers={"x-reef-scenario": SCENARIO})["artifacts"]
+    rows = client.get("/aster/harness/artifacts", extra_headers={"x-aster-scenario": SCENARIO})["artifacts"]
     return [row for row in rows if row.get("operation") == "training"]
 
 
@@ -155,7 +155,7 @@ def steps_before(client):
     """How many training steps the scenario already recorded; work/ keeps the commit history across runs."""
     try:
         return len(training_rows(client))
-    except ReefClientError as exc:
+    except AsterClientError as exc:
         if exc.status != 404:  # 404: nothing has named the scenario yet
             raise
         return 0
@@ -169,7 +169,7 @@ def wait_for_steps(client, before, expected, deadline):
     while time.monotonic() < deadline:
         try:
             steps = training_rows(client)
-        except ReefClientError as exc:
+        except AsterClientError as exc:
             if exc.status != 404:
                 raise
             steps = []
@@ -177,8 +177,8 @@ def wait_for_steps(client, before, expected, deadline):
             # A step in flight holds the catalog until it ends; a service that is gone does not answer /healthz.
             try:
                 client.get("/healthz")
-            except (ReefClientError, TimeoutError, OSError):
-                raise SystemExit("the service stopped answering; check work/reef.log") from exc
+            except (AsterClientError, TimeoutError, OSError):
+                raise SystemExit("the service stopped answering; check work/aster.log") from exc
             time.sleep(2.0)
             continue
         for row in steps[shown:]:
@@ -199,7 +199,7 @@ def wait_for_steps(client, before, expected, deadline):
 
 
 def head_manifest(client):
-    return client.get("/reef/harness", extra_headers={"x-reef-scenario": SCENARIO})
+    return client.get("/aster/harness", extra_headers={"x-aster-scenario": SCENARIO})
 
 
 def pull():
@@ -208,9 +208,9 @@ def pull():
 
     The serve process pulls the served source tree itself and writes the snapshot file beside it.
     """
-    client = ReefClient(SERVICE_URL, token=TOKEN, timeout_s=300.0)
+    client = AsterClient(SERVICE_URL, token=TOKEN, timeout_s=300.0)
     # Create the scenario if it does not exist yet: its base snapshot is the seed tree.
-    client.post("/reef/scenarios", SCENARIO, {"name": SCENARIO})
+    client.post("/aster/scenarios", SCENARIO, {"name": SCENARIO})
     wait_for_inference(client)
     manifest = head_manifest(client)
     shutil.rmtree(TREE_DIR, ignore_errors=True)
@@ -225,12 +225,12 @@ def pull():
 
 def turn(prompt, session=None):
     """One turn on the serve process; the events as written and the result event."""
-    command = ["reef-native", "turn", "--tree", str(TREE_DIR), "-p", prompt, "--workdir", str(SCRATCH_DIR)]
+    command = ["aster-native", "turn", "--tree", str(TREE_DIR), "-p", prompt, "--workdir", str(SCRATCH_DIR)]
     if session:
         command += ["--session", session]
     done = subprocess.run(command, capture_output=True, text=True)
     if done.returncode != 0 and not done.stdout.strip():
-        raise SystemExit(f"reef-native turn failed: {done.stderr.strip()}; check work/serve.log")
+        raise SystemExit(f"aster-native turn failed: {done.stderr.strip()}; check work/serve.log")
     events = [json.loads(line) for line in done.stdout.splitlines() if line.strip()]
     return events[:-1], events[-1]["data"]
 
@@ -259,7 +259,7 @@ def mount_events(artifact_id):
 
 def native_main():
     tasks = json.loads(TASKS_FILE.read_text())
-    client = ReefClient(SERVICE_URL, token=TOKEN, timeout_s=300.0)
+    client = AsterClient(SERVICE_URL, token=TOKEN, timeout_s=300.0)
     # The pulled tree is the seed: the head moves off it only when a step publishes.
     seed = json.loads((TREE_DIR / RELEASE_FILE).read_text())["artifact_id"]
 
@@ -291,8 +291,8 @@ def native_main():
     deadline = time.monotonic() + PULL_TIMEOUT_S
     steps = wait_for_steps(client, before, batched, deadline)
     if not any((row.get("metrics") or {}).get("selected") for row in steps):
-        if error := client.get("/reef/status").get("error"):
-            raise SystemExit(f"evolve step failed: {error}; check work/reef.log")
+        if error := client.get("/aster/status").get("error"):
+            raise SystemExit(f"evolve step failed: {error}; check work/aster.log")
         print(
             f"no change passed the evaluation within {PULL_TIMEOUT_S:.0f}s; rerun ./run.sh native for another attempt"
         )

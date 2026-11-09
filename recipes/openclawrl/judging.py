@@ -1,7 +1,7 @@
 """OpenClaw-RL's judging: every main turn is judged by its next state.
 
 :class:`~recipes.openclawrl.processor.OpenClawRLSamples` is a
-:class:`~reef.record2sample.JudgedSamples` that runs :class:`OpenClawRLJudging`
+:class:`~aster.record2sample.JudgedSamples` that runs :class:`OpenClawRLJudging`
 on a PRM worker. ``observe`` correlates main turns into sessions and hands each
 completed turn over for judgment; ``judge`` is upstream's combine dispatch. The
 deployment configures it in ``pipeline.record2sample.config``
@@ -9,7 +9,7 @@ deployment configures it in ``pipeline.record2sample.config``
 
 No proxy and no judgment on the wire: the method derives every verdict
 from the traffic the agent already produces. Correlation prefers a
-harness-stamped ``x-reef-tag-session`` and falls back to trace matching,
+harness-stamped ``x-aster-tag-session`` and falls back to trace matching,
 which holds only for agents that resend their transcript each turn.
 """
 
@@ -30,9 +30,9 @@ from recipes.openclawrl.prm import (
 )
 from recipes.openclawrl.sessions import DEFAULT_MAX_SESSIONS, SessionIndex
 from recipes.openclawrl.turns import TurnJob, TurnJudgment, main_turn_message, turn_job, turn_request_messages
-from reef.core.config import config_option
-from reef.core.records_types import AgentRecord, RequestType
-from reef.record2sample import JudgedSamples, Record2SampleSettings, RecordJudging
+from aster.core.config import config_option
+from aster.core.records_types import AgentRecord, RequestType
+from aster.record2sample import JudgedSamples, Record2SampleSettings, RecordJudging
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ UNBOUND_WARN_FLOOR = 8
 
 
 def session_tag(payload: Any) -> str | None:
-    """The harness-declared conversation id (``x-reef-tag-session``), if any."""
+    """The harness-declared conversation id (``x-aster-tag-session``), if any."""
     metadata = payload.get("metadata") if isinstance(payload, dict) else None
     tags = metadata.get("tags") if isinstance(metadata, dict) else None
     value = tags.get("session") if isinstance(tags, dict) else None
@@ -261,7 +261,7 @@ class OpenClawRLJudging(RecordJudging):
         A turn that never binds is never judged and never trains, and it does
         so without an error: the only symptom is a training set that stays
         empty, which is invisible without reading this file. WARNING because
-        reef configures no logging and anything below it is discarded; rate
+        aster configures no logging and anything below it is discarded; rate
         limited because this is reached once per record.
         """
         stats = self.index.stats
@@ -269,9 +269,9 @@ class OpenClawRLJudging(RecordJudging):
             self.warned_untagged = True
             logger.warning(
                 "openclawrl: correlating by trace matching — this traffic carries no "
-                "x-reef-tag-session tag. Trace matching binds only agents that resend their "
+                "x-aster-tag-session tag. Trace matching binds only agents that resend their "
                 "whole transcript on every request; an agent that keeps or rewrites its "
-                "history locally yields no trainable turns. Stamp x-reef-tag-session, stable "
+                "history locally yields no trainable turns. Stamp x-aster-tag-session, stable "
                 "and unique per conversation, to correlate reliably."
             )
         if stats.evicted and not self.warned_evicted:
@@ -292,7 +292,7 @@ class OpenClawRLJudging(RecordJudging):
             logger.warning(
                 "openclawrl: %d session(s) expired without ever binding a turn, against %d bound "
                 "turn(s). Unbound turns are never judged and never train — check that every "
-                "inference in a conversation carries the same x-reef-tag-session value.",
+                "inference in a conversation carries the same x-aster-tag-session value.",
                 stats.dropped_unbound,
                 stats.bound,
             )

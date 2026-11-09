@@ -10,21 +10,21 @@ from pathlib import Path
 
 import pytest
 
-from reef.core.weight_layout import ArtifactFormat
-from reef.inference.remote.runtime import serving_engine_config
-from reef.inference.sglang import plugin as sglang_plugin
-from reef.inference.sglang.config import SGLangConfig
-from reef.inference.sglang.lora_schema import (
+from aster.core.weight_layout import ArtifactFormat
+from aster.inference.remote.runtime import serving_engine_config
+from aster.inference.sglang import plugin as sglang_plugin
+from aster.inference.sglang.config import SGLangConfig
+from aster.inference.sglang.lora_schema import (
     adapter_scoped_prefix_cache_supported,
     require_lora_distributed_request_schema,
     require_lora_tensor_request_schema,
 )
-from reef.inference.sglang.plugin import (
-    REEF_SGLANG_PLUGIN_ENV,
+from aster.inference.sglang.plugin import (
+    ASTER_SGLANG_PLUGIN_ENV,
     install_colocated_retract_offload,
     install_scheduler_runtime_load_id_tracking,
 )
-from reef.train.slime_backend.reef_adapters.worker_hooks import reef_rollout_env_vars
+from aster.train.slime_backend.aster_adapters.worker_hooks import aster_rollout_env_vars
 
 
 def _load_sglang_engine_module(monkeypatch: pytest.MonkeyPatch):
@@ -58,11 +58,11 @@ def _load_sglang_engine_module(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setitem(sys.modules, "sglang.srt.utils", sglang_utils)
     monkeypatch.setitem(sys.modules, "sglang_router", sglang_router)
 
-    lora = types.ModuleType("reef.train.slime_backend.reef_adapters.megatron.lora")
-    lora.LORA_ADAPTER_NAME = "reef_lora"  # type: ignore[attr-defined]
+    lora = types.ModuleType("aster.train.slime_backend.aster_adapters.megatron.lora")
+    lora.LORA_ADAPTER_NAME = "aster_lora"  # type: ignore[attr-defined]
     lora.megatron_lora_enabled = lambda _args: False  # type: ignore[attr-defined]
     lora.sglang_lora_target_modules = lambda _args: []  # type: ignore[attr-defined]
-    monkeypatch.setitem(sys.modules, "reef.train.slime_backend.reef_adapters.megatron.lora", lora)
+    monkeypatch.setitem(sys.modules, "aster.train.slime_backend.aster_adapters.megatron.lora", lora)
 
     external = types.ModuleType("slime.backends.sglang_utils.external")
     external.get_server_info = lambda _url: {}  # type: ignore[attr-defined]
@@ -93,8 +93,8 @@ def _load_sglang_engine_module(monkeypatch: pytest.MonkeyPatch):
     raw_engine.SGLangEngine = BaseEngine  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "slime.backends.sglang_utils.sglang_engine", raw_engine)
 
-    path = Path(__file__).parents[2] / "reef" / "inference" / "sglang" / "engine.py"
-    spec = importlib.util.spec_from_file_location("_reef_test_sglang_engine", path)
+    path = Path(__file__).parents[2] / "aster" / "inference" / "sglang" / "engine.py"
+    spec = importlib.util.spec_from_file_location("_aster_test_sglang_engine", path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -180,7 +180,7 @@ def test_lora_schema_preflight_rejects_incomplete_colocated_receiver(
 def test_engine_extension_preserves_version_and_lora_request_schemas(monkeypatch: pytest.MonkeyPatch) -> None:
     module = _load_sglang_engine_module(monkeypatch)
     calls: list[tuple[str, dict[str, object]]] = []
-    engine = object.__new__(module.ReefSGLangEngine)
+    engine = object.__new__(module.AsterSGLangEngine)
 
     def request(route, payload=None, **_kwargs):
         calls.append((route, payload or {}))
@@ -204,7 +204,7 @@ def test_engine_extension_preserves_version_and_lora_request_schemas(monkeypatch
         ["a", "b"],
         ["torch.float16", "bfloat16"],
         [[2, 4], [4, 2]],
-        "reef-lora",
+        "aster-lora",
         pinned=True,
     ) == {"success": True}
     assert engine.unload_lora_adapter("adapter") == {"success": True}
@@ -232,7 +232,7 @@ def test_engine_extension_preserves_version_and_lora_request_schemas(monkeypatch
                 "names": ["a", "b"],
                 "dtypes": ["float16", "bfloat16"],
                 "shapes": [[2, 4], [4, 2]],
-                "group_name": "reef-lora",
+                "group_name": "aster-lora",
                 "pinned": True,
                 "upsert": True,
             },
@@ -258,7 +258,7 @@ def test_get_runtime_load_id_uses_model_info(monkeypatch: pytest.MonkeyPatch) ->
         return Response()
 
     monkeypatch.setattr(module.requests, "get", get)
-    engine = object.__new__(module.ReefSGLangEngine)
+    engine = object.__new__(module.AsterSGLangEngine)
     engine.node_rank = 0
     engine.server_host = "127.0.0.1"
     engine.server_port = 30000
@@ -274,7 +274,7 @@ def test_engine_preflights_scheduler_runtime_load_id_tracking_before_registratio
 ) -> None:
     module = _load_sglang_engine_module(monkeypatch)
     events = []
-    engine = object.__new__(module.ReefSGLangEngine)
+    engine = object.__new__(module.AsterSGLangEngine)
     engine.node_rank = 0
     engine.worker_type = "regular"
     engine.get_runtime_load_id = lambda: "engine:3"
@@ -283,7 +283,7 @@ def test_engine_preflights_scheduler_runtime_load_id_tracking_before_registratio
     engine.router_ip = None
     assert engine._register_to_router({"model_path": "model"}) is None
     assert events == [("update_weight_version", {"new_version": "engine:3", "abort_all_requests": False})]
-    # An engine that does not take the version, such as one without Reef's plugin, fails registration.
+    # An engine that does not take the version, such as one without Aster's plugin, fails registration.
     engine._make_request = lambda endpoint, payload, **_kwargs: {"success": False, "message": "refused"}
     with pytest.raises(RuntimeError, match="did not accept the runtime-load-ID"):
         engine._register_to_router({"model_path": "model"})
@@ -293,7 +293,7 @@ def test_engine_preflights_scheduler_runtime_load_id_tracking_before_registratio
 def test_pause_generation_forwards_in_place_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     module = _load_sglang_engine_module(monkeypatch)
     calls = []
-    engine = object.__new__(module.ReefSGLangEngine)
+    engine = object.__new__(module.AsterSGLangEngine)
     engine._make_request = lambda endpoint, payload=None: calls.append((endpoint, payload))
 
     engine.pause_generation("in_place")
@@ -306,7 +306,7 @@ def test_pause_generation_forwards_in_place_mode(monkeypatch: pytest.MonkeyPatch
 def test_disk_weight_update_does_not_implicitly_flush_kv_cache(monkeypatch: pytest.MonkeyPatch) -> None:
     module = _load_sglang_engine_module(monkeypatch)
     requested = []
-    engine = object.__new__(module.ReefSGLangEngine)
+    engine = object.__new__(module.AsterSGLangEngine)
     engine._make_request = lambda endpoint, payload: requested.append((endpoint, payload)) or {"success": True}
 
     engine.update_weights_from_disk("/weights/v2", runtime_load_id="engine:2")
@@ -320,14 +320,14 @@ def test_disk_weight_update_does_not_implicitly_flush_kv_cache(monkeypatch: pyte
 
 
 def test_inference_engine_does_not_inherit_or_patch_slime(monkeypatch):
-    from reef.inference.interfaces import InferenceEngine
+    from aster.inference.interfaces import InferenceEngine
 
     module = _load_sglang_engine_module(monkeypatch)
-    assert module.ReefSGLangEngine.__bases__ == (InferenceEngine,)
+    assert module.AsterSGLangEngine.__bases__ == (InferenceEngine,)
     assert not hasattr(module, "install_sglang_extensions")
 
 
-def test_reef_engine_carries_lora_server_args_across_ray_process(monkeypatch):
+def test_aster_engine_carries_lora_server_args_across_ray_process(monkeypatch):
     module = _load_sglang_engine_module(monkeypatch)
     import pickle
 
@@ -348,7 +348,7 @@ def test_reef_engine_carries_lora_server_args_across_ray_process(monkeypatch):
         environ={},
     )
     config = pickle.loads(pickle.dumps(SGLangConfig(**values)))
-    engine = module.ReefSGLangEngine(config, 0, sglang_overrides={"mem_fraction_static": 0.5})
+    engine = module.AsterSGLangEngine(config, 0, sglang_overrides={"mem_fraction_static": 0.5})
     assert checked == [True, True]
     assert engine.config.options["enable_lora"] is True
     assert engine.config.options["lora_target_modules"] == ["q_proj"]
@@ -386,18 +386,18 @@ def test_server_options_keep_only_the_fields_of_either_server_args_kind(monkeypa
     monkeypatch.setattr(sys.modules["sglang.srt.server_args"], "ServerArgs", server_args)
     monkeypatch.setattr(module, "local_gpu_id", lambda gpu: gpu)
     config = SGLangConfig("model", 1, 1, 1, options={"mem_fraction_static": 0.5, "not_a_server_arg": 1})
-    options = module.ReefSGLangEngine(config, 0)._server_options("10.0.0.1:5000", 30000, None, "10.0.0.1", None)
+    options = module.AsterSGLangEngine(config, 0)._server_options("10.0.0.1:5000", 30000, None, "10.0.0.1", None)
     assert set(options) <= set(names)
     assert "not_a_server_arg" not in options
     assert (options["mem_fraction_static"], options["tp_size"], options["port"]) == (0.5, 1, 30000)
 
 
-def test_reef_engine_rejects_conflicting_lora_override(monkeypatch):
+def test_aster_engine_rejects_conflicting_lora_override(monkeypatch):
     module = _load_sglang_engine_module(monkeypatch)
     monkeypatch.setattr(module, "require_lora_tensor_request_schema", lambda: None)
     monkeypatch.setattr(module, "require_lora_distributed_request_schema", lambda: None)
     with pytest.raises(ValueError, match="conflict"):
-        module.ReefSGLangEngine(
+        module.AsterSGLangEngine(
             SGLangConfig("model", 1, 1, 1, options={"enable_lora": True}), 0, sglang_overrides={"enable-lora": False}
         )
 
@@ -447,14 +447,14 @@ def test_adapter_prefix_check_exercises_actual_key_isolation(
 @pytest.mark.unit
 def test_sglang_plugin_environment_crosses_ray_actor_boundaries(monkeypatch: pytest.MonkeyPatch) -> None:
     env = {
-        "SGLANG_PLUGINS": "telemetry,reef",
-        REEF_SGLANG_PLUGIN_ENV: "1",
+        "SGLANG_PLUGINS": "telemetry,aster",
+        ASTER_SGLANG_PLUGIN_ENV: "1",
         "UNRELATED": "ignored",
     }
 
-    assert reef_rollout_env_vars(env) == {
-        "SGLANG_PLUGINS": "telemetry,reef",
-        REEF_SGLANG_PLUGIN_ENV: "1",
+    assert aster_rollout_env_vars(env) == {
+        "SGLANG_PLUGINS": "telemetry,aster",
+        ASTER_SGLANG_PLUGIN_ENV: "1",
     }
 
 
@@ -471,12 +471,12 @@ def test_native_sglang_plugin_is_explicitly_gated(monkeypatch: pytest.MonkeyPatc
         "install_colocated_retract_offload",
         lambda: installed.append("colocated"),
     )
-    monkeypatch.delenv(REEF_SGLANG_PLUGIN_ENV, raising=False)
+    monkeypatch.delenv(ASTER_SGLANG_PLUGIN_ENV, raising=False)
 
     sglang_plugin.install_sglang_plugin()
     assert installed == []
 
-    monkeypatch.setenv(REEF_SGLANG_PLUGIN_ENV, "1")
+    monkeypatch.setenv(ASTER_SGLANG_PLUGIN_ENV, "1")
     sglang_plugin.install_sglang_plugin()
     assert installed == ["runtime_load_ids", "colocated"]
 
@@ -585,7 +585,7 @@ def test_scheduler_stamps_tokens_before_cross_process_delivery(monkeypatch: pyte
     current_args.weight_version = "engine:7"
     request.output_ids_through_stop.append(22)
     Accumulator().accept(req=request)
-    assert request.customized_info["_reef_token_runtime_load_ids"] == ["engine:6", "engine:6", "engine:7"]
+    assert request.customized_info["_aster_token_runtime_load_ids"] == ["engine:6", "engine:6", "engine:7"]
 
     scheduler = Scheduler()
     queued_request = types.SimpleNamespace(output_ids_through_stop=[40], customized_info=None, accepted=False)
@@ -594,7 +594,7 @@ def test_scheduler_stamps_tokens_before_cross_process_delivery(monkeypatch: pyte
     queued_result = scheduler.run_batch(queued_batch)
     current_args.weight_version = "engine:10"
     scheduler.process_batch_result(queued_batch, queued_result)
-    assert queued_request.customized_info["_reef_token_runtime_load_ids"] == ["engine:9"]
+    assert queued_request.customized_info["_aster_token_runtime_load_ids"] == ["engine:9"]
 
     result = scheduler.set_internal_state(types.SimpleNamespace(server_args={"weight_version": "engine:8"}))
     assert result.updated is True

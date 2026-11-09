@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Self
 
-from reef.artifact import (
+from aster.artifact import (
     CachedRepositoryBackendFactory,
     ConfigurableRepositoryBackendFactory,
     InMemoryRepositoryBackend,

@@ -11,13 +11,13 @@ from dataclasses import replace
 import pytest
 from tests.support._trajectories import policy_trajectory
 
-from reef.train.algos.schedule import RolloutUnit, StepScheduling, schedule_job_data
-from reef.train.algos.signals import TrainingSignal
-from reef.train.slime_backend.data_builder import to_slime_rollout_data
-from reef.train.slime_backend.objectives import SlimeObjective
-from reef.train.slime_backend.reef_adapters import preparation
-from reef.train.slime_backend.reef_adapters.preparation import build_slime_payload
-from reef.train.types import JobData
+from aster.train.algos.schedule import RolloutUnit, StepScheduling, schedule_job_data
+from aster.train.algos.signals import TrainingSignal
+from aster.train.slime_backend.data_builder import to_slime_rollout_data
+from aster.train.slime_backend.objectives import SlimeObjective
+from aster.train.slime_backend.aster_adapters import preparation
+from aster.train.slime_backend.aster_adapters.preparation import build_slime_payload
+from aster.train.types import JobData
 
 
 def wire_row(
@@ -28,7 +28,7 @@ def wire_row(
     log_probs: tuple[float, ...] = (-0.1, -0.2),
     reward: float = 0.5,
 ) -> list[object]:
-    """Build one framework-agnostic row emitted by Reef's remote handle."""
+    """Build one framework-agnostic row emitted by Aster's remote handle."""
 
     return [source_id, list(tokens), list(loss_mask), list(log_probs), reward]
 
@@ -80,7 +80,7 @@ def test_to_slime_rollout_data_converts_non_empty_payload_and_preserves_groups()
     assert converted["rollout_ids"] == [7, 7]
     assert converted["sample_indices"] == [0, 1]
     assert converted["loss"] == "pg"
-    # Reef supplies one scalar advantage per sample; Slime consumes one value
+    # Aster supplies one scalar advantage per sample; Slime consumes one value
     # per response token.
     assert converted["advantages"] == [[0.25, 0.25], [-0.25, -0.25]]
 
@@ -399,7 +399,7 @@ def test_to_slime_rollout_data_validates_step_layout() -> None:
         to_slime_rollout_data({**payload, "external_step_sizes": [3]})
     with pytest.raises(ValueError, match="positive integers"):
         to_slime_rollout_data({**payload, "external_step_sizes": [4, 0]})
-    # Reef always fixes the step layout; a payload without one is refused.
+    # Aster always fixes the step layout; a payload without one is refused.
     with pytest.raises(ValueError, match="positive integers"):
         to_slime_rollout_data(payload)
 

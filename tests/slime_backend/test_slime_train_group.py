@@ -5,9 +5,9 @@ from types import SimpleNamespace
 import pytest
 from slime.ray import actor_group
 
-from reef.execution.executor import ExecutorFuture, resolve
-from reef.train.slime_backend.reef_adapters.executors.ray import SlimeRayExecutor
-from reef.train.slime_backend.reef_adapters.train_groups import SlimeTrainGroup, merge_rank_metrics
+from aster.execution.executor import ExecutorFuture, resolve
+from aster.train.slime_backend.aster_adapters.executors.ray import SlimeRayExecutor
+from aster.train.slime_backend.aster_adapters.train_groups import SlimeTrainGroup, merge_rank_metrics
 
 
 class _RemoteMethod:
@@ -46,7 +46,7 @@ def ray_group(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(actor_group.ray, "kill", lambda actor, *, no_restart: killed.append((actor, no_restart)))
     monkeypatch.setattr(actor_group.time, "sleep", lambda duration: None)
     group = SlimeTrainGroup(
-        args=SimpleNamespace(reef_executor_backend="auto", reef_train_executor_options={}),
+        args=SimpleNamespace(aster_executor_backend="auto", aster_train_executor_options={}),
         num_nodes=1,
         num_gpus_per_node=2,
         pg=placement,

@@ -17,7 +17,7 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
-from reef_client import ReefClientError
+from reef_client import AsterClientError
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TUTORIAL = REPO_ROOT / "tutorials" / "evolve-your-harness"
@@ -39,24 +39,24 @@ SEED_ARTIFACT = "artifact:seed"
 PUBLISHED_ARTIFACT = "artifact:published"
 #: The scenario the runner creates, and the route that reports whether inference serves its model yet.
 SCENARIO = "harness-evolve-demo"
-STARTUP_STATUS = f"/reef/scenarios/{SCENARIO}/inference/status"
+STARTUP_STATUS = f"/aster/scenarios/{SCENARIO}/inference/status"
 #: The error the status route answers for a failed startup, word for word as the service sends it.
 STARTUP_FAILED = "The inference engine did not start. Check the service logs."
 
 
-class StubReefClient:
-    """A ``ReefClient`` stand-in: it records every report the run submits and every route the runner reads.
+class StubAsterClient:
+    """A ``AsterClient`` stand-in: it records every report the run submits and every route the runner reads.
 
     The catalog answers with one training row per report already submitted, in order: a step's row exists only
     once the report that triggered it has been accepted, which is what the service commits. The rows carry the
     step results the caller handed in, so a run can end with every step complete and none of them published.
 
     The head moves at the commit, and the runner learns about that commit from the catalog: until a catalog read
-    has shown a published row, ``/reef/harness`` serves the seed. That is what makes a runner that reads the head
+    has shown a published row, ``/aster/harness`` serves the seed. That is what makes a runner that reads the head
     before it waits for the step results see the seed and no further.
 
     ``reads`` is every route read the runner makes, in order, as ``("catalog", {"rows": n, "published": bool})``
-    for ``/reef/harness/artifacts`` and ``("manifest", artifact_id)`` for ``/reef/harness``. It says whether the
+    for ``/aster/harness/artifacts`` and ``("manifest", artifact_id)`` for ``/aster/harness``. It says whether the
     manifest was read because a step result was on the record, or polled before there was one to read.
 
     ``posts`` is every low-level ``post`` the run makes, in order, as ``(path, scenario, payload)``; the run uses it
@@ -98,14 +98,14 @@ class StubReefClient:
 
     def post(self, path: str, scenario: str, payload: dict, **kwargs: object) -> tuple[dict, dict[str, str]]:
         self.posts.append((path, scenario, payload))
-        if path == "/reef/scenarios":
+        if path == "/aster/scenarios":
             self.created = True
         return {"scenario": payload["name"]}, {}
 
     def inference_with_record(self, scenario: str, path: str, payload: dict, **kwargs: object) -> tuple[dict, str]:
         if not self.is_inference_ready:
             body = {"error": {"type": "inference_starting", "message": "The inference engine is starting."}}
-            raise ReefClientError(503, json.dumps(body), "application/json")
+            raise AsterClientError(503, json.dumps(body), "application/json")
         return {"choices": [{"message": {"content": "9592"}}]}, "receipt-1"
 
     def report(self, scenario: str, payload: dict, references: list[str], **kwargs: object) -> dict:
@@ -117,7 +117,7 @@ class StubReefClient:
         self.requested.append(path)
         if path == STARTUP_STATUS:
             if not self.created:
-                raise ReefClientError(404, f"scenario {SCENARIO!r} has no inference startup request", "text/plain")
+                raise AsterClientError(404, f"scenario {SCENARIO!r} has no inference startup request", "text/plain")
             state = self.startup.pop(0) if len(self.startup) > 1 else self.startup[0]
             self.reads.append(("startup", state))
             self.is_inference_ready = state == "ready"
@@ -128,13 +128,13 @@ class StubReefClient:
                 "engine": "warm" if state == "ready" else None,
                 "engine_detail": None,
             }
-        if path == "/reef/harness/artifacts":
+        if path == "/aster/harness/artifacts":
             rows = self._step_rows()
             published = any(row["metrics"].get("selected") for row in rows)
             self.published_seen = self.published_seen or published
             self.reads.append(("catalog", {"rows": len(rows), "published": published}))
             return {"scenario": SCENARIO, "artifacts": rows}
-        if path == "/reef/harness":
+        if path == "/aster/harness":
             release = self.head if self.published_seen else SEED_ARTIFACT
             self.reads.append(("manifest", release))
             return {
@@ -170,13 +170,13 @@ def _stage(
     results: tuple[dict, ...],
     head: str = PUBLISHED_ARTIFACT,
     startup: tuple[str, ...] = ("ready",),
-) -> StubReefClient:
+) -> StubAsterClient:
     """Point the runner at ``scores``, one per task, and at ``results`` for the steps those reports trigger."""
     tasks_file = tmp_path / "tasks.json"
     tasks_file.write_text(json.dumps(list(TASKS[: len(scores)])), encoding="utf-8")
     monkeypatch.setattr(runner, "TASKS_FILE", tasks_file)
-    client = StubReefClient(results=results, head=head, startup=startup)
-    monkeypatch.setattr(runner, "ReefClient", lambda *args, **kwargs: client)
+    client = StubAsterClient(results=results, head=head, startup=startup)
+    monkeypatch.setattr(runner, "AsterClient", lambda *args, **kwargs: client)
     graded = iter(scores)
 
     def grade(task, text):
@@ -199,7 +199,7 @@ def _record_waits(runner: ModuleType, monkeypatch: pytest.MonkeyPatch) -> list[i
     return waits
 
 
-def _stage_native(runner: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, client: StubReefClient) -> None:
+def _stage_native(runner: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, client: StubAsterClient) -> None:
     """The native form's surroundings: a pulled seed tree, and the serve process's turns stubbed out.
 
     Each turn returns the receipts of its model calls, and the runner reports the score against them through
@@ -286,7 +286,7 @@ def test_completed_steps_that_publish_nothing_end_the_run_without_reading_the_he
     assert "step 2: the method left the head tree unchanged" in printed
     assert "step 3: the method left the head tree unchanged" in printed
     assert "no change passed the evaluation" in printed
-    assert "/reef/harness" not in client.requested, "no step published, so the run must not pull the head"
+    assert "/aster/harness" not in client.requested, "no step published, so the run must not pull the head"
 
 
 def test_a_publishing_step_still_reaches_the_manifest(
@@ -301,7 +301,7 @@ def test_a_publishing_step_still_reaches_the_manifest(
     runner.main()
 
     printed = capsys.readouterr().out
-    assert "/reef/harness" in client.requested, "a step published, so the run reads the head it left behind"
+    assert "/aster/harness" in client.requested, "a step published, so the run reads the head it left behind"
     assert "published: artifact artifact:published" in printed
 
 
@@ -322,7 +322,7 @@ def test_the_run_sends_no_task_before_inference_serves_the_model(
 
     runner.main()
 
-    assert client.posts[0][0] == "/reef/scenarios", "the run creates its scenario before it reads the status"
+    assert client.posts[0][0] == "/aster/scenarios", "the run creates its scenario before it reads the status"
     startup_reads = [read[1] for read in client.reads if read[0] == "startup"]
     assert startup_reads == ["pending", "starting", "ready"], f"the run stops polling at ready: {startup_reads}"
     assert len(client.reports) == 3
@@ -338,7 +338,7 @@ def test_a_failed_inference_startup_stops_the_run_before_any_task(
     # Shortened so a run that misses the failed state fails here instead of waiting out the real deadline.
     monkeypatch.setattr(runner, "INFERENCE_TIMEOUT_S", 2.0)
 
-    with pytest.raises(SystemExit, match=r"^inference did not start: check work/reef\.log$"):
+    with pytest.raises(SystemExit, match=r"^inference did not start: check work/aster\.log$"):
         runner.main()
 
     assert client.reports == [], "no task is sent to a model that did not start"
@@ -353,7 +353,7 @@ def test_an_inference_startup_past_the_deadline_stops_the_run_before_any_task(
     client = _stage(runner, monkeypatch, tmp_path, (1.0, 1.0, 1.0), NO_PUBLISH, startup=("starting",))
     monkeypatch.setattr(runner, "INFERENCE_TIMEOUT_S", 1.0)
 
-    with pytest.raises(SystemExit, match=r"^inference did not start within 1s; check work/reef\.log$"):
+    with pytest.raises(SystemExit, match=r"^inference did not start within 1s; check work/aster\.log$"):
         runner.main()
 
     assert client.reports == [], "no task is sent to a model that did not start"
@@ -365,8 +365,8 @@ def test_the_pull_waits_for_inference_before_the_serve_process_starts(
     tmp_path: Path,
 ) -> None:
     """``run.py pull`` creates the scenario the serve process then calls, so it also waits until the model serves."""
-    client = StubReefClient(startup=("starting", "ready"))
-    monkeypatch.setattr(runner, "ReefClient", lambda *args, **kwargs: client)
+    client = StubAsterClient(startup=("starting", "ready"))
+    monkeypatch.setattr(runner, "AsterClient", lambda *args, **kwargs: client)
     monkeypatch.setattr(runner, "TREE_DIR", tmp_path / "tree")
     monkeypatch.setattr(runner, "SCRATCH_DIR", tmp_path / "scratch")
 
@@ -396,7 +396,7 @@ def test_the_native_run_stops_on_the_results_of_steps_that_publish_nothing(
     assert "nothing batched" not in printed and "no evolve step runs" not in printed
     assert "3 report(s) batched (1 of them failing)" in printed
     assert "no change passed the evaluation" in printed
-    assert "/reef/harness" not in client.requested, "no step published, so the run must not follow the head"
+    assert "/aster/harness" not in client.requested, "no step published, so the run must not follow the head"
 
 
 def test_the_native_run_follows_a_published_release_through_to_the_second_pass(
@@ -411,7 +411,7 @@ def test_the_native_run_follows_a_published_release_through_to_the_second_pass(
     artifact:published path on the strength of this run's step results rather than on a head that never moved.
 
     The contract is an ordering one, so it is asserted on the recorded route reads, not on a clock: the catalog
-    has to expose the published row before ``/reef/harness`` is read at all, and the head is then read once. A
+    has to expose the published row before ``/aster/harness`` is read at all, and the head is then read once. A
     runner that polls the head waiting for it to move reads the manifest first, and reads it repeatedly, which
     this ordering rules out without measuring how long the run took. ``PULL_TIMEOUT_S`` is shortened only so
     such a regression fails here instead of blocking on the real deadline.

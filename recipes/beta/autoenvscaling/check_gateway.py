@@ -8,7 +8,7 @@ import threading
 from collections.abc import Mapping
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from reef.harness.gateway import AgentTool
+from aster.harness.gateway import AgentTool
 
 
 class CheckGateway:

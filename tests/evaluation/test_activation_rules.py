@@ -7,11 +7,11 @@ from tests.support._activation_rule_plugin import ComponentRule
 from tests.support.runtime_stubs import runtime_bindings
 
 from recipes.sao import SAORecipe
-from reef.core.activation import MadeArtifact
-from reef.core.evaluation import PolicyEvaluation, PolicyHarness, PolicyModel, RolloutScore, RolloutScores
-from reef.evaluation import AlwaysActivate, EvaluatedActivation, NeverActivate
-from reef.evaluation.activation import activation_reference, build_activation_rule
-from reef.recipe import RecipeConfigError
+from aster.core.activation import MadeArtifact
+from aster.core.evaluation import PolicyEvaluation, PolicyHarness, PolicyModel, RolloutScore, RolloutScores
+from aster.evaluation import AlwaysActivate, EvaluatedActivation, NeverActivate
+from aster.evaluation.activation import activation_reference, build_activation_rule
+from aster.recipe import RecipeConfigError
 
 PLUGIN = "tests.support._activation_rule_plugin"
 

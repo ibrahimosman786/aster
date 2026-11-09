@@ -9,14 +9,14 @@ from dataclasses import dataclass, replace
 import pytest
 from tests.support.samples import sample_store
 
-from reef.service.task_import import DataScenarioStorage
-from reef.storage.data import NewItem
-from reef.storage.data_queue import DATA_SYNC_KIND, DATA_SYNC_QUEUE
-from reef.storage.data_sync import data_sync_key, request_data_sync
-from reef.storage.sql_coordination import SQLiteCoordinationDatabase, SQLWorkQueue
-from reef.storage.sql_data import SQLiteDataStore
-from reef.storage.sqlite import SQLiteScenarioStorage
-from reef.storage.tasks import LocalTaskFileStore
+from aster.service.task_import import DataScenarioStorage
+from aster.storage.data import NewItem
+from aster.storage.data_queue import DATA_SYNC_KIND, DATA_SYNC_QUEUE
+from aster.storage.data_sync import data_sync_key, request_data_sync
+from aster.storage.sql_coordination import SQLiteCoordinationDatabase, SQLWorkQueue
+from aster.storage.sql_data import SQLiteDataStore
+from aster.storage.sqlite import SQLiteScenarioStorage
+from aster.storage.tasks import LocalTaskFileStore
 
 
 def trajectory(item_id: str, **scenarios: str) -> NewItem:

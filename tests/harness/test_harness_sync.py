@@ -6,10 +6,10 @@ import json
 
 import pytest
 
-from reef.harness.adapters import available_adapters, get_adapter
-from reef.harness.sync import TOKEN_PLACEHOLDER, TreeMerge, import_files, layer_install, merge_lines, merge_trees
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tree import HarnessTree, render_tree
+from aster.harness.adapters import available_adapters, get_adapter
+from aster.harness.sync import TOKEN_PLACEHOLDER, TreeMerge, import_files, layer_install, merge_lines, merge_trees
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tree import HarnessTree, render_tree
 
 SKILL = "---\nname: fix\ndescription: Fix the failing test first.\n---\n\nRun the tests, then fix.\n"
 COMMAND = "---\ndescription: Ship the change.\n---\n\nRun the tests and commit.\n"
@@ -28,7 +28,7 @@ def test_a_rendered_tree_reads_back_as_the_tree(adapter: str) -> None:
         files["rules.md"] = "Answer briefly.\n"
     files[descriptor.layout.parts["command"].tree_path("ship")] = COMMAND
     tree = HarnessTree(files)
-    # The config files, the plugin's manifests and Reef's own code read back as nothing.
+    # The config files, the plugin's manifests and Aster's own code read back as nothing.
     assert import_files(render_tree(tree, descriptor), tree, descriptor).tree == tree
 
 
@@ -83,7 +83,7 @@ def test_the_merge_keeps_each_sides_own_changes_and_merges_text_parts_by_line() 
 
 
 def test_two_notes_added_at_one_place_keep_both_the_heads_first() -> None:
-    assert merge_lines("- a\n", "- a\n- from Reef\n", "- a\n- from you\n") == "- a\n- from Reef\n- from you\n"
+    assert merge_lines("- a\n", "- a\n- from Aster\n", "- a\n- from you\n") == "- a\n- from Aster\n- from you\n"
     assert merge_lines("x\ny\n", "X\ny\n", "X\ny\n") == "X\ny\n"
     assert merge_lines("x\ny\n", "X\ny\n", "x2\ny\n") is None
 
@@ -96,30 +96,30 @@ def test_a_layer_installs_the_release_as_the_agents_plugin_with_the_token_off_th
     descriptor = get_adapter(adapter)
     served = ModelBinding(base_url="http://upstream.invalid", model="m1", api=BINDINGS[adapter])
     tree = HarnessTree({"skills/fix/SKILL.md": SKILL})
-    layer = layer_install(tree, descriptor, served, "http://reef.invalid/reef/scenarios/s", "/home/a/install")
+    layer = layer_install(tree, descriptor, served, "http://aster.invalid/aster/scenarios/s", "/home/a/install")
     assert all(TOKEN_PLACEHOLDER not in arg for command in (layer.args, *layer.register) for arg in command)
     assert TOKEN_PLACEHOLDER in "".join(layer.files.values()) + "".join(layer.env.values())
     assert any("{name}" in template for template in layer.synced)
-    # The agent's own commands install the plugin, and the session that Reef starts binds the model; each was
+    # The agent's own commands install the plugin, and the session that Aster starts binds the model; each was
     # checked with the agent's binary.
     expected = {
         "claude": (
             ["--settings", "/home/a/install/claude/settings.json"],
-            [("plugin", "marketplace", "add", "/home/a/install"), ("plugin", "install", "reef@reef")],
+            [("plugin", "marketplace", "add", "/home/a/install"), ("plugin", "install", "aster@aster")],
         ),
         "codex": (
-            ["-c", 'model_provider="reef"', "-c", 'model="m1"'],
-            [("plugin", "marketplace", "add", "/home/a/install"), ("plugin", "add", "reef@reef")],
+            ["-c", 'model_provider="aster"', "-c", 'model="m1"'],
+            [("plugin", "marketplace", "add", "/home/a/install"), ("plugin", "add", "aster@aster")],
         ),
         "opencode": ([], [("plugin", "-g", "/home/a/install/plugin")]),
-        "pi": (["--model", "reef/m1"], [("install", "/home/a/install/plugin")]),
+        "pi": (["--model", "aster/m1"], [("install", "/home/a/install/plugin")]),
     }[adapter]
     assert list(layer.args[: len(expected[0])]) == expected[0]
     assert list(layer.register) == expected[1]
     assert "plugin/skills/fix/SKILL.md" in layer.files or "plugin/skill/fix/SKILL.md" in layer.files
     if adapter == "claude":
         marketplace = json.loads(layer.files[".claude-plugin/marketplace.json"])
-        assert marketplace["plugins"] == [{"name": "reef", "source": "./plugin"}]
+        assert marketplace["plugins"] == [{"name": "aster", "source": "./plugin"}]
     if adapter == "codex":
         # Codex copies the whole plugin into its cache, so the install keeps no config file with the credential.
         assert not any(path.startswith("codex/") for path in layer.files)
@@ -129,6 +129,6 @@ def test_a_layer_installs_the_release_as_the_agents_plugin_with_the_token_off_th
     if adapter == "opencode":
         assert layer.env["OPENCODE_CONFIG"] == "/home/a/install/opencode/opencode.json"
     if adapter == "pi":
-        assert "plugin/extensions/reef-provider/index.ts" in layer.files
+        assert "plugin/extensions/aster-provider/index.ts" in layer.files
     # The run defaults stay in runs: a layer never opens every permission of the person's agent.
     assert "permission" not in "".join(layer.files.values())

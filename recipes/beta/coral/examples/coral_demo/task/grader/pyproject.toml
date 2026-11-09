@@ -1,7 +1,7 @@
 [project]
 name = "coral-demo-grader"
 version = "0.0.1"
-description = "Grader for the Reef test-time-training CORAL demo task"
+description = "Grader for the Aster test-time-training CORAL demo task"
 requires-python = ">=3.10"
 dependencies = []
 

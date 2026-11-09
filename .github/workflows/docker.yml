@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - "docker/**"
-      - "reef/train/**"
+      - "aster/train/**"
       - "pyproject.toml"
       - ".github/workflows/docker.yml"
   # Run on every pull request so docker-gate is always available as a stable
@@ -32,8 +32,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: docker build --check --target reef -f docker/Dockerfile.reef .
-      - run: docker build --check --target tttd -f docker/Dockerfile.reef .
+      - run: docker build --check --target aster -f docker/Dockerfile.aster .
+      - run: docker build --check --target tttd -f docker/Dockerfile.aster .
 
   # Full image build, kept for the day a runner with 100GB+ of docker storage
   # exists (self-hosted or larger hosted). Uncomment, point runs-on at that
@@ -54,4 +54,4 @@ jobs:
   #         echo '{"data-root": "/mnt/docker"}' | sudo tee /etc/docker/daemon.json
   #         sudo systemctl start docker
   #         df -h / /mnt
-  #     - run: docker build -f docker/Dockerfile.reef -t reef:ci .
+  #     - run: docker build -f docker/Dockerfile.aster -t aster:ci .

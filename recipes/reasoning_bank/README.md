@@ -1,9 +1,9 @@
 # reasoning_bank
 
-A Reef harness evolution method based on [ReasoningBank](https://arxiv.org/abs/2509.25140) (Ouyang et al.). The
+An Aster harness evolution method based on [ReasoningBank](https://arxiv.org/abs/2509.25140) (Ouyang et al.). The
 method learns from the agent's own runs and needs no ground truth. A judge model labels each unscored run a success
 or a failure. An extractor model then writes memory items from the run: strategies from a success, lessons from a
-failure. Reef serves each item as an Agent Skill, so the agent opens the items that fit its task.
+failure. Aster serves each item as an Agent Skill, so the agent opens the items that fit its task.
 
 - Paper: [arXiv:2509.25140](https://arxiv.org/abs/2509.25140)
 - Method: `recipes.reasoning_bank:ReasoningBank` in [method.py](method.py), with its prompts in [prompts/](prompts/)
@@ -34,7 +34,7 @@ stays out of the bank, because every session reads the tree. The step's notes (`
 the outcomes, name the items that the step added, replaced and dropped, and give the reason for each skip.
 
 The bank is the method's state, `state/memory.json`: a list of items `{slug, title, description, content,
-outcome, step}`, oldest first. Reef commits the state at the end of each step, whether or not the step publishes a
+outcome, step}`, oldest first. Aster commits the state at the end of each step, whether or not the step publishes a
 tree.
 
 ## Memory items as skills
@@ -56,7 +56,7 @@ description: Use when a task asks you to fix code and say that the fix works.
 
 The harness does the retrieval. It lists the name and the description of every skill, and the agent opens the
 skills that fit its task (progressive disclosure). So the description works as the retrieval key, and the
-extractor prompt asks for a description that names the situation, not the solution. Every Reef adapter renders
+extractor prompt asks for a description that names the situation, not the solution. Every Aster adapter renders
 skills, so the method runs on every adapter.
 
 ## Configuration
@@ -79,7 +79,7 @@ set `evolution.max_model_calls_per_step`, allow two calls per run. A step that r
 
 [examples/serve.yaml](examples/serve.yaml) runs the method online on pi, without ground truth:
 
-- The `pipeline` section names the inference stages. Every model call that a client sends through Reef is a
+- The `pipeline` section names the inference stages. Every model call that a client sends through Aster is a
   trace, and no client has to report a score. The judge labels each run.
 - `evolution.evaluation.policy: none` runs no task. Every step whose tree passes validation publishes.
 - The served model judges and extracts, as in the paper.
@@ -88,7 +88,7 @@ The example serves `qwen3-8b` from `http://127.0.0.1:8000`; edit the `inference`
 it from the repository root:
 
 ```bash
-reef serve -c recipes/reasoning_bank/examples/serve.yaml
+aster serve -c recipes/reasoning_bank/examples/serve.yaml
 ```
 
 Then connect pi clients to the scenario, as [Evolve your harness](../../docs/user-guide/evolve-your-harness.rst)
@@ -96,11 +96,11 @@ describes. Each published snapshot carries the bank as `skills/rb-*`.
 
 Other setups change one part of the example:
 
-- If the clients report a score for each run (`POST /reef/report`), delete the `pipeline` section. Each trace is
+- If the clients report a score for each run (`POST /aster/report`), delete the `pipeline` section. Each trace is
   then a scored run, and its score sets the outcome.
 - For a stronger judge, declare the model under `evolution.models` (`url`, `model`, `api_key_env`) and set
   `judge_model` to its name.
-- With `evaluation.policy: compare` or `floor`, Reef runs tasks on each new tree before it publishes. The bank
+- With `evaluation.policy: compare` or `floor`, Aster runs tasks on each new tree before it publishes. The bank
   keeps every item that it learned, whether or not the tree was published, and each step proposes the whole bank
   again.
 
@@ -119,7 +119,7 @@ Other setups change one part of the example:
   system prompt, the final reply, the feedback and the failure. The run of an offline step (a run) has no
   transcript in its trace. Past 30,000 characters, the view loses the middle of its transcript. The paper's judge
   for web tasks also reads the final page state.
-- **Prompts.** The prompts are Reef's own and ask for JSON. Reef sends no sampling parameters, and the paper
+- **Prompts.** The prompts are Aster's own and ask for JSON. Aster sends no sampling parameters, and the paper
   samples the judge at temperature 0 and the extractor at temperature 1.
 - **Scaling.** Memory-aware test-time scaling (MaTTS), which spends more runs on each task to give the extractor
   more varied runs, is not part of this method.

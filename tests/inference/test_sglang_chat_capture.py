@@ -9,12 +9,12 @@ from aiohttp import web
 from aiohttp.test_utils import TestServer
 
 from recipes.openclawrl.turns import main_turn_message, turn_request_messages
-from reef.artifact import Artifact
-from reef.core.errors import inference_aborted
-from reef.inference.chat import ReasoningStreamSplitter
-from reef.inference.interfaces import InferenceArtifact
-from reef.inference.sglang.chat import NativeStreamCapture, SGLangGenerateClient, SGLangInferenceHandler
-from reef.service.streaming import stream_record
+from aster.artifact import Artifact
+from aster.core.errors import inference_aborted
+from aster.inference.chat import ReasoningStreamSplitter
+from aster.inference.interfaces import InferenceArtifact
+from aster.inference.sglang.chat import NativeStreamCapture, SGLangGenerateClient, SGLangInferenceHandler
+from aster.service.streaming import stream_record
 
 
 class RecordingClient(SGLangGenerateClient):
@@ -273,10 +273,10 @@ def test_chat_facade_forwards_only_an_explicit_lora_path() -> None:
     )
 
     without_adapter = backend.client.payload({}, [10, 11], {}, stream=False)
-    with_adapter = backend.client.payload({"lora_path": "reef_lora"}, [10, 11], {}, stream=False)
+    with_adapter = backend.client.payload({"lora_path": "aster_lora"}, [10, 11], {}, stream=False)
 
     assert "lora_path" not in without_adapter
-    assert with_adapter["lora_path"] == "reef_lora"
+    assert with_adapter["lora_path"] == "aster_lora"
 
 
 @pytest.mark.unit
@@ -354,7 +354,7 @@ def test_chat_facade_records_exact_versions_across_an_in_place_update(tmp_path) 
             # Tokenizer metadata can move after the final decode;
             # the scheduler-owned list remains exact.
             "weight_version": "engine:8",
-            "_reef_token_runtime_load_ids": ["engine:6", "engine:7", "engine:7"],
+            "_aster_token_runtime_load_ids": ["engine:6", "engine:7", "engine:7"],
         },
     }
     artifact = _artifact(tmp_path)
@@ -408,7 +408,7 @@ def test_nonstream_fallback_uses_the_scheduler_stamped_final_version() -> None:
                         "output_token_logprobs": [[-0.1, 20]],
                         # The tokenizer may move first while draining output.
                         "weight_version": "engine:7",
-                        "_reef_token_runtime_load_ids": ["engine:6"],
+                        "_aster_token_runtime_load_ids": ["engine:6"],
                     },
                 }
             )
@@ -819,7 +819,7 @@ def test_streaming_chat_keeps_the_exact_response_for_recording(tmp_path) -> None
                     "completion_tokens": 1,
                     "output_token_logprobs": [[-0.5, 20]],
                     "weight_version": "engine:6",
-                    "_reef_token_runtime_load_ids": ["engine:6"],
+                    "_aster_token_runtime_load_ids": ["engine:6"],
                 },
             }
             await response.write(f"data: {json.dumps(event)}\n\n".encode())
@@ -880,7 +880,7 @@ def test_streaming_anthropic_messages_emits_native_sse_and_records_the_message(t
                     "completion_tokens": 1,
                     "output_token_logprobs": [[-0.5, 20]],
                     "weight_version": "engine:6",
-                    "_reef_token_runtime_load_ids": ["engine:6"],
+                    "_aster_token_runtime_load_ids": ["engine:6"],
                 },
             }
             await response.write(f"data: {json.dumps(first)}\n\n".encode())
@@ -893,7 +893,7 @@ def test_streaming_anthropic_messages_emits_native_sse_and_records_the_message(t
                     "completion_tokens": 2,
                     "output_token_logprobs": [[-0.25, 21]],
                     "weight_version": "engine:8",
-                    "_reef_token_runtime_load_ids": ["engine:7"],
+                    "_aster_token_runtime_load_ids": ["engine:7"],
                 },
             }
             await response.write(f"data: {json.dumps(final)}\n\n".encode())
@@ -963,7 +963,7 @@ def test_streaming_records_an_engine_abort_that_the_service_detects(path) -> Non
                     "completion_tokens": 1,
                     "output_token_logprobs": [[-0.5, 20]],
                     "weight_version": "engine:6",
-                    "_reef_token_runtime_load_ids": ["engine:6"],
+                    "_aster_token_runtime_load_ids": ["engine:6"],
                 },
             }
             await response.write(f"data: {json.dumps(event)}\n\n".encode())
@@ -1011,7 +1011,7 @@ def test_streaming_anthropic_reassembles_incremental_sglang_thinking_chunks() ->
                         "finish_reason": None,
                         "completion_tokens": 1,
                         "output_token_logprobs": [[-0.5, 20]],
-                        "_reef_token_runtime_load_ids": ["engine:6"],
+                        "_aster_token_runtime_load_ids": ["engine:6"],
                     },
                 },
                 {
@@ -1021,7 +1021,7 @@ def test_streaming_anthropic_reassembles_incremental_sglang_thinking_chunks() ->
                         "finish_reason": {"type": "stop"},
                         "completion_tokens": 2,
                         "output_token_logprobs": [[-0.25, 21]],
-                        "_reef_token_runtime_load_ids": ["engine:7"],
+                        "_aster_token_runtime_load_ids": ["engine:7"],
                     },
                 },
             ]

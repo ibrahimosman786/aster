@@ -12,24 +12,24 @@ from tests.support._trajectories import policy_trajectory
 from tests.support.job_data import job_data_ref
 from tests.support.runtime_stubs import STUB_ROOT
 
-from reef.artifact import DefaultStart
-from reef.core.artifact_selection import ArtifactSelection
-from reef.core.job_data import JobData, TaskSample
-from reef.core.snapshot import SnapshotRef
-from reef.core.training_request import TrainingRequest
-from reef.core.weight_layout import ArtifactFormat
-from reef.observability.base import (
+from aster.artifact import DefaultStart
+from aster.core.artifact_selection import ArtifactSelection
+from aster.core.job_data import JobData, TaskSample
+from aster.core.snapshot import SnapshotRef
+from aster.core.training_request import TrainingRequest
+from aster.core.weight_layout import ArtifactFormat
+from aster.observability.base import (
     ExperimentRun,
     ExperimentTracker,
     TrainingExperimentContext,
     TrainingExperimentEvent,
 )
-from reef.storage.data import MemoryDataStore
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.tasks import LocalTaskFileStore
-from reef.storage.work_queue import NewWork
-from reef.train.component import JobStatus, SavedCheckpoint, ScenarioRoot, TrainingJob
-from reef.train.job_queue import (
+from aster.storage.data import MemoryDataStore
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.tasks import LocalTaskFileStore
+from aster.storage.work_queue import NewWork
+from aster.train.component import JobStatus, SavedCheckpoint, ScenarioRoot, TrainingJob
+from aster.train.job_queue import (
     JOBS_QUEUE,
     JobExperimentRecorder,
     JobQueueComponent,
@@ -41,7 +41,7 @@ from reef.train.job_queue import (
     job_payload,
     scenario_jobs,
 )
-from reef.train.local_jobs import LocalJobComponent
+from aster.train.local_jobs import LocalJobComponent
 
 WAIT_SECONDS = 10.0
 
@@ -300,7 +300,7 @@ class RunTracker(ExperimentTracker):
         if not self.open_run:
             return None
         run_id = f"run-{context.scenario}"
-        return ExperimentRun("wandb", "reef", run_id, "team", f"https://wandb.ai/team/reef/runs/{run_id}")
+        return ExperimentRun("wandb", "aster", run_id, "team", f"https://wandb.ai/team/aster/runs/{run_id}")
 
     def record(self, event):
         self.events.append(event)
@@ -328,10 +328,10 @@ def test_control_writes_the_run_that_records_a_job_into_the_jobs_item():
     (listed,) = scenario_jobs(queue, "s")
     assert listed["experiment"] == {
         "tracker": "wandb",
-        "project": "reef",
+        "project": "aster",
         "entity": "team",
         "run_id": "run-s",
-        "url": "https://wandb.ai/team/reef/runs/run-s",
+        "url": "https://wandb.ai/team/aster/runs/run-s",
     }
     # The run of every later commit of the job is the same, so the item does not change again.
     sequence = queue.get(JOBS_QUEUE, "j1").changed_sequence

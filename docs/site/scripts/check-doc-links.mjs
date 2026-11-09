@@ -13,14 +13,14 @@ const excludedDirectories = new Set([
   ".mypy_cache",
   ".next",
   ".pytest_cache",
-  ".reef",
+  ".aster",
   ".ruff_cache",
   ".venv",
   "node_modules",
   "out",
   "public",
   // Upstream submodule docs keep their own conventions and dead links;
-  // reef links INTO third_party are still resolved as targets.
+  // aster links INTO third_party are still resolved as targets.
   "third_party",
 ]);
 

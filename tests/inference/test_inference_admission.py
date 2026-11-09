@@ -6,8 +6,8 @@ import asyncio
 
 import pytest
 
-from reef.core.errors import InferenceUnavailable
-from reef.inference.interfaces import InferenceAdmissionController
+from aster.core.errors import InferenceUnavailable
+from aster.inference.interfaces import InferenceAdmissionController
 
 
 def test_closed_admission_refuses_new_requests_and_lets_admitted_ones_finish() -> None:

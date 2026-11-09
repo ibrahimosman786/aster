@@ -11,7 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from recipes.tttd.examples.tttd.harness.agent import ReefTTTDiscoverHarness
+from recipes.tttd.examples.tttd.harness.agent import AsterTTTDiscoverHarness
 from recipes.tttd.examples.tttd.harness.sandbox import execute_program
 from recipes.tttd.examples.tttd.harness.search import (
     Candidate,
@@ -218,18 +218,18 @@ class _Client:
     ("artifact_id", "expected_path"),
     [
         (None, "/v1/chat/completions"),
-        ("artifact:v1", "/reef/scenarios/discovery/artifacts/artifact%3Av1/v1/chat/completions"),
+        ("artifact:v1", "/aster/scenarios/discovery/artifacts/artifact%3Av1/v1/chat/completions"),
     ],
 )
-def test_reef_harness_reports_each_result_against_exact_inference(artifact_id, expected_path):
+def test_aster_harness_reports_each_result_against_exact_inference(artifact_id, expected_path):
     client = _Client(expected_path)
-    harness = ReefTTTDiscoverHarness(
+    harness = AsterTTTDiscoverHarness(
         client,
         _scorer(),
         "Improve the number.",
         scenario="discovery",
         artifact_id=artifact_id,
-        model="reef",
+        model="aster",
         groups_per_step=1,
         rollouts_per_group=3,
         max_workers=1,
@@ -263,7 +263,7 @@ def test_tttd_chat_request_builder_leaves_token_capture_to_backend():
     assert payload["top_p"] == 1.0
     assert payload["top_k"] == -1
     assert payload["chat_template_kwargs"] == {"enable_thinking": True}
-    # Reef's inference routing names the served adapter; the harness never does.
+    # Aster's inference routing names the served adapter; the harness never does.
     assert "lora_path" not in payload
 
 

@@ -10,7 +10,7 @@ CONTRIBUTOR_GUIDES = (
     REPO_ROOT / "docs" / "contributing" / "codebase-structure.rst",
     REPO_ROOT / "docs" / "contributing" / "adding-components.rst",
 )
-REPOSITORY_PATH = re.compile(r"``((?:(?:reef|tests|docs|examples|docker)/[^`]*|pyproject\.toml))``")
+REPOSITORY_PATH = re.compile(r"``((?:(?:aster|tests|docs|examples|docker)/[^`]*|pyproject\.toml))``")
 
 
 def documented_repository_paths(source: str) -> set[str]:
@@ -39,15 +39,15 @@ def test_contributor_guides_are_linked_from_entry_points_and_site_navigation() -
 
     for filename in ("codebase-structure.rst", "adding-components.rst"):
         slug = Path(filename).stem
-        assert f"https://reefinfra.ai/docs/contributing/{slug}/" in contributing
+        assert f"https://asterinfra.ai/docs/contributing/{slug}/" in contributing
         assert f'"contributing/{filename}"' in navigation
 
 
 def test_component_playbooks_name_the_live_registration_points() -> None:
     playbooks = CONTRIBUTOR_GUIDES[1].read_text(encoding="utf-8")
-    recipe_registry = (REPO_ROOT / "reef" / "recipe" / "registry.py").read_text(encoding="utf-8")
-    runtime_registry = (REPO_ROOT / "reef" / "inference" / "registry.py").read_text(encoding="utf-8")
-    route_registry = (REPO_ROOT / "reef" / "service" / "routes" / "__init__.py").read_text(encoding="utf-8")
+    recipe_registry = (REPO_ROOT / "aster" / "recipe" / "registry.py").read_text(encoding="utf-8")
+    runtime_registry = (REPO_ROOT / "aster" / "inference" / "registry.py").read_text(encoding="utf-8")
+    route_registry = (REPO_ROOT / "aster" / "service" / "routes" / "__init__.py").read_text(encoding="utf-8")
 
     assert "register_kind" in playbooks and "def register_kind" not in recipe_registry
     assert "package.module:ClassName" in playbooks

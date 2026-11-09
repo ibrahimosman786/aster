@@ -8,10 +8,10 @@ from pathlib import Path
 import pytest
 from tests.support._trajectories import policy_trajectory
 
-from reef.core import AgentRecord, RequestType
-from reef.core.job_data import TaskSample
-from reef.core.plugins import PluginConfigError
-from reef.record2sample import (
+from aster.core import AgentRecord, RequestType
+from aster.core.job_data import TaskSample
+from aster.core.plugins import PluginConfigError
+from aster.record2sample import (
     InferenceRecordSamples,
     Record2SampleSettings,
     RecordSet,
@@ -22,8 +22,8 @@ from reef.record2sample import (
     SingleRecordSet,
     SingleSetUnit,
 )
-from reef.record2sample.staleness import ServedArtifacts, is_stale, producing_artifact_ids
-from reef.train import PipelineContext
+from aster.record2sample.staleness import ServedArtifacts, is_stale, producing_artifact_ids
+from aster.train import PipelineContext
 
 
 def inference(record_id: str) -> AgentRecord:

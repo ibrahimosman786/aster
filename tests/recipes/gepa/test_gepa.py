@@ -25,17 +25,17 @@ from tests.support.harness_steps import TreeArtifacts, build_harness_backend, ha
 from recipes.gepa import GEPA, GEPASettings, ScoreFeedback, components, reflection
 from recipes.gepa.archive import Archive, Candidate
 from recipes.gepa.method import ARCHIVE_FILE, archive_for_step
-from reef.core.evaluation import RolloutScore
-from reef.core.job_data import TrajectorySample
-from reef.core.plugins import PluginConfigError
-from reef.evaluation.harness import ComparePolicy, DecisionRecord, FailureObservation, History, RunRecord
-from reef.harness.adapters import get_adapter
-from reef.harness.tasks.model_binding import ModelBinding, ModelBindings
-from reef.harness.tasks.run import TaskResult
-from reef.harness.tree import HarnessTree
-from reef.train.harness_backend.backend import HarnessBackend
-from reef.train.harness_backend.state import HarnessState
-from reef.train.types import JobData, TrainingCommit
+from aster.core.evaluation import RolloutScore
+from aster.core.job_data import TrajectorySample
+from aster.core.plugins import PluginConfigError
+from aster.evaluation.harness import ComparePolicy, DecisionRecord, FailureObservation, History, RunRecord
+from aster.harness.adapters import get_adapter
+from aster.harness.tasks.model_binding import ModelBinding, ModelBindings
+from aster.harness.tasks.run import TaskResult
+from aster.harness.tree import HarnessTree
+from aster.train.harness_backend.backend import HarnessBackend
+from aster.train.harness_backend.state import HarnessState
+from aster.train.types import JobData, TrainingCommit
 
 MARKER = "SHOW-YOUR-WORK"
 SEED_TEXT = "Answer briefly."
@@ -362,7 +362,7 @@ def test_the_config_parses_into_settings_and_builds_the_feedback() -> None:
         ({"archive": "gepa"}, "unknown config fields: archive"),
         ({"minibatch_size": 0}, "minibatch_size must be positive"),
         ({"seed": "zero"}, "GEPA.seed must be a valid int"),
-        ({"feedback": "reef.evaluation.harness:VerifierRewardScorer"}, "inherits Feedback"),
+        ({"feedback": "aster.evaluation.harness:VerifierRewardScorer"}, "inherits Feedback"),
     ],
 )
 def test_an_invalid_config_is_refused(config: dict[str, Any], message: str) -> None:
@@ -458,7 +458,7 @@ def test_a_child_that_does_not_beat_its_parent_is_rejected(tmp_path: Path) -> No
 
 
 def test_a_child_that_fails_validation_ends_the_iteration_without_an_run(tmp_path: Path) -> None:
-    # A reflection that writes a credential-shaped literal makes a tree that Reef never evaluates or publishes.
+    # A reflection that writes a credential-shaped literal makes a tree that Aster never evaluates or publishes.
     reply = "```\nAnswer briefly with the key sk-" + "a" * 24 + "\n```"
     backend, _ = gepa_backend(tmp_path, RULES_ONLY, reflector=FakeChat(reply))
     result = step(backend, 1, HarnessState().to_json(), sample("a1", 0.0))

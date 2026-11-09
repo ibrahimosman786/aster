@@ -15,9 +15,9 @@ from pathlib import Path
 import pytest
 from tests.support.harness_render import native_tool
 
-from reef.execution.sandbox.process import SandboxExecutor, SandboxUnavailable
-from reef.harness.runners.native import LoadError, ToolModule, ToolRunner, _invoke, _ModuleRun, load_tools
-from reef.harness.runners.native.enforce import (
+from aster.execution.sandbox.process import SandboxExecutor, SandboxUnavailable
+from aster.harness.runners.native import LoadError, ToolModule, ToolRunner, _invoke, _ModuleRun, load_tools
+from aster.harness.runners.native.enforce import (
     CHILD,
     ENFORCE_ENV,
     BwrapEnforcer,
@@ -165,9 +165,9 @@ def test_the_environment_selects_the_enforcer(monkeypatch) -> None:
     assert isinstance(select_enforcer({}), InProcessEnforcer)
     assert isinstance(select_enforcer({ENFORCE_ENV: ""}), InProcessEnforcer)
     assert select_enforcer({ENFORCE_ENV: "none"}).mode == "none"
-    monkeypatch.setattr("reef.harness.runners.native.enforce.shutil.which", lambda name: "/usr/bin/bwrap")
+    monkeypatch.setattr("aster.harness.runners.native.enforce.shutil.which", lambda name: "/usr/bin/bwrap")
     assert isinstance(select_enforcer({ENFORCE_ENV: "bwrap"}), BwrapEnforcer)
-    monkeypatch.setattr("reef.harness.runners.native.enforce.shutil.which", lambda name: None)
+    monkeypatch.setattr("aster.harness.runners.native.enforce.shutil.which", lambda name: None)
     with pytest.raises(ValueError, match=r"bwrap.*not on PATH"):
         select_enforcer({ENFORCE_ENV: "bwrap"})
     with pytest.raises(ValueError, match=r"seccomp.*names no enforcer"):
@@ -271,7 +271,7 @@ def test_the_static_read_follows_compound_statements_at_module_scope(tmp_path: P
     # A run bound inside a compound statement at module scope loads and runs: the binding the import makes.
     for source, answer in (
         (
-            "try:\n    import reef_no_such_module\n\n    def run(args, workdir):\n        return 'fast'\n"
+            "try:\n    import aster_no_such_module\n\n    def run(args, workdir):\n        return 'fast'\n"
             "except ImportError:\n\n    def run(args, workdir):\n        return 'fallback'\n",
             "fallback",
         ),
@@ -456,7 +456,7 @@ def require_nested_jail() -> None:
             return
         except SandboxUnavailable as exc:
             reason = str(exc)
-    if os.environ.get("REEF_REQUIRE_SANDBOX") == "1":
+    if os.environ.get("ASTER_REQUIRE_SANDBOX") == "1":
         pytest.fail(reason)
     pytest.skip(reason)
 
@@ -466,7 +466,7 @@ def require_nested_jail() -> None:
 def test_nested_jail_requirement_handles_host_availability(
     monkeypatch: pytest.MonkeyPatch, required: bool, availability: str
 ) -> None:
-    monkeypatch.setenv("REEF_REQUIRE_SANDBOX", "1" if required else "0")
+    monkeypatch.setenv("ASTER_REQUIRE_SANDBOX", "1" if required else "0")
     monkeypatch.setattr(shutil, "which", lambda name: None if availability == "missing" else "/usr/bin/bwrap")
 
     def _preflight(executor: SandboxExecutor) -> None:

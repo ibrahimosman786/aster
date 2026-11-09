@@ -1,8 +1,8 @@
-"""Reef harness for summary-only Guidance-TTT.
+"""Aster harness for summary-only Guidance-TTT.
 
 The trainable Qwen policy emits only guidance. An external model turns that
 guidance into executable code, and the verifier reward is linked back to the
-exact guidance receipt recorded by Reef.
+exact guidance receipt recorded by Aster.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from reef_client import ReefClient
+from reef_client import AsterClient
 
 from .contract import TaskContract
 from .execution import ExecutionClient, ExecutorUnavailableError
@@ -111,12 +111,12 @@ def prepare_library(
     return library
 
 
-class ReefGuidanceTTTHarness(SearchHarness):
+class AsterGuidanceTTTHarness(SearchHarness):
     """One policy call and, when well formed, one external execution per rollout."""
 
     def __init__(
         self,
-        client: ReefClient,
+        client: AsterClient,
         execution_client: ExecutionClient,
         library: GuidanceLibrary,
         *,

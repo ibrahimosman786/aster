@@ -7,17 +7,17 @@ from dataclasses import dataclass
 from typing import Any
 
 from recipes.sdft.processor import SDFTSamples
-from reef.core.reports import ReportBase, TeacherContextReport
-from reef.recipe.base import WeightTrainingRecipe
-from reef.recipe.errors import RecipeConfigError
-from reef.sample2job import DistillJobData
-from reef.storage.samples import SAMPLE_KINDS, SampleKind
-from reef.train.pipeline import PipelineSpec
+from aster.core.reports import ReportBase, TeacherContextReport
+from aster.recipe.base import WeightTrainingRecipe
+from aster.recipe.errors import RecipeConfigError
+from aster.sample2job import DistillJobData
+from aster.storage.samples import SAMPLE_KINDS, SampleKind
+from aster.train.pipeline import PipelineSpec
 
 
 @dataclass(frozen=True, kw_only=True)
 class SDFTRecipe(WeightTrainingRecipe):
-    """Self-Distillation Fine-Tuning (arXiv:2601.19897) on Reef.
+    """Self-Distillation Fine-Tuning (arXiv:2601.19897) on Aster.
 
     The served model is its own teacher: it reads the request with a
     demonstration added and its next-token distributions over the student's

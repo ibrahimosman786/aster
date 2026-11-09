@@ -1,4 +1,4 @@
-"""The Harbor task environments and the readiness probes that ``reef.execution.sandbox.task_environment`` owns."""
+"""The Harbor task environments and the readiness probes that ``aster.execution.sandbox.task_environment`` owns."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from reef.execution.sandbox.remote import REMOTE_TASK_ENVIRONMENTS
-from reef.execution.sandbox.task_environment import (
+from aster.execution.sandbox.remote import REMOTE_TASK_ENVIRONMENTS
+from aster.execution.sandbox.task_environment import (
     HARBOR_TASK_ENVIRONMENTS,
     PROBED_TASK_ENVIRONMENTS,
     TASK_ENVIRONMENT_PROBES,
@@ -58,10 +58,10 @@ def test_only_docker_and_e2b_have_probes() -> None:
 @pytest.mark.unit
 def test_each_environment_names_what_its_host_needs(monkeypatch: pytest.MonkeyPatch) -> None:
     assert [probe.name for probe in task_environment_probes("docker")] == ["docker"]
-    e2b = task_environment_probes("e2b", credential_hint="export it before reef serve starts")
+    e2b = task_environment_probes("e2b", credential_hint="export it before aster serve starts")
     assert [probe.name for probe in e2b] == [*REMOTE_TASK_ENVIRONMENTS["e2b"], "e2b", "dockerfile_parse"]
     monkeypatch.delenv("E2B_API_KEY", raising=False)
-    assert e2b[0].missing() == "E2B_API_KEY is not set; export it before reef serve starts"
+    assert e2b[0].missing() == "E2B_API_KEY is not set; export it before aster serve starts"
     assert (
         task_environment_probes("e2b")[0].missing() == "E2B_API_KEY is not set; export it before this process starts"
     )

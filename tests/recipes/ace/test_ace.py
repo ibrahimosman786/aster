@@ -17,17 +17,17 @@ from tests.support.harness_service import backend_step
 from tests.support.harness_steps import PI_SEED, TreeArtifacts, build_harness_backend, runtime, step_services
 
 from recipes.ace import ACE, ACESettings
-from reef.core.job_data import TrajectorySample
-from reef.evaluation.harness import EvaluationSettings, NoEvaluationPolicy
-from reef.harness.adapters import get_adapter
-from reef.harness.tasks.model_binding import ModelBindings
-from reef.harness.tree import HarnessTree, validate_tree
-from reef.recipe import load_recipe_config
-from reef.recipe.harness import EvolutionSettings, HarnessEvolutionRecipe
-from reef.train.harness_backend import StepContext, Workspace
-from reef.train.harness_backend.state import HarnessState
-from reef.train.harness_backend.workspace import StepOutput
-from reef.train.types import JobData
+from aster.core.job_data import TrajectorySample
+from aster.evaluation.harness import EvaluationSettings, NoEvaluationPolicy
+from aster.harness.adapters import get_adapter
+from aster.harness.tasks.model_binding import ModelBindings
+from aster.harness.tree import HarnessTree, validate_tree
+from aster.recipe import load_recipe_config
+from aster.recipe.harness import EvolutionSettings, HarnessEvolutionRecipe
+from aster.train.harness_backend import StepContext, Workspace
+from aster.train.harness_backend.state import HarnessState
+from aster.train.harness_backend.workspace import StepOutput
+from aster.train.types import JobData
 
 PI = get_adapter("pi")
 EXAMPLE = Path(__file__).resolve().parents[3] / "recipes" / "ace" / "examples" / "serve.yaml"
@@ -229,7 +229,7 @@ def test_a_reply_that_is_not_the_asked_json_skips_its_trace(tmp_path: Path) -> N
 
 
 def test_the_example_serves_ace_on_pi_with_no_evaluation(monkeypatch: pytest.MonkeyPatch) -> None:
-    # reef serve runs the example from the repository root, where its paths start.
+    # aster serve runs the example from the repository root, where its paths start.
     monkeypatch.chdir(EXAMPLE.parents[3])
     recipe = HarnessEvolutionRecipe.from_environment({}, config=load_recipe_config(EXAMPLE), runtime=runtime())
     assert isinstance(recipe.method, ACE) and recipe.method.settings == ACESettings(max_bullets=100, prune_margin=2)

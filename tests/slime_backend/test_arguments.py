@@ -7,14 +7,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from reef.train.slime_backend.reef_adapters.arguments import SlimeArguments
-from reef.train.slime_backend.reef_adapters.slime_arguments import (
-    REEF_BEFORE_TRAIN_STEP_HOOK_PATH,
-    REEF_MEGATRON_INIT_PATH,
-    REEF_MODEL_PROVIDER_PATH,
-    add_reef_slime_arguments,
-    configure_reef_loss_args,
-    finalize_reef_slime_args,
+from aster.train.slime_backend.aster_adapters.arguments import SlimeArguments
+from aster.train.slime_backend.aster_adapters.slime_arguments import (
+    ASTER_BEFORE_TRAIN_STEP_HOOK_PATH,
+    ASTER_MEGATRON_INIT_PATH,
+    ASTER_MODEL_PROVIDER_PATH,
+    add_aster_slime_arguments,
+    configure_aster_loss_args,
+    finalize_aster_slime_args,
 )
 
 
@@ -45,15 +45,15 @@ def slime_args(**overrides):
 
 
 @pytest.mark.unit
-def test_reef_slime_argument_hook_owns_only_reef_options() -> None:
-    parser = add_reef_slime_arguments(argparse.ArgumentParser())
+def test_aster_slime_argument_hook_owns_only_aster_options() -> None:
+    parser = add_aster_slime_arguments(argparse.ArgumentParser())
 
     args = parser.parse_args(["--megatron-to-hf-mode=bridge", "--megatron-lora-rank=4", "--use-critic"])
 
     assert args.megatron_to_hf_mode == "bridge"
     assert args.megatron_lora_rank == 4
     assert args.use_critic is True
-    assert args.reef_executor_backend == "auto"
+    assert args.aster_executor_backend == "auto"
 
 
 @pytest.mark.unit
@@ -68,20 +68,20 @@ def test_finalize_arguments_chains_user_hooks_and_enables_explicit_critic() -> N
         custom_megatron_before_train_step_hook_path="custom.before_step",
     )
 
-    finalize_reef_slime_args(args, ["--use-critic", "--megatron-lora-rank=8"])
+    finalize_aster_slime_args(args, ["--use-critic", "--megatron-lora-rank=8"])
 
     assert args.use_critic is True
     assert args.offload_train is True
     assert args.disable_grad_buffers_cpu_backup is True
     assert args.disable_param_buffers_cpu_backup is True
     assert args.megatron_lora_alpha == 8
-    assert args.custom_megatron_init_path == REEF_MEGATRON_INIT_PATH
-    assert args.reef_chained_megatron_init_path == "custom.initialize"
-    assert args.custom_model_provider_path == REEF_MODEL_PROVIDER_PATH
-    assert args.reef_chained_model_provider_path == "custom.model_provider"
-    # Every optimizer step passes Reef's learning-rate hook, which runs the user's hook first.
-    assert args.custom_megatron_before_train_step_hook_path == REEF_BEFORE_TRAIN_STEP_HOOK_PATH
-    assert args.reef_chained_before_train_step_hook_path == "custom.before_step"
+    assert args.custom_megatron_init_path == ASTER_MEGATRON_INIT_PATH
+    assert args.aster_chained_megatron_init_path == "custom.initialize"
+    assert args.custom_model_provider_path == ASTER_MODEL_PROVIDER_PATH
+    assert args.aster_chained_model_provider_path == "custom.model_provider"
+    # Every optimizer step passes Aster's learning-rate hook, which runs the user's hook first.
+    assert args.custom_megatron_before_train_step_hook_path == ASTER_BEFORE_TRAIN_STEP_HOOK_PATH
+    assert args.aster_chained_before_train_step_hook_path == "custom.before_step"
 
 
 @pytest.mark.unit
@@ -90,7 +90,7 @@ def test_finalize_arguments_lets_an_explicit_no_offload_train_stand() -> None:
     # --no-offload-train keeps the actor and the critic resident.
     args = slime_args(offload_train=False)
 
-    finalize_reef_slime_args(args, ["--use-critic", "--no-offload-train"])
+    finalize_aster_slime_args(args, ["--use-critic", "--no-offload-train"])
 
     assert args.use_critic is True
     assert args.offload_train is False
@@ -99,24 +99,24 @@ def test_finalize_arguments_lets_an_explicit_no_offload_train_stand() -> None:
 @pytest.mark.unit
 def test_finalize_arguments_rejects_nonpositive_critic_steps() -> None:
     with pytest.raises(ValueError, match="critic-steps-per-actor"):
-        finalize_reef_slime_args(slime_args(critic_steps_per_actor=0), [])
+        finalize_aster_slime_args(slime_args(critic_steps_per_actor=0), [])
 
 
 @pytest.mark.unit
 def test_loss_family_projection_uses_public_slime_primitives() -> None:
     sao = slime_args(loss_family="sao")
-    configure_reef_loss_args(sao)
+    configure_aster_loss_args(sao)
     assert sao.advantage_estimator == "cispo"
     # The configured estimator stays on record for a job of another family.
-    assert sao.reef_configured_advantage_estimator == "grpo"
+    assert sao.aster_configured_advantage_estimator == "grpo"
     assert sao.compute_advantages_and_returns is True
 
     topk = slime_args(loss_family="openclawrl")
-    configure_reef_loss_args(topk)
+    configure_aster_loss_args(topk)
     assert topk.compute_advantages_and_returns is True
 
     neutral = slime_args(loss_family="sft")
-    configure_reef_loss_args(neutral)
+    configure_aster_loss_args(neutral)
     assert not hasattr(neutral, "compute_advantages_and_returns")
 
 
@@ -155,7 +155,7 @@ def component_args(**overrides):
     ],
 )
 def test_slime_args_accept_a_run_the_training_component_can_run(overrides) -> None:
-    from reef.train.slime_backend.reef_adapters.preflight import validate_slime_args
+    from aster.train.slime_backend.aster_adapters.preflight import validate_slime_args
 
     validate_slime_args(component_args(**overrides), None)
 
@@ -164,7 +164,7 @@ def test_slime_args_accept_a_run_the_training_component_can_run(overrides) -> No
 @pytest.mark.parametrize(
     ("overrides", "refusal"),
     [
-        # Reef's LoRA adapters are not wired into Slime's weight transfer to its engines.
+        # Aster's LoRA adapters are not wired into Slime's weight transfer to its engines.
         ({"rollout_num_gpus": 2, "megatron_lora_rank": 32}, "remove --megatron-lora-rank"),
         ({"debug_train_only": True}, "--debug-train-only"),
         ({"debug_rollout_only": True}, "--debug-rollout-only"),
@@ -175,7 +175,7 @@ def test_slime_args_accept_a_run_the_training_component_can_run(overrides) -> No
     ],
 )
 def test_slime_args_refuse_what_the_training_component_cannot_run(overrides, refusal) -> None:
-    from reef.train.slime_backend.reef_adapters.preflight import validate_slime_args
+    from aster.train.slime_backend.aster_adapters.preflight import validate_slime_args
 
     with pytest.raises(ValueError, match=re.escape(refusal)):
         validate_slime_args(component_args(**overrides), None)
@@ -185,7 +185,7 @@ def test_slime_args_refuse_what_the_training_component_cannot_run(overrides, ref
 @pytest.mark.parametrize("interval", [0, -1])
 def test_finalize_arguments_rejects_nonpositive_critic_save_interval(interval: int) -> None:
     with pytest.raises(ValueError, match="critic-save-interval"):
-        finalize_reef_slime_args(slime_args(critic_save_interval=interval), [])
+        finalize_aster_slime_args(slime_args(critic_save_interval=interval), [])
 
 
 @pytest.mark.unit
@@ -193,14 +193,14 @@ def test_finalize_arguments_rejects_nonpositive_critic_save_interval(interval: i
 def test_finalize_arguments_requires_save(save: str | None) -> None:
     # Megatron checks --save-interval only with --save, and the bridge reads --save-interval.
     with pytest.raises(ValueError, match="requires --save"):
-        finalize_reef_slime_args(slime_args(save=save), [])
+        finalize_aster_slime_args(slime_args(save=save), [])
 
 
 @pytest.mark.unit
 @pytest.mark.parametrize("interval", [0, -1])
 def test_checkpoint_preflight_preserves_invalid_interval_for_validation(tmp_path, interval: int) -> None:
-    from reef.train.slime_backend.reef_adapters.preflight import prepare_checkpoint_storage
-    from reef.train.slime_backend.reef_adapters.training_job.storage import RetentionConfig
+    from aster.train.slime_backend.aster_adapters.preflight import prepare_checkpoint_storage
+    from aster.train.slime_backend.aster_adapters.training_job.storage import RetentionConfig
 
     args = SlimeArguments(
         save_hf=str(tmp_path / "hf" / "{rollout_id}"),
@@ -219,8 +219,8 @@ def test_checkpoint_preflight_preserves_invalid_interval_for_validation(tmp_path
 @pytest.mark.unit
 def test_slime_parses_tensor_parallel_arguments_without_the_workers_cuda_variable(monkeypatch) -> None:
     """Megatron's check wants CUDA_DEVICE_MAX_CONNECTIONS=1 in the parsing process: the HTTP service and each driver."""
-    from reef.train.slime_backend.reef_adapters import slime_arguments, startup
-    from reef.train.slime_backend.reef_adapters.megatron import hf_arguments
+    from aster.train.slime_backend.aster_adapters import slime_arguments, startup
+    from aster.train.slime_backend.aster_adapters.megatron import hf_arguments
 
     seen: list[str | None] = []
 
@@ -233,6 +233,6 @@ def test_slime_parses_tensor_parallel_arguments_without_the_workers_cuda_variabl
     monkeypatch.delenv("CUDA_DEVICE_MAX_CONNECTIONS", raising=False)
     monkeypatch.setitem(sys.modules, "slime.utils.arguments", SimpleNamespace(parse_args=parse_args))
     monkeypatch.setattr(hf_arguments, "add_hf_architecture_arguments", lambda arguments: list(arguments))
-    monkeypatch.setattr(slime_arguments, "finalize_reef_slime_args", lambda args, arguments: None)
+    monkeypatch.setattr(slime_arguments, "finalize_aster_slime_args", lambda args, arguments: None)
     startup.parse_slime_args(["--tensor-model-parallel-size=4"])
     assert seen == ["1"]

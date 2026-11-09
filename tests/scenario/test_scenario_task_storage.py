@@ -9,14 +9,14 @@ from pathlib import Path
 from tests.support._threshold_processor import threshold_pipeline
 from tests.support.samples import data_storage, sample_store
 
-from reef.artifact import InMemoryRepositoryBackend
-from reef.artifact.components import ScenarioComponents
-from reef.dispatcher import Dispatcher
-from reef.pipeline_context import PipelineContext
-from reef.recipe import CompositeRecipe, Recipe
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.sqlite import SQLiteScenarioStorage
-from reef.train.pipeline import TrainingPipeline
+from aster.artifact import InMemoryRepositoryBackend
+from aster.artifact.components import ScenarioComponents
+from aster.dispatcher import Dispatcher
+from aster.pipeline_context import PipelineContext
+from aster.recipe import CompositeRecipe, Recipe
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.sqlite import SQLiteScenarioStorage
+from aster.train.pipeline import TrainingPipeline
 
 
 @dataclass(frozen=True)

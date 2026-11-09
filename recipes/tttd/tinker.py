@@ -6,10 +6,10 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from recipes.tttd.objective import tttd_signal
-from reef.train.algos.signals import TrainingSignal
-from reef.train.tinker_backend.losses import MatrixInput, TinkerLoss, TokenRow
-from reef.train.tinker_backend.objectives import TinkerObjective, register_tinker_objective
-from reef.train.types import JobData
+from aster.train.algos.signals import TrainingSignal
+from aster.train.tinker_backend.losses import MatrixInput, TinkerLoss, TokenRow
+from aster.train.tinker_backend.objectives import TinkerObjective, register_tinker_objective
+from aster.train.types import JobData
 
 
 @register_tinker_objective

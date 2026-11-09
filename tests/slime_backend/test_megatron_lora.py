@@ -9,7 +9,7 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from reef.train.slime_backend.reef_adapters.megatron.lora import (
+from aster.train.slime_backend.aster_adapters.megatron.lora import (
     apply_megatron_lora,
     build_sglang_lora_config,
     collect_lora_train_metrics,
@@ -19,7 +19,7 @@ from reef.train.slime_backend.reef_adapters.megatron.lora import (
     validate_megatron_lora_args,
     zero_megatron_lora_adapters,
 )
-from reef.train.slime_backend.reef_adapters.megatron.lora_checkpoint import (
+from aster.train.slime_backend.aster_adapters.megatron.lora_checkpoint import (
     export_lora_adapter_tensors,
     save_lora_adapter_to_path,
     save_untrained_lora_adapter,
@@ -69,7 +69,7 @@ def test_lora_checkpoint_is_readable_by_peft_without_base_weights(tmp_path) -> N
 def test_the_untrained_adapter_is_zero_and_shaped_as_the_model_and_passes_admission(tmp_path) -> None:
     transformers = pytest.importorskip("transformers")
     safetensors = pytest.importorskip("safetensors.torch")
-    from reef.artifact import Artifact, PEFTValidator
+    from aster.artifact import Artifact, PEFTValidator
 
     model = tmp_path / "tiny-llama"
     transformers.LlamaConfig(
@@ -87,7 +87,7 @@ def test_the_untrained_adapter_is_zero_and_shaped_as_the_model_and_passes_admiss
     query_a = saved["base_model.model.model.layers.0.self_attn.q_proj.lora_A.weight"]
     query_b = saved["base_model.model.model.layers.0.self_attn.q_proj.lora_B.weight"]
     assert (tuple(query_a.shape), tuple(query_b.shape)) == ((4, 16), (16, 4))
-    metadata = json.loads((output / "reef-adapter.json").read_text(encoding="utf-8"))
+    metadata = json.loads((output / "aster-adapter.json").read_text(encoding="utf-8"))
     assert metadata["source"] == {"rollout_id": None}
     PEFTValidator(base_model=str(model), require_metadata=True).validate(Artifact.local(output))
 
@@ -110,7 +110,7 @@ def test_lora_checkpoint_records_auditable_metadata(tmp_path) -> None:
         rollout_id=4,
     )
 
-    document = json.loads((output / "reef-adapter.json").read_text(encoding="utf-8"))
+    document = json.loads((output / "aster-adapter.json").read_text(encoding="utf-8"))
     assert document["schema"] == 1
     assert document["source"] == {"rollout_id": 4}
     assert document["dtype"] == "bfloat16"
@@ -129,10 +129,10 @@ def test_lora_checkpoint_records_auditable_metadata(tmp_path) -> None:
     assert peft.PeftConfig.from_pretrained(output).r == 32
 
 
-def test_lora_checkpoint_metadata_passes_reefs_own_validator(tmp_path) -> None:
-    """Export and validation are one contract, so what Reef writes it must accept."""
+def test_lora_checkpoint_metadata_passes_asters_own_validator(tmp_path) -> None:
+    """Export and validation are one contract, so what Aster writes it must accept."""
     pytest.importorskip("safetensors.torch")
-    from reef.artifact import Artifact, PEFTValidator
+    from aster.artifact import Artifact, PEFTValidator
 
     base = tmp_path / "Qwen3-8B"
     base.mkdir()
@@ -161,7 +161,7 @@ def test_lora_checkpoint_records_no_dtype_for_a_mixed_export(tmp_path) -> None:
         rollout_id=0,
     )
 
-    assert json.loads((output / "reef-adapter.json").read_text(encoding="utf-8"))["dtype"] is None
+    assert json.loads((output / "aster-adapter.json").read_text(encoding="utf-8"))["dtype"] is None
 
 
 def test_lora_checkpoint_rejects_base_tensors(tmp_path) -> None:

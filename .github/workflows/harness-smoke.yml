@@ -45,7 +45,7 @@ jobs:
           smoke=false
           while IFS= read -r file; do
             case "$file" in
-              reef/harness/*|recipes/beta/reefine/*|recipes/meta_harness/examples/terminal_bench/reef_terminus/*|reef/train/harness_backend/*|tests/smoke/*|.github/workflows/harness-smoke.yml)
+              aster/harness/*|recipes/beta/reefine/*|recipes/meta_harness/examples/terminal_bench/aster_terminus/*|aster/train/harness_backend/*|tests/smoke/*|.github/workflows/harness-smoke.yml)
                 smoke=true ;;
             esac
           done <<< "$files"
@@ -72,8 +72,8 @@ jobs:
       - run: npm install --prefix "$RUNNER_TEMP/pi" @earendil-works/pi-coding-agent@0.84.2
       - run: python -m pytest tests/smoke/test_real_pi.py tests/smoke/test_reefine_scripted_trial.py
         env:
-          REEF_REAL_PI_BINARY: ${{ runner.temp }}/pi/node_modules/.bin/pi
-          REEF_REAL_PI_SESSION_OUT: ${{ runner.temp }}/real-pi-session.jsonl
+          ASTER_REAL_PI_BINARY: ${{ runner.temp }}/pi/node_modules/.bin/pi
+          ASTER_REAL_PI_SESSION_OUT: ${{ runner.temp }}/real-pi-session.jsonl
       # The raw session the run wrote: the refresh source for the
       # hermetic fixture at tests/harness/data/pi_session_real/.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -105,8 +105,8 @@ jobs:
       - run: npm install --prefix "$RUNNER_TEMP/codex" @openai/codex@0.158.0
       - run: python -m pytest tests/smoke/test_real_codex.py
         env:
-          REEF_REAL_CODEX_BINARY: ${{ runner.temp }}/codex/node_modules/.bin/codex
-          REEF_REAL_CODEX_SESSION_OUT: ${{ runner.temp }}/real-codex-session.jsonl
+          ASTER_REAL_CODEX_BINARY: ${{ runner.temp }}/codex/node_modules/.bin/codex
+          ASTER_REAL_CODEX_SESSION_OUT: ${{ runner.temp }}/real-codex-session.jsonl
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: real-codex-session
@@ -136,7 +136,7 @@ jobs:
       - run: npm install --prefix "$RUNNER_TEMP/claude" @anthropic-ai/claude-code@2.1.257
       - run: python -m pytest tests/smoke/test_real_claude.py
         env:
-          REEF_REAL_CLAUDE_BINARY: ${{ runner.temp }}/claude/node_modules/.bin/claude
+          ASTER_REAL_CLAUDE_BINARY: ${{ runner.temp }}/claude/node_modules/.bin/claude
 
   # The same guard for the pinned opencode (tests/smoke/test_real_opencode.py).
   real-opencode:
@@ -160,7 +160,7 @@ jobs:
       - run: npm install --prefix "$RUNNER_TEMP/opencode" opencode-ai@1.18.18
       - run: python -m pytest tests/smoke/test_real_opencode.py
         env:
-          REEF_REAL_OPENCODE_BINARY: ${{ runner.temp }}/opencode/node_modules/.bin/opencode
+          ASTER_REAL_OPENCODE_BINARY: ${{ runner.temp }}/opencode/node_modules/.bin/opencode
 
   # The same guard for the pinned DeepSeek Harness (tests/smoke/test_real_dsh.py).
   real-dsh:
@@ -184,7 +184,7 @@ jobs:
       - run: npm install --prefix "$RUNNER_TEMP/dsh" @deepseek-ai/dsh@0.1.2-alpha.5
       - run: python -m pytest tests/smoke/test_real_dsh.py
         env:
-          REEF_REAL_DSH_BINARY: ${{ runner.temp }}/dsh/node_modules/.bin/dsh
+          ASTER_REAL_DSH_BINARY: ${{ runner.temp }}/dsh/node_modules/.bin/dsh
 
   # The same guard for the pinned Hermes Agent (tests/smoke/test_real_hermes.py):
   # the vendor's channel is a git checkout installed editable into a venv.
@@ -210,7 +210,7 @@ jobs:
           "$RUNNER_TEMP/hermes/venv/bin/python" -m pip install --quiet -e "$RUNNER_TEMP/hermes/src"
       - run: python -m pytest tests/smoke/test_real_hermes.py
         env:
-          REEF_REAL_HERMES_BINARY: ${{ runner.temp }}/hermes/venv/bin/hermes
+          ASTER_REAL_HERMES_BINARY: ${{ runner.temp }}/hermes/venv/bin/hermes
 
   # The same guard for the Terminal-Bench campaign's Terminus 2 adapter
   # (tests/recipes/meta_harness/test_terminus_agent.py),

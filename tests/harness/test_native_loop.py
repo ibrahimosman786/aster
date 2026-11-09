@@ -17,7 +17,7 @@ from tests.harness.test_native_serve import (
     SEED_STAGES,
     _call,
     _events,
-    _FakeReef,
+    _FakeAster,
     _graph,
     _reply,
     _running,
@@ -34,27 +34,27 @@ from tests.support.harness_render import NATIVE_SEED_FILES, NATIVE_SEED_TOOLS, n
 from tests.support.harness_service import backend_step
 from tests.support.harness_steps import MODEL, harness_backend, harness_recipe
 
-from reef.core.activation import MadeArtifact
-from reef.core.evaluation import RolloutScore
-from reef.core.plugins import PluginReference
-from reef.evaluation.activation import AlwaysActivate
-from reef.evaluation.harness import TaskEvaluationWorker
-from reef.execution.sandbox.process import LocalExecutor
-from reef.harness.adapters import get_adapter
-from reef.harness.runners.native import LoadError, load_loop, run_loop, serve
-from reef.harness.runners.native.artifact_client import ArtifactClient
-from reef.harness.runners.native.enforce import ToolFailed
-from reef.harness.runners.native.graph import LOOP_LOG_CHARS, TRANSITIONS_PER_STEP
-from reef.harness.runners.native.host import NativeHost
-from reef.harness.runners.native.selftools import SelfTools, ServeState
-from reef.harness.tasks.model_binding import ModelBinding, ModelBindings
-from reef.harness.tasks.run import TaskResult
-from reef.harness.tasks.trajectory import stage_path
-from reef.harness.tree import HarnessTree, RenderError, TreePatch, render_tree, validate_tree
-from reef.harness.tree.checks import NATIVE_GRAPH_MAX_STEPS, validate_native_loop
-from reef.train.harness_backend.backend import HarnessBackend
-from reef.train.harness_backend.state import HarnessState
-from reef.train.types import JobData
+from aster.core.activation import MadeArtifact
+from aster.core.evaluation import RolloutScore
+from aster.core.plugins import PluginReference
+from aster.evaluation.activation import AlwaysActivate
+from aster.evaluation.harness import TaskEvaluationWorker
+from aster.execution.sandbox.process import LocalExecutor
+from aster.harness.adapters import get_adapter
+from aster.harness.runners.native import LoadError, load_loop, run_loop, serve
+from aster.harness.runners.native.artifact_client import ArtifactClient
+from aster.harness.runners.native.enforce import ToolFailed
+from aster.harness.runners.native.graph import LOOP_LOG_CHARS, TRANSITIONS_PER_STEP
+from aster.harness.runners.native.host import NativeHost
+from aster.harness.runners.native.selftools import SelfTools, ServeState
+from aster.harness.tasks.model_binding import ModelBinding, ModelBindings
+from aster.harness.tasks.run import TaskResult
+from aster.harness.tasks.trajectory import stage_path
+from aster.harness.tree import HarnessTree, RenderError, TreePatch, render_tree, validate_tree
+from aster.harness.tree.checks import NATIVE_GRAPH_MAX_STEPS, validate_native_loop
+from aster.train.harness_backend.backend import HarnessBackend
+from aster.train.harness_backend.state import HarnessState
+from aster.train.types import JobData
 
 NATIVE = get_adapter("native")
 # The seed graph as code: ask the model, run its tool calls while it asks for them, return on text.
@@ -69,8 +69,8 @@ NATIVE_FAKE = """\
 import json, os
 from pathlib import Path
 
-root = Path(os.environ["REEF_NATIVE_DIR"])
-sessions = Path(os.environ["REEF_NATIVE_SESSION_DIR"])
+root = Path(os.environ["ASTER_NATIVE_DIR"])
+sessions = Path(os.environ["ASTER_NATIVE_SESSION_DIR"])
 sessions.mkdir(parents=True, exist_ok=True)
 loops = sorted(path.stem for path in (root / "loops").glob("*.py"))
 skills = sorted(path.parent.name for path in (root / "skills").glob("*/SKILL.md"))
@@ -309,7 +309,7 @@ def test_a_module_that_does_not_parse_is_a_load_error_in_the_file_form(
         "loop main.py cannot run: code does not compile: "
     )
     err = capsys.readouterr().err
-    assert "[reef-native] loop main.py cannot run: code does not compile: " in err and "Traceback" not in err
+    assert "[aster-native] loop main.py cannot run: code does not compile: " in err and "Traceback" not in err
 
 
 # -- the self tools refuse a loop ------------------------------------------------------------------------------
@@ -465,7 +465,7 @@ class _Given:
 
 
 def _loop(code: str, name: str = "main", max_steps: int = 12) -> _Given:
-    module = ModuleType(f"reef_native_loop_{name}")
+    module = ModuleType(f"aster_native_loop_{name}")
     exec(compile(code, f"<native_loop {name}>", "exec"), module.__dict__)
     return _Given(name, max_steps, code, module)
 
@@ -497,8 +497,8 @@ def fake_model():
 
 
 @pytest.fixture
-def reef():
-    with contextlib.closing(_FakeReef()) as server:
+def aster():
+    with contextlib.closing(_FakeAster()) as server:
         yield server
 
 
@@ -793,17 +793,17 @@ SEED_LOOP_FILE = native_loop("main", SEED_LOOP, max_steps=4)
 
 
 def test_a_release_with_a_loop_runs_the_next_turn_and_one_without_returns_to_the_graph(
-    tmp_path: Path, reef: _FakeReef
+    tmp_path: Path, aster: _FakeAster
 ) -> None:
     graph_only = {**_tool("shout", "    return 'LOUD'"), **_graph(SEED_STAGES, SEED_EDGES)}
-    reef.release("r1", graph_only)
-    reef.replies = [_reply("one"), _reply(tool_calls=[_call("shout", {}, "c1")]), _reply("two"), _reply("three")]
-    with _running(_tree(tmp_path, reef, "r1"), poll_interval_s=0.1) as server:
+    aster.release("r1", graph_only)
+    aster.replies = [_reply("one"), _reply(tool_calls=[_call("shout", {}, "c1")]), _reply("two"), _reply("three")]
+    with _running(_tree(tmp_path, aster, "r1"), poll_interval_s=0.1) as server:
         first, streamed = _turn(server, "first")
         assert first["text"] == "one" and [e["type"] for e in streamed][:3] == ["session", "turn/start", "stage/enter"]
         assert _typed(streamed, "session")[0]["loop"] is None
         log = server.sessions_dir / serve.SERVE_LOG
-        reef.release("r2", {**graph_only, **SEED_LOOP_FILE}, parent="r1")
+        aster.release("r2", {**graph_only, **SEED_LOOP_FILE}, parent="r1")
         _wait(lambda: any(m["artifact_id"] == "r2" for m in _typed(_events(log), "harness/mount")))
         second, streamed = _turn(server, "second")
         assert second["exit"] == 0 and second["text"] == "two"
@@ -826,7 +826,7 @@ def test_a_release_with_a_loop_runs_the_next_turn_and_one_without_returns_to_the
         header = _typed(streamed, "session")[0]
         assert header["loop"] == "main" and header["graph"] == "main" and header["artifact_id"] == "r2"
         assert _typed(streamed, "loop/enter") == [{"name": "main"}]
-        reef.release("r3", graph_only, parent="r2")
+        aster.release("r3", graph_only, parent="r2")
         _wait(lambda: any(m["artifact_id"] == "r3" for m in _typed(_events(log), "harness/mount")))
         third, streamed = _turn(server, "third", session=second["session"])
         assert third["exit"] == 0 and third["text"] == "three" and third["turn"] == 2
@@ -843,19 +843,19 @@ def test_a_release_with_a_loop_runs_the_next_turn_and_one_without_returns_to_the
     ]
 
 
-def test_harness_try_refuses_a_native_loop_patch_on_a_served_loop(tmp_path: Path, reef: _FakeReef) -> None:
+def test_harness_try_refuses_a_native_loop_patch_on_a_served_loop(tmp_path: Path, aster: _FakeAster) -> None:
     served = {**_tool("shout", "    return 'LOUD'"), **native_loop("main", SEED_LOOP, max_steps=8)}
-    reef.release("r1", served)
+    aster.release("r1", served)
     other = native_loop("other", SEED_LOOP)
     update = native_loop("main", SEED_LOOP, max_steps=4)
     remove = {"native/loops/main.py": None}
-    reef.replies = [
+    aster.replies = [
         _reply(tool_calls=[_call("harness_try", {"patch": other}, "c1")]),
         _reply(tool_calls=[_call("harness_try", {"patch": {**_tool("whisper"), **update}}, "c2")]),
         _reply(tool_calls=[_call("harness_try", {"patch": remove}, "c3")]),
         _reply("done"),
     ]
-    with _running(_tree(tmp_path, reef, "r1"), self_tools=True) as server:
+    with _running(_tree(tmp_path, aster, "r1"), self_tools=True) as server:
         result, streamed = _turn(server, "try a loop")
         assert result["exit"] == 0 and result["text"] == "done"
         assert server.live_tree() == HarnessTree(served)
@@ -930,7 +930,7 @@ def test_an_exception_after_the_end_keeps_the_end_and_is_named_on_stderr(tmp_pat
     code = "def run_turn(ctx):\n    try:\n        while True:\n            ctx.model()\n    finally:\n        raise RuntimeError('late')\n"
     exit_code, events = _text_turn(tmp_path, code, max_steps=1)
     assert exit_code == 0 and _ends(events) == [{"kind": "max-steps", "steps": 1}]
-    assert "[reef-native] loop 'main' raised after the end: RuntimeError: late" in capfd.readouterr().err
+    assert "[aster-native] loop 'main' raised after the end: RuntimeError: late" in capfd.readouterr().err
 
 
 def test_say_and_log_count_against_the_transition_cap(tmp_path: Path) -> None:

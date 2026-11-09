@@ -18,7 +18,7 @@ For a released version:
 
 .. code:: bash
 
-   pip install aster-infra        # the import package is `reef`
+   pip install aster-infra        # the import package is `aster`
 
 Or, to work on Aster itself:
 
@@ -42,7 +42,7 @@ supported way to get them is the image:
 
 .. code:: bash
 
-   docker build -f docker/Dockerfile.reef -t reef .
+   docker build -f docker/Dockerfile.aster -t aster .
 
 `docker/README.md <../../docker/README.md>`__ covers the GPU prerequisites and
 how to start the container; `Evolve your model <../user-guide/evolve-your-model.rst>`__

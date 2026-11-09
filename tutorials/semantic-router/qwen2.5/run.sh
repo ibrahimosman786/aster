@@ -6,9 +6,9 @@ example=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 repo=$(cd "$example/../../.." && pwd)
 cd "$repo"
 
-python=${REEF_PYTHON:-python3}
+python=${ASTER_PYTHON:-python3}
 python=$("$python" -c 'import sys; print(sys.executable)')
-export REEF_PYTHON="$python"
+export ASTER_PYTHON="$python"
 gpu=${GPU_DEVICE:-0}
 [[ $gpu =~ ^([0-9]+|GPU-[[:xdigit:]-]+)$ ]] || { echo "GPU_DEVICE must name one GPU index or UUID" >&2; exit 1; }
 vllm_image=vllm/vllm-openai@sha256:014a95f21c9edf6abe0aea6b07353f96baa4ec291c427bb1176dc7c93a85845c
@@ -18,7 +18,7 @@ student_revision=7ae557604adf67be50417f59c2c2f167def9a775
 teacher_revision=989aa7980e4cf806f80c7fef2b1adb7bc71aa306
 
 [[ $SR_IMAGE =~ @sha256:[[:xdigit:]]{64}$ ]] || { echo "SR_IMAGE requires repository@sha256:<digest>" >&2; exit 1; }
-expected_revision=$("$python" -c 'from reef.service.deploy.routing.containers import SEMANTIC_ROUTER_REVISION; print(SEMANTIC_ROUTER_REVISION)')
+expected_revision=$("$python" -c 'from aster.service.deploy.routing.containers import SEMANTIC_ROUTER_REVISION; print(SEMANTIC_ROUTER_REVISION)')
 image_revision=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$SR_IMAGE")
 [[ $image_revision == "$expected_revision" ]] || { echo "SR_IMAGE must have revision $expected_revision" >&2; exit 1; }
 docker compose version >/dev/null
@@ -32,12 +32,12 @@ fi
 
 umask 077
 work_parent=$(cd "${WORK_DIR:-${TMPDIR:-/tmp}}" && pwd -P)
-run_dir=$(mktemp -d "$work_parent/reef-qwen.XXXXXXXX")
+run_dir=$(mktemp -d "$work_parent/aster-qwen.XXXXXXXX")
 deployment_id=qwen-$("$python" -c 'import uuid; print(uuid.uuid4().hex)')
-label="io.reef.qwen-example=$deployment_id"
+label="io.aster.qwen-example=$deployment_id"
 export XDG_STATE_HOME="$run_dir/state"
-REEF_TOKEN=$("$python" -c 'import secrets; print(secrets.token_hex(32))')
-export REEF_TOKEN
+ASTER_TOKEN=$("$python" -c 'import secrets; print(secrets.token_hex(32))')
+export ASTER_TOKEN
 printf 'Run directory: %s\n' "$run_dir"
 
 cleanup() {
@@ -48,9 +48,9 @@ cleanup() {
     children=$(jobs -pr)
     for id in $children; do kill -TERM "$id" 2>/dev/null; done
     for id in $children; do wait "$id" 2>/dev/null; done
-    if [[ -d "$XDG_STATE_HOME/reef/routing/$deployment_id" ]]; then
-        if ! "$python" -m reef.service.deploy.routing.cli cleanup --deployment-id "$deployment_id" >"$run_dir/cleanup.log" 2>&1; then
-            echo "Reef cleanup failed. Inspect $run_dir/cleanup.log." >&2
+    if [[ -d "$XDG_STATE_HOME/aster/routing/$deployment_id" ]]; then
+        if ! "$python" -m aster.service.deploy.routing.cli cleanup --deployment-id "$deployment_id" >"$run_dir/cleanup.log" 2>&1; then
+            echo "Aster cleanup failed. Inspect $run_dir/cleanup.log." >&2
             result=1
         fi
     fi
@@ -138,24 +138,24 @@ teacher_port=$model_port
 # Ask the kernel for two distinct free ports while both probe sockets are held.
 ports=$("$python" - <<'PY'
 import socket
-with socket.socket() as reef, socket.socket() as sr:
-    for sock in (reef, sr):
+with socket.socket() as aster, socket.socket() as sr:
+    for sock in (aster, sr):
         sock.bind(("127.0.0.1", 0))
-    print(reef.getsockname()[1], sr.getsockname()[1])
+    print(aster.getsockname()[1], sr.getsockname()[1])
 PY
 )
-read -r reef_port sr_port <<<"$ports"
+read -r aster_port sr_port <<<"$ports"
 "$python" "$example/check.py" manifests --output-directory "$run_dir" --image "$SR_IMAGE" \
     --student-revision "$student_revision" --teacher-revision "$teacher_revision" \
     --student-port "$student_port" --teacher-port "$teacher_port"
 
-# Environment references in paths let Reef handle spaces and YAML-sensitive characters.
+# Environment references in paths let Aster handle spaces and YAML-sensitive characters.
 export QWEN_RUN_DIR="$run_dir"
-cat >"$run_dir/reef.yaml" <<YAML
-reef:
+cat >"$run_dir/aster.yaml" <<YAML
+aster:
   host: 127.0.0.1
-  port: $reef_port
-  tokens: ['\${REEF_TOKEN:?}']
+  port: $aster_port
+  tokens: ['\${ASTER_TOKEN:?}']
   run_dir: '\${QWEN_RUN_DIR:?}/run'
   routing_manifest: '\${QWEN_RUN_DIR:?}/manifest.yaml'
   routing_deployment:
@@ -173,20 +173,20 @@ storage:
   agent_record_dir: '\${QWEN_RUN_DIR:?}/records'
   task_file_dir: '\${QWEN_RUN_DIR:?}/task-files'
 YAML
-"$python" -m reef.service.deploy.routing.cli validate --config "$run_dir/reef.yaml"
-"$python" -m reef.cli serve -c "$run_dir/reef.yaml" >"$run_dir/reef.log" 2>&1 &
-reef_pid=$!
+"$python" -m aster.service.deploy.routing.cli validate --config "$run_dir/aster.yaml"
+"$python" -m aster.cli serve -c "$run_dir/aster.yaml" >"$run_dir/aster.log" 2>&1 &
+aster_pid=$!
 deadline=$((SECONDS + 150))
-until grep -q '^\[reef-routing\].*"state": "ready"' "$run_dir/reef.log"; do
-    if ! kill -0 "$reef_pid" 2>/dev/null || ((SECONDS >= deadline)); then
-        echo "Reef did not become ready. See $run_dir/reef.log." >&2
+until grep -q '^\[aster-routing\].*"state": "ready"' "$run_dir/aster.log"; do
+    if ! kill -0 "$aster_pid" 2>/dev/null || ((SECONDS >= deadline)); then
+        echo "Aster did not become ready. See $run_dir/aster.log." >&2
         exit 1
     fi
     sleep 1
 done
-printf 'Reef ready on 127.0.0.1:%s\n' "$reef_port"
+printf 'Aster ready on 127.0.0.1:%s\n' "$aster_port"
 "$python" "$example/check.py" check --run-directory "$run_dir" --deployment-id "$deployment_id" \
-    --reef-pid "$reef_pid" --reef-port "$reef_port" "$@" >"$run_dir/result.json" &
+    --aster-pid "$aster_pid" --aster-port "$aster_port" "$@" >"$run_dir/result.json" &
 status=0
 wait "$!" || status=$?
 cat "$run_dir/result.json"

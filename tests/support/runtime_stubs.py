@@ -1,4 +1,4 @@
-"""Test doubles for Reef's training component and inference runtime contracts."""
+"""Test doubles for Aster's training component and inference runtime contracts."""
 
 from __future__ import annotations
 
@@ -7,18 +7,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from reef.artifact import Artifact, DefaultStart
-from reef.core.evaluation import PolicyModel
-from reef.core.job_data import Sample
-from reef.core.served_models import ServedArtifact
-from reef.core.snapshot import RootSource
-from reef.core.weight_layout import ArtifactFormat
-from reef.inference.http import InferenceProxyRuntime
-from reef.inference.interfaces import InferenceBackend
-from reef.inference.serving import OpenedEngines, ServingEngines
-from reef.storage.job_data import read_job_data
-from reef.train.component import JobStatus, SavedCheckpoint, ScenarioRoot, TrainingComponent, TrainingJob
-from reef.train.pipeline import PipelineConfig, PipelineSpec
+from aster.artifact import Artifact, DefaultStart
+from aster.core.evaluation import PolicyModel
+from aster.core.job_data import Sample
+from aster.core.served_models import ServedArtifact
+from aster.core.snapshot import RootSource
+from aster.core.weight_layout import ArtifactFormat
+from aster.inference.http import InferenceProxyRuntime
+from aster.inference.interfaces import InferenceBackend
+from aster.inference.serving import OpenedEngines, ServingEngines
+from aster.storage.job_data import read_job_data
+from aster.train.component import JobStatus, SavedCheckpoint, ScenarioRoot, TrainingComponent, TrainingJob
+from aster.train.pipeline import PipelineConfig, PipelineSpec
 
 #: The artifact format of a stub component that does not name one.
 FULL_WEIGHTS = ArtifactFormat("full")

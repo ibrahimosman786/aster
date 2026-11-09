@@ -1,8 +1,8 @@
 """Durable step orchestration for TTT-Discover harness runs.
 
-One search step is one Reef training job. Reef commits a job at its
+One search step is one Aster training job. Aster commits a job at its
 submission, at each saved checkpoint and at its end, so the controller counts
-finished jobs (``finished_jobs`` in ``GET /reef/status``), not scenario steps.
+finished jobs (``finished_jobs`` in ``GET /aster/status``), not scenario steps.
 """
 
 from __future__ import annotations
@@ -23,11 +23,11 @@ STATE_FORMAT_VERSION = 2
 
 
 class TTTDRunStateError(RuntimeError):
-    """The search archive and Reef's durable training state do not align."""
+    """The search archive and Aster's durable training state do not align."""
 
 
 class TTTDTrainingTimeoutError(RuntimeError):
-    """Reef did not commit a TTTD training step before its deadline."""
+    """Aster did not commit a TTTD training step before its deadline."""
 
 
 @dataclass(frozen=True)
@@ -57,14 +57,14 @@ class ScenarioTrainingFailure:
 
 @dataclass(frozen=True)
 class ScenarioTrainingStatus:
-    """One scenario's training as ``GET /reef/status`` reports it.
+    """One scenario's training as ``GET /aster/status`` reports it.
 
     ``finished_jobs`` is the number of training jobs that ended, a
     non-negative int; one job trains one search step. ``running_job_id`` is
     the running job's ID, or ``None`` while no job runs. ``served_artifact_id``
     is the ID of the artifact that serves the scenario's requests, or ``None``. ``failed_steps`` are the TTTD steps
     the processor discarded. ``failed_job_error`` is the error of the last
-    commit's job when that job failed, or ``None``. ``ReefTrainingStatusClient``
+    commit's job when that job failed, or ``None``. ``AsterTrainingStatusClient``
     makes the value and ``TTTDRunController`` reads it.
     """
 
@@ -88,8 +88,8 @@ class TrainingStatusReader(ABC):
     def scenario_status(self, scenario: str) -> ScenarioTrainingStatus | None: ...
 
 
-class ReefTrainingStatusClient(TrainingStatusReader):
-    """Read Reef's public training status without coupling the harness to Ray."""
+class AsterTrainingStatusClient(TrainingStatusReader):
+    """Read Aster's public training status without coupling the harness to Ray."""
 
     def __init__(
         self,
@@ -101,7 +101,7 @@ class ReefTrainingStatusClient(TrainingStatusReader):
     ) -> None:
         if timeout_s <= 0:
             raise ValueError("status timeout must be positive")
-        self._url = service_url.rstrip("/") + "/reef/status"
+        self._url = service_url.rstrip("/") + "/aster/status"
         self._token = token
         self._timeout_s = float(timeout_s)
         self._opener = opener
@@ -114,40 +114,40 @@ class ReefTrainingStatusClient(TrainingStatusReader):
             with self._opener(request, timeout=self._timeout_s) as response:
                 payload = json.loads(response.read())
         except Exception as exc:
-            raise RuntimeError(f"cannot read Reef training status from {self._url}: {exc}") from exc
+            raise RuntimeError(f"cannot read Aster training status from {self._url}: {exc}") from exc
         if not isinstance(payload, Mapping):
-            raise RuntimeError("Reef training status is not an object")
+            raise RuntimeError("Aster training status is not an object")
         if payload.get("error"):
-            raise RuntimeError(f"Reef training worker failed: {payload['error']}")
+            raise RuntimeError(f"Aster training worker failed: {payload['error']}")
         preload_errors = payload.get("preload_errors")
         if isinstance(preload_errors, Mapping) and scenario in preload_errors:
-            raise RuntimeError(f"Reef could not restore scenario {scenario!r}: {preload_errors[scenario]}")
+            raise RuntimeError(f"Aster could not restore scenario {scenario!r}: {preload_errors[scenario]}")
         scenarios = payload.get("scenarios")
         if not isinstance(scenarios, Mapping) or scenario not in scenarios:
             return None
         value = scenarios[scenario]
         if not isinstance(value, Mapping):
-            raise RuntimeError(f"Reef status for scenario {scenario!r} is not an object")
+            raise RuntimeError(f"Aster status for scenario {scenario!r} is not an object")
         finished_jobs = value.get("finished_jobs")
         if not isinstance(finished_jobs, int) or isinstance(finished_jobs, bool) or finished_jobs < 0:
-            raise RuntimeError(f"Reef status for scenario {scenario!r} has invalid finished_jobs {finished_jobs!r}")
+            raise RuntimeError(f"Aster status for scenario {scenario!r} has invalid finished_jobs {finished_jobs!r}")
         running_job = value.get("training_job")
         running_job_id = running_job.get("job_id") if isinstance(running_job, Mapping) else None
         if running_job is not None and (not isinstance(running_job_id, str) or not running_job_id):
-            raise RuntimeError(f"Reef status for scenario {scenario!r} has invalid training_job {running_job!r}")
+            raise RuntimeError(f"Aster status for scenario {scenario!r} has invalid training_job {running_job!r}")
         served_artifact_id = value.get("served_artifact_id")
         if served_artifact_id is not None and (not isinstance(served_artifact_id, str) or not served_artifact_id):
             raise RuntimeError(
-                f"Reef status for scenario {scenario!r} has invalid served artifact ID {served_artifact_id!r}"
+                f"Aster status for scenario {scenario!r} has invalid served artifact ID {served_artifact_id!r}"
             )
         processor = value.get("processor")
         failed_values = processor.get("failed_steps", []) if isinstance(processor, Mapping) else []
         if not isinstance(failed_values, list):
-            raise RuntimeError(f"Reef status for scenario {scenario!r} has invalid processor failures")
+            raise RuntimeError(f"Aster status for scenario {scenario!r} has invalid processor failures")
         failed_steps: list[ScenarioTrainingFailure] = []
         for failure in failed_values:
             if not isinstance(failure, Mapping):
-                raise RuntimeError(f"Reef status for scenario {scenario!r} has an invalid processor failure")
+                raise RuntimeError(f"Aster status for scenario {scenario!r} has an invalid processor failure")
             failed_step = failure.get("step")
             reason = failure.get("reason")
             versions = failure.get("artifact_ids")
@@ -160,7 +160,7 @@ class ReefTrainingStatusClient(TrainingStatusReader):
                 or not isinstance(versions, list)
                 or not all(isinstance(version, str) and version for version in versions)
             ):
-                raise RuntimeError(f"Reef status for scenario {scenario!r} has an invalid processor failure")
+                raise RuntimeError(f"Aster status for scenario {scenario!r} has an invalid processor failure")
             failed_steps.append(
                 ScenarioTrainingFailure(
                     step=failed_step,
@@ -188,7 +188,7 @@ class ReefTrainingStatusClient(TrainingStatusReader):
 
 
 class TTTDRunStateStore:
-    """Atomically pair the post-step PUCT archive with Reef's committed step."""
+    """Atomically pair the post-step PUCT archive with Aster's committed step."""
 
     def __init__(self, path: str | Path, identity: TTTDRunIdentity) -> None:
         self.path = Path(path)
@@ -283,7 +283,7 @@ class TTTDRunOutcome:
 
 
 class TTTDRunController:
-    """Run search steps only after the preceding step's Reef training job ends."""
+    """Run search steps only after the preceding step's Aster training job ends."""
 
     def __init__(
         self,
@@ -321,12 +321,12 @@ class TTTDRunController:
             before = self.status_reader.scenario_status(self.state_store.identity.scenario)
             if before is None:
                 if step != 0:
-                    raise TTTDRunStateError(f"Reef has no status for resumed TTTD step {step}")
+                    raise TTTDRunStateError(f"Aster has no status for resumed TTTD step {step}")
                 previous_served_artifact_id = None
             else:
                 if before.running_job_id is not None or before.finished_jobs != step:
                     raise TTTDRunStateError(
-                        f"Reef finished {before.finished_jobs} training jobs (running: {before.running_job_id}), "
+                        f"Aster finished {before.finished_jobs} training jobs (running: {before.running_job_id}), "
                         f"but the PUCT archive expects {step}"
                     )
                 previous_served_artifact_id = before.served_artifact_id
@@ -377,7 +377,7 @@ class TTTDRunController:
             current = self.status_reader.scenario_status(self.state_store.identity.scenario)
             if current is not None and (current.finished_jobs != 0 or current.running_job_id is not None):
                 raise TTTDRunStateError(
-                    f"Reef already finished {current.finished_jobs} training jobs "
+                    f"Aster already finished {current.finished_jobs} training jobs "
                     f"(running: {current.running_job_id}), but no PUCT state exists"
                 )
             return 0, None if current is None else current.served_artifact_id
@@ -401,9 +401,9 @@ class TTTDRunController:
             raise TTTDRunStateError("committed TTTD state has no served artifact ID")
         current = self._wait_for_current_step(next_step)
         if not isinstance(current.served_artifact_id, str) or not current.served_artifact_id:
-            raise TTTDRunStateError(f"Reef restored step {next_step} without a served artifact ID")
+            raise TTTDRunStateError(f"Aster restored step {next_step} without a served artifact ID")
         if current.served_artifact_id != expected_version:
-            # Reef's durable scenario step is the fence between the archive
+            # Aster's durable scenario step is the fence between the archive
             # and training. The served artifact can change without a step,
             # for example when an operator activates another artifact, so
             # record the artifact that serves now.
@@ -441,7 +441,7 @@ class TTTDRunController:
                     )
                 if last.finished_jobs > expected_step:
                     raise TTTDRunStateError(
-                        f"Reef finished {last.finished_jobs} training jobs, beyond PUCT step {expected_step}"
+                        f"Aster finished {last.finished_jobs} training jobs, beyond PUCT step {expected_step}"
                     )
                 if last.finished_jobs == expected_step and last.running_job_id is None:
                     if last.failed_job_error is not None:
@@ -449,13 +449,13 @@ class TTTDRunController:
                             f"the training job of TTTD step {expected_step - 1} failed: {last.failed_job_error}"
                         )
                     if previous_served_artifact_id is None or last.served_artifact_id != previous_served_artifact_id:
-                        # The job's checkpoint serves only once Reef activates
+                        # The job's checkpoint serves only once Aster activates
                         # it. Keep polling until the served artifact changes,
                         # so the next step samples from the new checkpoint.
                         return last
             self._sleep(self.poll_interval_s)
         raise TTTDTrainingTimeoutError(
-            f"Reef scenario did not restore step {expected_step} after {self.train_timeout_s:g}s: {last}"
+            f"Aster scenario did not restore step {expected_step} after {self.train_timeout_s:g}s: {last}"
         )
 
     def _wait_for_step(
@@ -468,12 +468,12 @@ class TTTDRunController:
             previous_served_artifact_id=previous_served_artifact_id,
         )
         if not isinstance(current.served_artifact_id, str) or not current.served_artifact_id:
-            raise TTTDRunStateError(f"Reef committed step {expected_step} without a served artifact ID")
+            raise TTTDRunStateError(f"Aster committed step {expected_step} without a served artifact ID")
         return current
 
 
 __all__ = [
-    "ReefTrainingStatusClient",
+    "AsterTrainingStatusClient",
     "ScenarioTrainingFailure",
     "ScenarioTrainingStatus",
     "TTTDRunController",

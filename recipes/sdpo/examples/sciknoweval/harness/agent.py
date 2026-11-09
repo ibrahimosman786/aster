@@ -1,10 +1,10 @@
 """One Harbor trial, one SDPO run on Chemistry: the stage runner in the task container.
 
 The agent makes no model calls of its own. ``stage.py`` in the task's image
-samples, reports and waits for training against the Reef service on the host,
+samples, reports and waits for training against the Aster service on the host,
 evaluates avg@n on the test split every few steps, and writes the curve where
 the verifier reads it. This class runs it, hands it the run's settings from the
-host environment (every ``SDPO_*`` and ``REEF_*`` variable), and keeps its
+host environment (every ``SDPO_*`` and ``ASTER_*`` variable), and keeps its
 output in the trial's agent log.
 
 The runner already reports every rollout as training feedback, so this harness
@@ -25,8 +25,8 @@ STAGE_COMMAND = (
     "bash -c 'set -o pipefail; mkdir -p /logs/agent; "
     "python3 /opt/chemistry/stage.py 2>&1 | tee -a /logs/agent/stage.log'"
 )
-#: Host variables forwarded into the container: the run's settings and how to reach Reef.
-FORWARDED_PREFIXES = ("SDPO_", "REEF_")
+#: Host variables forwarded into the container: the run's settings and how to reach Aster.
+FORWARDED_PREFIXES = ("SDPO_", "ASTER_")
 #: A run is many steps, each a grid, an optimizer step and a weight artifact; the
 #: ceiling matches the task's agent timeout.
 DEFAULT_STAGE_TIMEOUT_S = 172_800.0
@@ -43,7 +43,7 @@ class HarborAgent(BaseAgent):
 
     @staticmethod
     def name() -> str:
-        return "reef-sdpo-sciknoweval"
+        return "aster-sdpo-sciknoweval"
 
     def version(self) -> str | None:
         return None

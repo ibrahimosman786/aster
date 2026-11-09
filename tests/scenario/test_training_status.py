@@ -1,4 +1,4 @@
-"""The training status that ``GET /reef/status`` reports, and when a local training worker may sleep.
+"""The training status that ``GET /aster/status`` reports, and when a local training worker may sleep.
 
 The status tests bind a scenario double to the dispatcher's registry, so each
 one checks one status field. The wait tests pin when a worker looks again
@@ -24,27 +24,27 @@ from tests.support._threshold_processor import ThresholdJobData
 from tests.support.runtime_stubs import StubTrainingComponent, runtime_bindings
 from tests.support.samples import made_task
 
-from reef.artifact.memory import InMemoryRepositoryBackend
-from reef.core.job_data import JobOutcome
-from reef.dispatcher import Dispatcher
-from reef.dispatcher.errors import TrainingErrors, local_error_source
-from reef.dispatcher.local_workers import POLL_SECONDS, LocalBackendWorker, LocalTrainingWorkers
-from reef.observability import ExperimentLogger
-from reef.pipeline_context import PipelineContext
-from reef.recipe import Recipe
-from reef.record2sample import NoSamples
-from reef.storage.job_data import read_job_data
-from reef.storage.records import RecordStore
-from reef.storage.samples import TrainerSamples, stage_item_id
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.sqlite import SQLiteScenarioStorage
-from reef.storage.tasks import TaskStorage
-from reef.train.backend import ComponentArtifacts
-from reef.train.component import ScenarioRoot
-from reef.train.jobs import JobLoop, JobLoopState, RunningJob
-from reef.train.pipeline import TrainingPipeline
-from reef.train.trainer import Trainer
-from reef.train.types import Sample
+from aster.artifact.memory import InMemoryRepositoryBackend
+from aster.core.job_data import JobOutcome
+from aster.dispatcher import Dispatcher
+from aster.dispatcher.errors import TrainingErrors, local_error_source
+from aster.dispatcher.local_workers import POLL_SECONDS, LocalBackendWorker, LocalTrainingWorkers
+from aster.observability import ExperimentLogger
+from aster.pipeline_context import PipelineContext
+from aster.recipe import Recipe
+from aster.record2sample import NoSamples
+from aster.storage.job_data import read_job_data
+from aster.storage.records import RecordStore
+from aster.storage.samples import TrainerSamples, stage_item_id
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.sqlite import SQLiteScenarioStorage
+from aster.storage.tasks import TaskStorage
+from aster.train.backend import ComponentArtifacts
+from aster.train.component import ScenarioRoot
+from aster.train.jobs import JobLoop, JobLoopState, RunningJob
+from aster.train.pipeline import TrainingPipeline
+from aster.train.trainer import Trainer
+from aster.train.types import Sample
 
 pytestmark = pytest.mark.unit
 
@@ -100,7 +100,7 @@ def registry_double(scenario: SimpleNamespace, experiment_reports=None) -> Simpl
 
 
 def bound_dispatcher(scenario: SimpleNamespace) -> Dispatcher:
-    root = Path(tempfile.mkdtemp(prefix="reef-artifacts-"))
+    root = Path(tempfile.mkdtemp(prefix="aster-artifacts-"))
     initial = root / "initial"
     initial.mkdir()
     dispatcher = Dispatcher(
@@ -357,9 +357,9 @@ def assert_trains_the_generated_task(component: StubTrainingComponent) -> None:
 def test_a_scenario_created_after_start_trains_the_job_data_its_pipeline_makes_without_a_record(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # What POST /reef/scenarios does for a recipe that needs no record, such as generated tasks: no record or
+    # What POST /aster/scenarios does for a recipe that needs no record, such as generated tasks: no record or
     # upload ever wakes the worker, so the worker must start with the scenario and poll while the step runs.
-    monkeypatch.setattr("reef.dispatcher.local_workers.POLL_SECONDS", 0.01)
+    monkeypatch.setattr("aster.dispatcher.local_workers.POLL_SECONDS", 0.01)
     dispatcher, recipe, component = background_step_dispatcher(tmp_path)
     try:
         dispatcher.get_or_create_scenario("generated", allow_implicit_creation=True)
@@ -374,7 +374,7 @@ def test_a_status_read_leaves_a_finished_step_to_the_worker_which_trains_its_job
 ) -> None:
     # A status read between the worker's last step and its wait does not advance the pipeline: the finished
     # step stays running until the worker's next cycle collects it, so the worker keeps polling and trains it.
-    monkeypatch.setattr("reef.dispatcher.local_workers.POLL_SECONDS", 0.01)
+    monkeypatch.setattr("aster.dispatcher.local_workers.POLL_SECONDS", 0.01)
     wait = LocalTrainingWorkers.wait
     waits = 0
     read_ready: list[bool] = []

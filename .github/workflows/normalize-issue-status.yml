@@ -11,7 +11,7 @@ permissions:
 jobs:
   normalize:
     if: >-
-      github.repository == 'Human-Agent-Society/reef' &&
+      github.repository == 'Human-Agent-Society/aster' &&
       !github.event.issue.pull_request &&
       startsWith(github.event.label.name, 'status: ')
     runs-on: blacksmith-4vcpu-ubuntu-2404

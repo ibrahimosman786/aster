@@ -9,25 +9,25 @@ from typing import Any
 
 import pytest
 
-from reef.artifact import InMemoryRepositoryBackend
-from reef.core.records_types import AgentRecord, RequestType
-from reef.dispatcher import Dispatcher
-from reef.observability import ExperimentLogger
-from reef.recipe.base import Recipe
-from reef.storage.commits import CommitRecord
-from reef.storage.data import DataStore
-from reef.storage.evaluations import EvaluationStore
-from reef.storage.records import RecordRetention, RecordStore
-from reef.storage.samples import TrainerSamples, TrainingState
-from reef.storage.scenario import ScenarioSettings, ScenarioStorage, ScenarioStore
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.sql_data import SQLiteDataStore
-from reef.storage.sqlite import SQLiteScenarioStorage
-from reef.storage.tasks import LocalTaskFileStore, TaskFileStore, TaskStorage
-from reef.train.backend import ComponentArtifacts
-from reef.train.component import ScenarioRoot
-from reef.train.trainer import Trainer
-from reef.train.types import TrainingCommit
+from aster.artifact import InMemoryRepositoryBackend
+from aster.core.records_types import AgentRecord, RequestType
+from aster.dispatcher import Dispatcher
+from aster.observability import ExperimentLogger
+from aster.recipe.base import Recipe
+from aster.storage.commits import CommitRecord
+from aster.storage.data import DataStore
+from aster.storage.evaluations import EvaluationStore
+from aster.storage.records import RecordRetention, RecordStore
+from aster.storage.samples import TrainerSamples, TrainingState
+from aster.storage.scenario import ScenarioSettings, ScenarioStorage, ScenarioStore
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.sql_data import SQLiteDataStore
+from aster.storage.sqlite import SQLiteScenarioStorage
+from aster.storage.tasks import LocalTaskFileStore, TaskFileStore, TaskStorage
+from aster.train.backend import ComponentArtifacts
+from aster.train.component import ScenarioRoot
+from aster.train.trainer import Trainer
+from aster.train.types import TrainingCommit
 
 
 class OpaqueStore(ScenarioStore):

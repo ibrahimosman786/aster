@@ -21,24 +21,24 @@ from weakref import WeakKeyDictionary
 from tests.support._strategies import resolve_method, resolve_task_scorer
 from tests.support._trajectories import recorded_trajectory
 
-from reef.artifact.artifact import ArtifactNotFound
-from reef.core.job_data import TrajectorySample
-from reef.core.plugins import PluginReference
-from reef.evaluation.harness import EvaluationSettings, History, TaskCollector, TaskScorer
-from reef.execution.executor.config import ExecutorSettings
-from reef.harness.adapters import get_adapter
-from reef.harness.tasks.model_binding import ModelBinding, ModelBindings
-from reef.harness.tasks.run import TaskResult
-from reef.harness.tree import HarnessTree
-from reef.inference.http import InferenceProxyRuntime
-from reef.recipe.harness import EvolutionSettings, HarnessEvolutionRecipe
-from reef.train.backend import ArtifactTextFiles, CommittedArtifacts
-from reef.train.harness_backend import Method, StepContext, Workspace
-from reef.train.harness_backend.agent.settings import AgentSettings
-from reef.train.harness_backend.backend import HarnessBackend
-from reef.train.harness_backend.calls import StepCalls
-from reef.train.harness_backend.services import StepServices
-from reef.train.pipeline import PipelineConfig
+from aster.artifact.artifact import ArtifactNotFound
+from aster.core.job_data import TrajectorySample
+from aster.core.plugins import PluginReference
+from aster.evaluation.harness import EvaluationSettings, History, TaskCollector, TaskScorer
+from aster.execution.executor.config import ExecutorSettings
+from aster.harness.adapters import get_adapter
+from aster.harness.tasks.model_binding import ModelBinding, ModelBindings
+from aster.harness.tasks.run import TaskResult
+from aster.harness.tree import HarnessTree
+from aster.inference.http import InferenceProxyRuntime
+from aster.recipe.harness import EvolutionSettings, HarnessEvolutionRecipe
+from aster.train.backend import ArtifactTextFiles, CommittedArtifacts
+from aster.train.harness_backend import Method, StepContext, Workspace
+from aster.train.harness_backend.agent.settings import AgentSettings
+from aster.train.harness_backend.backend import HarnessBackend
+from aster.train.harness_backend.calls import StepCalls
+from aster.train.harness_backend.services import StepServices
+from aster.train.pipeline import PipelineConfig
 
 #: The fake pi scores itself: its session event carries the rendered rules text, so a scorer can prefer a tree whose
 #: rules hold the marker.

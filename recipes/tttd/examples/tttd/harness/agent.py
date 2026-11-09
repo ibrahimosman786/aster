@@ -1,7 +1,7 @@
-"""Reef harness subclass for TTT-Discover.
+"""Aster harness subclass for TTT-Discover.
 
-``ReefTTTDiscoverHarness`` extends the generic PUCT harness to route
-inference through a Reef scenario and report each rollout's reward against
+``AsterTTTDiscoverHarness`` extends the generic PUCT harness to route
+inference through an Aster scenario and report each rollout's reward against
 its exact inference receipt.
 
 The Harbor ``BaseAgent`` subclass lives in ``harbor_agent.py`` so this module
@@ -15,17 +15,17 @@ from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 from urllib.parse import quote
 
-from reef_client import ReefClient
+from reef_client import AsterClient
 
 from .search import Candidate, RolloutResult, Scorer, _TTTDiscoverHarnessBase
 
 
-class ReefTTTDiscoverHarness(_TTTDiscoverHarnessBase):
+class AsterTTTDiscoverHarness(_TTTDiscoverHarnessBase):
     """TTTD with scenario inference and linked reward reports."""
 
     def __init__(
         self,
-        client: ReefClient,
+        client: AsterClient,
         scorer: Scorer,
         instruction: str,
         *,
@@ -59,7 +59,7 @@ class ReefTTTDiscoverHarness(_TTTDiscoverHarnessBase):
             if not inference_path.startswith("/v1/"):
                 raise ValueError("an artifact inference_path must start with /v1/")
             self.inference_path = (
-                f"/reef/scenarios/{quote(scenario, safe='')}/artifacts/{quote(artifact_id, safe='')}{inference_path}"
+                f"/aster/scenarios/{quote(scenario, safe='')}/artifacts/{quote(artifact_id, safe='')}{inference_path}"
             )
         else:
             self.inference_path = inference_path

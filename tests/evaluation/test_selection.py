@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-from reef.evaluation import (
+from aster.evaluation import (
     AlwaysSelectMixin,
     CandidateEvaluationPlugin,
     CandidateEvaluator,
@@ -23,7 +23,7 @@ from reef.evaluation import (
     SelectionDecision,
     UpdateCandidate,
 )
-from reef.evaluation.harness import (
+from aster.evaluation.harness import (
     EVALUATION_SIDES,
     ComparePolicy,
     FloorPolicy,

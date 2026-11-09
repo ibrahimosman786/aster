@@ -1,13 +1,13 @@
 Sandbox environments
 ====================
 
-Use ``reef.execution.sandbox.environment.ExecutorEnvironment`` to run commands and move
+Use ``aster.execution.sandbox.environment.ExecutorEnvironment`` to run commands and move
 files through Harbor's ``BaseEnvironment`` interface. It supports Aster's local
 and bubblewrap executors, and the cloud sandboxes of E2B and Modal. Harness rendering and candidate
 evaluation remain outside this package.
 
 Callers do not need to know which sandbox runs their commands. These
-interfaces of ``reef.execution.sandbox`` name the sandbox kinds and cloud providers for
+interfaces of ``aster.execution.sandbox`` name the sandbox kinds and cloud providers for
 them:
 
 - ``build_executor`` reads the deployment's ``executor`` setting and returns an
@@ -17,10 +17,10 @@ them:
   that provider's options in ``section``. A caller with its own settings, such
   as ``evolution.agent``, passes its section; the factory reads only the
   provider's options, ``forward_ports`` and ``env_from``.
-- ``reef.execution.sandbox.remote.REMOTE_TASK_ENVIRONMENTS`` lists the Harbor environment
+- ``aster.execution.sandbox.remote.REMOTE_TASK_ENVIRONMENTS`` lists the Harbor environment
   types that run a task's containers on a provider, each with the variables
   its credentials come from.
-- ``reef.execution.sandbox.task_environment`` names every Harbor task environment type
+- ``aster.execution.sandbox.task_environment`` names every Harbor task environment type
   (``HARBOR_TASK_ENVIRONMENTS``) and checks what a host needs to run tasks in
   the ones it has probes for (``PROBED_TASK_ENVIRONMENTS``: ``docker`` and
   ``e2b``). ``task_environment_probes(environment)`` returns a readiness probe
@@ -41,16 +41,16 @@ the task's agent and verifier in it and stops it.
 
 The generator service's checks (``harbor run -e`` children) and runs
 (in-process Harbor trials) use Harbor's task environment lifecycle. They select
-an environment by name and read its needs from ``reef.execution.sandbox.task_environment``.
+an environment by name and read its needs from ``aster.execution.sandbox.task_environment``.
 Checks share local process management with the executors through
-``reef.execution.processes.ProcessScope``; their command arguments and scoring
+``aster.execution.processes.ProcessScope``; their command arguments and scoring
 remain in the generator. The Terminus harness layers the two: an executor
 launches its runner, which then drives a Harbor task environment.
 
 Shared execution control
 ------------------------
 
-``reef.execution.lifecycle.Execution`` controls a run or an owner of several
+``aster.execution.lifecycle.Execution`` controls a run or an owner of several
 runs without specifying its result type. ``ProcessScope``, ``JobContext``,
 ``BackgroundJobWorker`` and ``ProgramExecution`` implement this interface.
 
@@ -61,7 +61,7 @@ and raises a reported cleanup failure. ``None`` waits without a deadline;
 zero polls. Do not block the thread or event loop needed to finish the execution.
 Closure does not imply that the work succeeded.
 
-``reef.execution.sandbox.environment.ProgramExecution(environment, argv)`` owns
+``aster.execution.sandbox.environment.ProgramExecution(environment, argv)`` owns
 one run through an unstarted ``ExecutorEnvironment``. Use ``run()`` from synchronous
 code or await ``run_async()``. Both return ``ProcessOutcome`` after cleanup.
 Another thread can request cancellation through ``Execution``. A stopped run
@@ -136,8 +136,8 @@ environment. This local example returns ``hello`` and exit code zero::
     from tempfile import TemporaryDirectory
 
     from harbor.environments.base import BaseEnvironment
-    from reef.execution.sandbox.environment import ExecutorEnvironment
-    from reef.execution.sandbox.process import LocalExecutor
+    from aster.execution.sandbox.environment import ExecutorEnvironment
+    from aster.execution.sandbox.process import LocalExecutor
 
     async def example():
         with TemporaryDirectory() as directory:
@@ -168,7 +168,7 @@ Bind an executor to a program
 -----------------------------
 
 An executor runs one program, such as a harness binary. Describe the program
-with a ``reef.execution.sandbox.process.SandboxProgram`` subclass, then bind it::
+with a ``aster.execution.sandbox.process.SandboxProgram`` subclass, then bind it::
 
     executor, binary = build_executor(config).for_program(program)
 
@@ -178,7 +178,7 @@ Aster host resolves ``program.host_binary()``, which can install the binary.
 Bubblewrap also binds ``program.host_install_dir()`` read-only. A cloud sandbox
 resolves ``program.binary`` in its image (an E2B template, a Modal image) and
 never installs on the Aster host; it refuses a ``self_isolating`` program. The harness layer provides
-``reef.harness.tasks.vendor_install.AdapterProgram`` for an adapter.
+``aster.harness.tasks.vendor_install.AdapterProgram`` for an adapter.
 
 A run of several processes that must reach ports on the Aster host opens a
 session::

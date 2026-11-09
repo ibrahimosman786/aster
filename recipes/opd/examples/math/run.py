@@ -1,4 +1,4 @@
-"""Run sequential OPD batches and held-out AIME'24 evaluation through Reef."""
+"""Run sequential OPD batches and held-out AIME'24 evaluation through Aster."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from typing import Any
 from urllib.parse import quote
 
 import yaml
-from reef_client import ReefClient, ReefClientError
+from reef_client import AsterClient, AsterClientError
 
 
 @dataclass(frozen=True)
@@ -62,7 +62,7 @@ def file_digest(path: Path) -> str:
 
 def report_id(scenario: str, receipt: str) -> str:
     """Keep a report retry identical even when its first HTTP response was lost."""
-    return uuid.uuid5(uuid.NAMESPACE_URL, f"reef:opd:{scenario}:{receipt}").hex
+    return uuid.uuid5(uuid.NAMESPACE_URL, f"aster:opd:{scenario}:{receipt}").hex
 
 
 class Campaign:
@@ -76,7 +76,7 @@ class Campaign:
             raise ValueError("The driver's prompts times samples per step must equal the global batch size")
         if int(stack["inference"]["options"]["context-length"]) <= args.eval_tokens:
             raise ValueError("Inference context must fit evaluation tokens plus the prompt")
-        self.client = ReefClient(args.url, token=os.environ.get("REEF_TOKEN"), timeout_s=args.timeout)
+        self.client = AsterClient(args.url, token=os.environ.get("ASTER_TOKEN"), timeout_s=args.timeout)
         self.output = args.output
         settings = {key: str(value) if isinstance(value, Path) else value for key, value in vars(args).items()}
         settings.pop("resume", None)
@@ -98,8 +98,8 @@ class Campaign:
     def artifacts(self) -> list[dict[str, Any]]:
         """The scenario's artifacts, newest first; one per snapshot in this one-component scenario."""
         try:
-            result = self.client.get(f"/reef/scenarios/{quote(self.args.scenario, safe='')}/artifacts")
-        except ReefClientError as error:
+            result = self.client.get(f"/aster/scenarios/{quote(self.args.scenario, safe='')}/artifacts")
+        except AsterClientError as error:
             if error.status == 404:
                 return []
             raise
@@ -114,7 +114,7 @@ class Campaign:
                 return rows
             if count > before + 1:
                 raise RuntimeError("More than one training update occurred for this batch")
-            status = self.client.get("/reef/status")
+            status = self.client.get("/aster/status")
             if status.get("error"):
                 raise RuntimeError(f"Training failed: {status['error']}")
             time.sleep(2)
@@ -137,12 +137,12 @@ class Campaign:
                 "max_tokens": self.args.eval_tokens if evaluation else self.args.train_tokens,
             },
         )
-        receipt = headers.get("x-reef-agent-record-id")
+        receipt = headers.get("x-aster-agent-record-id")
         if not receipt:
-            raise RuntimeError("Inference did not return a Reef receipt")
+            raise RuntimeError("Inference did not return an Aster receipt")
         # The persisted receipt identifies the weights used by this inference.
         record = self.client.get(
-            f"/reef/scenarios/{quote(self.args.scenario, safe='')}/records/{quote(receipt, safe='')}"
+            f"/aster/scenarios/{quote(self.args.scenario, safe='')}/records/{quote(receipt, safe='')}"
         )
         artifact_id = record.get("artifact_id")
         if record.get("agent_record_id") != receipt or not artifact_id:
@@ -321,7 +321,7 @@ class Campaign:
 
     def verify_update(self, step: int, rows: list[dict[str, Any]], history: list[dict[str, Any]]) -> None:
         result = self.client.get(
-            f"/reef/scenarios/{quote(self.args.scenario, safe='')}/commits?after_step={step - 1}&limit=1"
+            f"/aster/scenarios/{quote(self.args.scenario, safe='')}/commits?after_step={step - 1}&limit=1"
         )
         commits = result["commits"]
         expected = {
@@ -359,10 +359,10 @@ class Campaign:
                 # The reused baseline belongs to an earlier scenario by design.
                 saved = [path for path in saved if path.name != "eval-0000.jsonl"]
             if saved:
-                raise RuntimeError("Saved samples exist but their Reef scenario is missing")
+                raise RuntimeError("Saved samples exist but their Aster scenario is missing")
         if not history:
             # The inference routes serve only a scenario that exists: create it at its initial snapshot.
-            self.client.post("/reef/scenarios", self.args.scenario, {"name": self.args.scenario})
+            self.client.post("/aster/scenarios", self.args.scenario, {"name": self.args.scenario})
         evaluation = load_questions(self.args.eval_data)
         training = load_questions(self.args.train_data) if self.args.steps else []
         if self.args.steps * self.args.prompts_per_step > len(training):
@@ -433,7 +433,7 @@ def main() -> None:
     parser.add_argument("--train-data", type=Path, required=True)
     parser.add_argument("--eval-data", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--resume", action="store_true", help="Resume this driver against the same live Reef scenario")
+    parser.add_argument("--resume", action="store_true", help="Resume this driver against the same live Aster scenario")
     parser.add_argument("--steps", type=int, default=200)
     parser.add_argument("--prompts-per-step", type=int, default=512)
     parser.add_argument("--samples-per-prompt", type=int, default=4)

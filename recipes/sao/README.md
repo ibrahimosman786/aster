@@ -1,6 +1,6 @@
 # sao
 
-Reproduction of [Single-Rollout Asynchronous Optimization](https://arxiv.org/abs/2607.07508) as a Reef weight-training recipe. SAO samples one rollout per prompt and grades each on its own: there is no comparison group and no barrier, a scored rollout joins the next optimizer step without waiting for siblings, and the next request is served by the updated weights. The package holds the method; the loop that drives it lives in [examples/imo_answerbench](examples/imo_answerbench/README.md).
+Reproduction of [Single-Rollout Asynchronous Optimization](https://arxiv.org/abs/2607.07508) as an Aster weight-training recipe. SAO samples one rollout per prompt and grades each on its own: there is no comparison group and no barrier, a scored rollout joins the next optimizer step without waiting for siblings, and the next request is served by the updated weights. The package holds the method; the loop that drives it lives in [examples/imo_answerbench](examples/imo_answerbench/README.md).
 
 - Paper: [arXiv:2607.07508](https://arxiv.org/abs/2607.07508)
 - Pins: `slime` pinned to `THUDM/slime@8a53b680e82932dabb48cbfcd34f749854400857` (via `pyproject.toml` `dependency-groups.runtime`); the completed comparison, on Slime `41014d1f`, trained `Qwen3-30B-A3B-Thinking-2507` on DeepMath pools at the paper's batch of 128 rollouts per step, without tools, and evaluated held-out AIME 2025, HMMT February 2025 and IMO-AnswerBench
@@ -15,7 +15,7 @@ sao/
   slime/          the Slime objective and the loss family: DIS ratio, critic (value model)
   examples/
     imo_answerbench/  the runnable loop: three IMOAnswerBench problems as Harbor tasks
-    ceobench/         CEO-Bench through Reef, trained by the rollout
+    ceobench/         CEO-Bench through Aster, trained by the rollout
 ```
 
 ## Where the rest is documented

@@ -14,9 +14,9 @@ module before adding another. Keep new test modules out of the `tests/` root.
 | `slime_backend/`, `tinker_backend/` | Contracts specific to a training backend |
 | `record2sample/`, `sample2job/` | The corresponding stages of the training pipeline |
 | `evaluation/`, `harness/`, `observability/` | Candidate evaluation, harness execution, and tracking |
-| `reef_recipe/` | Shared recipe contracts and built-in recipes from `reef/recipe/` |
+| `aster_recipe/` | Shared recipe contracts and built-in recipes from `aster/recipe/` |
 | `recipes/<recipe>/` | Cookbook methods and their examples; use the method name for beta recipes too |
-| `reef_service/` | HTTP contracts, deployment, and service workflows across components |
+| `aster_service/` | HTTP contracts, deployment, and service workflows across components |
 | `cli/`, `reef_client/` | CLI behavior and the separate `reef_client` package |
 | `contributing/` | Repository policy, documentation, and checks across shipped examples |
 | `plugin_contracts/`, `packaging/` | Plugin boundaries and installed-package verification |
@@ -24,7 +24,7 @@ module before adding another. Keep new test modules out of the `tests/` root.
 | `support/` | Shared fixtures and helpers; no collected test modules |
 
 Keep component tests with their owner even when they use a dispatcher or a
-service fixture. A test belongs in `reef_service/` when it checks the service
+service fixture. A test belongs in `aster_service/` when it checks the service
 contract or the service's coordination of several components.
 
 Use markers for `unit`, `integration`, `acceptance`, and `sandbox`; do not add a
@@ -58,7 +58,7 @@ during a directory-only migration.
 
 `packaging/wheel-tests.txt` lists the modules run against installed wheels.
 Update it when moving a listed module or adding a wheel-compatible contract.
-These tests run outside the checkout and must not import Reef from source.
+These tests run outside the checkout and must not import Aster from source.
 The source and sandbox jobs still collect all of `tests/`.
 
 Run `python .github/scripts/check_test_layout.py` from the repository root.

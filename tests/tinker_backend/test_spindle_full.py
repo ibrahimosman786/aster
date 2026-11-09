@@ -12,29 +12,29 @@ from tests.support.chat_templates import CharTemplate
 from tests.support.hugging_face_hub import COMMIT, MemoryHub
 from tests.support.job_data import job_data_ref
 
-from reef.artifact import REFERENCE_FILE, Artifact, DirectoryFiles, HuggingFaceRevision, read_reference
-from reef.core.evaluation import PolicyModel
-from reef.core.job_data import JobData, TrajectorySample
-from reef.core.weight_layout import ArtifactFormat
-from reef.inference.tinker import TinkerInferenceRuntime
-from reef.service.deploy.training import training_deployment_for
-from reef.tinker.checkpoint import MANIFEST
-from reef.tinker.sampling import SampleResult, TinkerSampler
-from reef.train.algos.signals import TrainingSignal
-from reef.train.component import TrainingJob, job_id_for
-from reef.train.tinker_backend import client as client_module
-from reef.train.tinker_backend.checkpoint import FreshStart, TinkerCheckpoint
-from reef.train.tinker_backend.client import TinkerClient, TinkerSDKClient
-from reef.train.tinker_backend.config import SpindleFullConfig
-from reef.train.tinker_backend.full import SpindleFullTrainingComponent
-from reef.train.tinker_backend.launch import SpindleFullDeployment, spindle_full_settings
-from reef.train.tinker_backend.losses import ImportanceSamplingLoss, TokenRow
-from reef.train.tinker_backend.objectives import (
+from aster.artifact import REFERENCE_FILE, Artifact, DirectoryFiles, HuggingFaceRevision, read_reference
+from aster.core.evaluation import PolicyModel
+from aster.core.job_data import JobData, TrajectorySample
+from aster.core.weight_layout import ArtifactFormat
+from aster.inference.tinker import TinkerInferenceRuntime
+from aster.service.deploy.training import training_deployment_for
+from aster.tinker.checkpoint import MANIFEST
+from aster.tinker.sampling import SampleResult, TinkerSampler
+from aster.train.algos.signals import TrainingSignal
+from aster.train.component import TrainingJob, job_id_for
+from aster.train.tinker_backend import client as client_module
+from aster.train.tinker_backend.checkpoint import FreshStart, TinkerCheckpoint
+from aster.train.tinker_backend.client import TinkerClient, TinkerSDKClient
+from aster.train.tinker_backend.config import SpindleFullConfig
+from aster.train.tinker_backend.full import SpindleFullTrainingComponent
+from aster.train.tinker_backend.launch import SpindleFullDeployment, spindle_full_settings
+from aster.train.tinker_backend.losses import ImportanceSamplingLoss, TokenRow
+from aster.train.tinker_backend.objectives import (
     TinkerObjective,
     register_tinker_objective,
     unregister_tinker_objective,
 )
-from reef.train.tinker_backend.spindle_export import CheckpointExporter, checkpoint_directory, checkpoint_upload
+from aster.train.tinker_backend.spindle_export import CheckpointExporter, checkpoint_directory, checkpoint_upload
 
 MODEL = "org/model"
 SPINDLE = "https://spindle.example"
@@ -119,7 +119,7 @@ def objective():
 @pytest.fixture
 def hub(tmp_path, monkeypatch):
     value = MemoryHub(tmp_path / "hub-cache", MODEL, dict(FILES))
-    monkeypatch.setattr("reef.artifact.sources.HfApi", lambda: value)
+    monkeypatch.setattr("aster.artifact.sources.HfApi", lambda: value)
     return value
 
 
@@ -153,7 +153,7 @@ def train(component, start=None):
                     "agent": {"name": "test"},
                     "steps": [{"step_id": 1}],
                     "extra": {
-                        "reef": {
+                        "aster": {
                             "training": {
                                 "tokens": [10, 11, 20, 21],
                                 "loss_mask": [1, 0],

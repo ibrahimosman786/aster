@@ -2,12 +2,12 @@
 
 reef-eval invokes this once per stream position. It owns the whole session:
 
-* a **header shim** thread (``reef_client.serve``) fronting reef with the
-  stream's scenario and session tag attached — hermes cannot set the Reef
+* a **header shim** thread (``reef_client.serve``) fronting aster with the
+  stream's scenario and session tag attached — hermes cannot set the Aster
   headers itself. It binds ``0.0.0.0`` so the in-container hermes reaches it
-  on the same host the deployment already allowlists for reef;
-* the **reef scenario id**, minted at position 0 and carried in
-  ``$REEF_EVAL_STATE_DIR`` — one stream, one scenario, one weight chain; a
+  on the same host the deployment already allowlists for aster;
+* the **aster scenario id**, minted at position 0 and carried in
+  ``$ASTER_EVAL_STATE_DIR`` — one stream, one scenario, one weight chain; a
   fresh variant starts fresh;
 * **host ownership of the state mount**: every command in the container,
   hermes included, runs as the user running reef-eval, and each position
@@ -29,12 +29,12 @@ reef-eval invokes this once per stream position. It owns the whole session:
   the student is done or ``MAX_TURNS``. A failed hermes turn ends the
   session, not the trial: the verifier scores whatever the judge saw.
 
-Agent configuration (``--agent-arg``): ``reef_url`` (required; reef as
+Agent configuration (``--agent-arg``): ``aster_url`` (required; aster as
 reachable from inside a container, e.g. ``http://172.17.0.1:28900`` — and
 allowlist that host) and ``hermes_memory`` (off by default: memory and
 weights are two separate adaptation channels; the paper's numbers need
 memory OFF, and memory-only / weights-only / both are variants of the
-same stream). Everything else is a constant below, except ``REEF_TOKEN``:
+same stream). Everything else is a constant below, except ``ASTER_TOKEN``:
 run.sh mints one per run, because this stack listens on the LAN.
 """
 
@@ -54,11 +54,11 @@ from urllib.parse import urlsplit
 from harbor.agents.base import BaseAgent
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
-from reef_client import ReefClient
+from reef_client import AsterClient
 from reef_client.serve import CaptureStore, ServeConfig, build_handler
 
-TOKEN = os.environ.get("REEF_TOKEN", "")  # run.sh mints one per run: the stack listens on the LAN
-MODEL = "reef"  # model name hermes sends through the shim
+TOKEN = os.environ.get("ASTER_TOKEN", "")  # run.sh mints one per run: the stack listens on the LAN
+MODEL = "aster"  # model name hermes sends through the shim
 SCENARIO_PREFIX = "openclawrl-stream"
 MAX_TURNS = 8
 TURN_TIMEOUT_S = 600
@@ -129,9 +129,9 @@ class HermesStreamAgent(BaseAgent):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self._reef_url = str(kwargs.get("reef_url", "")).strip().rstrip("/")
-        if not self._reef_url:
-            raise ValueError("the hermes stream harness requires --agent-arg reef_url=http://<host>:<port>")
+        self._aster_url = str(kwargs.get("aster_url", "")).strip().rstrip("/")
+        if not self._aster_url:
+            raise ValueError("the hermes stream harness requires --agent-arg aster_url=http://<host>:<port>")
         self._hermes_memory = str(kwargs.get("hermes_memory", "")).strip().lower() in ("1", "true", "yes")
         # The container user for every command the harness runs: the host
         # user, so the state mount never holds root-owned files. None (the
@@ -190,7 +190,7 @@ class HermesStreamAgent(BaseAgent):
         minted = f"{SCENARIO_PREFIX}-{uuid.uuid4().hex[:12]}"
         # The inference routes serve only a scenario that exists: create it before hermes calls the shim.
         await asyncio.to_thread(
-            ReefClient(self._reef_url, token=TOKEN).post, "/reef/scenarios", minted, {"name": minted}
+            AsterClient(self._aster_url, token=TOKEN).post, "/aster/scenarios", minted, {"name": minted}
         )
         await self._exec(
             environment, f"mkdir -p {STATE_DIR} && printf %s {shlex.quote(minted)} > {STATE_DIR}/scenario"
@@ -198,7 +198,7 @@ class HermesStreamAgent(BaseAgent):
         return minted
 
     def _upstream_health(self) -> tuple[int, str]:
-        """``(successful reef calls so far, last upstream error seen)``.
+        """``(successful aster calls so far, last upstream error seen)``.
 
         The shim proxies every model call, so its capture is the only place
         that distinguishes "the agent answered badly" from "the agent never
@@ -213,7 +213,7 @@ class HermesStreamAgent(BaseAgent):
                 response = turn.get("response")
                 error = response.get("error") if isinstance(response, dict) else None
                 message = error.get("message") if isinstance(error, dict) else error
-                last_error = f"HTTP {status} from reef" + (f": {str(message)[:200]}" if message else "")
+                last_error = f"HTTP {status} from aster" + (f": {str(message)[:200]}" if message else "")
         return ok, last_error
 
     def _start_shim(self, scenario: str, session: str) -> ThreadingHTTPServer:
@@ -227,12 +227,12 @@ class HermesStreamAgent(BaseAgent):
         # extending transcript (a resumed turn does today, but hermes owns
         # that history and may compact or rewrite it).
         headers = {
-            "x-reef-scenario": scenario,
-            "x-reef-tag-session": session,
+            "x-aster-scenario": scenario,
+            "x-aster-tag-session": session,
             "authorization": f"Bearer {TOKEN}",
         }
         config = ServeConfig(
-            upstream=self._reef_url,
+            upstream=self._aster_url,
             listen_host="0.0.0.0",
             listen_port=SHIM_PORT,
             override_headers=headers,
@@ -266,8 +266,8 @@ class HermesStreamAgent(BaseAgent):
             f"rm -rf {HERMES_HOME}/homework && mkdir -p {HERMES_HOME}/homework && "
             f"printf %s {shlex.quote(homework)} > {HERMES_HOME}/homework/{problem['index']}.txt",
         )
-        # The shim runs on the same host as reef; hermes reaches it there.
-        shim_host = urlsplit(self._reef_url).hostname or "172.17.0.1"
+        # The shim runs on the same host as aster; hermes reaches it there.
+        shim_host = urlsplit(self._aster_url).hostname or "172.17.0.1"
         hermes_config = HERMES_CONFIG.format(
             shim_host=shim_host,
             shim_port=SHIM_PORT,
@@ -299,7 +299,7 @@ class HermesStreamAgent(BaseAgent):
             # as a flat "never adapts" learning curve.
             served_after, last_error = self._upstream_health()
             if served_after == served_before:
-                return turns, last_error or "hermes turn reached no reef inference call"
+                return turns, last_error or "hermes turn reached no aster inference call"
             turns += 1
             state = await self._deliver_reply(environment, reply, turns)
             if state is None:

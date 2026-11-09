@@ -17,16 +17,16 @@ from recipes.openclawrl.prm import PRMJudge
 from recipes.openclawrl.processor import OpenClawRLJobSettings, OpenClawRLSamples
 from recipes.openclawrl.sessions import SessionIndex
 from recipes.openclawrl.turns import TurnJudgment
-from reef.core import AgentRecord, RequestType
-from reef.core.chat_rendering import rendered_job_data
-from reef.core.trajectories import source_record_id, trajectory_reward
-from reef.execution.jobs import BackgroundJobRunner, BackgroundJobWorker, SupportsReceipt
-from reef.pipeline_context import PipelineContext
-from reef.recipe.errors import RecipeConfigError
-from reef.train.algos.schedule import StepScheduling
-from reef.train.pipeline import TrainingPipeline
-from reef.train.slime_backend.reef_adapters.preparation import prepare_slime_job
-from reef.train.types import JobData
+from aster.core import AgentRecord, RequestType
+from aster.core.chat_rendering import rendered_job_data
+from aster.core.trajectories import source_record_id, trajectory_reward
+from aster.execution.jobs import BackgroundJobRunner, BackgroundJobWorker, SupportsReceipt
+from aster.pipeline_context import PipelineContext
+from aster.recipe.errors import RecipeConfigError
+from aster.train.algos.schedule import StepScheduling
+from aster.train.pipeline import TrainingPipeline
+from aster.train.slime_backend.aster_adapters.preparation import prepare_slime_job
+from aster.train.types import JobData
 
 
 class FakeWorker:
@@ -68,7 +68,7 @@ def _turn(
             "messages": list(messages),
             "tools": list(tools),
             "artifact_id": artifact_id,
-            # What the request plane stores for x-reef-tag-session.
+            # What the request plane stores for x-aster-tag-session.
             **({"metadata": {"tags": {"session": session}}} if session else {}),
             "response": {"choices": [{"message": {"role": "assistant", "content": "a"}}]},
         },
@@ -401,7 +401,7 @@ def test_a_stage_setting_in_the_recipe_config_is_refused(key: str, stage: str) -
 
 @pytest.mark.unit
 def test_the_retired_teacher_settings_are_refused() -> None:
-    with pytest.raises(RecipeConfigError, match=r"does not consume reef\.prm_teacher_timeout_s"):
+    with pytest.raises(RecipeConfigError, match=r"does not consume aster\.prm_teacher_timeout_s"):
         OpenClawRLRecipe.service_config({"prm_teacher_timeout_s": 5.0}, model_path="/models/policy")
 
 
@@ -425,7 +425,7 @@ def test_the_recipe_refuses_a_bad_stage_config_when_the_pipeline_builds(pipeline
 
 @pytest.mark.unit
 def test_the_batches_need_the_openclawrl_sample_stage() -> None:
-    recipe = openclawrl_recipe({"record2sample": {"module": "reef.record2sample:NoSamples"}})
+    recipe = openclawrl_recipe({"record2sample": {"module": "aster.record2sample:NoSamples"}})
     with pytest.raises(RecipeConfigError, match="OpenClawRLJobData needs OpenClawRLSamples"):
         recipe.build_pipeline(PipelineContext("s"))
 
@@ -673,11 +673,11 @@ def test_traffic_without_a_session_tag_says_so_instead_of_training_on_nothing(ca
     with caplog.at_level("WARNING"):
         for i in range(9):  # Hermes shape: each turn restarts the transcript
             processor.push(_turn(f"t{i}", [{"role": "user", "content": f"homework {i}"}]))
-        assert "x-reef-tag-session" in caplog.text  # the fallback announced itself
+        assert "x-aster-tag-session" in caplog.text  # the fallback announced itself
         caplog.clear()
         processor.record2sample.judging.expire(time.monotonic() + 10_000.0)  # every session times out unbound
     assert "without ever binding" in caplog.text
-    assert "x-reef-tag-session" in caplog.text
+    assert "x-aster-tag-session" in caplog.text
 
 
 @pytest.mark.unit
@@ -698,7 +698,7 @@ def test_truncated_reasoning_never_comes_back_as_the_reply() -> None:
     cap, not an answer. Handing it back as content is what makes a judge score
     chain-of-thought as the agent's reply.
     """
-    from reef.inference.sglang.chat import SGLangInferenceHandler
+    from aster.inference.sglang.chat import SGLangInferenceHandler
 
     truncated = "Okay, the user wants me to solve this. First I should read the file"
     leaked, _ = SGLangInferenceHandler._assistant_message(truncated, None)

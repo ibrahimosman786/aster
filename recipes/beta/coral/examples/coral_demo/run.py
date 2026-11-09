@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-"""Run CORAL test-time training against a live Reef stack.
+"""Run CORAL test-time training against a live Aster stack.
 
 This is the piece that imports CORAL. The adapter modules under
 ``recipes/beta/coral/`` stay import-free of it so they test standalone; this
-entry point drives the real CORAL runtime against Reef:
+entry point drives the real CORAL runtime against Aster:
 
 1. loads the real CORAL task in ``task/`` (task.yaml, seed repo, packaged
    grader) and builds CORAL's ``AgentManager`` from it — the same
    orchestration ``coral start`` runs: agent worktrees, the embedded
-   LiteLLM gateway (whose only upstream is the Reef service ``run.sh``
+   LiteLLM gateway (whose only upstream is the Aster service ``run.sh``
    started), the grader daemon, heartbeats, restarts,
-2. splices the Reef correlation layer under the manager's gateway
-   (``attach_reef_adapter_to_agent_manager``) before any agent spawns,
+2. splices the Aster correlation layer under the manager's gateway
+   (``attach_aster_adapter_to_agent_manager``) before any agent spawns,
 3. starts an ``AttemptWatcher`` beside CORAL's monitor loop: every attempt
-   the grader daemon finalizes is reported to Reef with its exact captured
-   inference references — Reef groups siblings, trains, and serves the
+   the grader daemon finalizes is reported to Aster with its exact captured
+   inference references — Aster groups siblings, trains, and serves the
    updated weights to the agents' next calls,
 4. writes the run's result bundle to ``<work>/bundle.json`` when the run
    auto-stops at its attempt budget.
@@ -39,10 +39,10 @@ from pathlib import Path
 from coral.agent.manager import AgentManager  # CORAL: pinned commit, see README
 from coral.config import CoralConfig
 from recipes.beta.coral.bundle import build_result_bundle
-from recipes.beta.coral.gateway_launcher import attach_reef_adapter_to_agent_manager
+from recipes.beta.coral.gateway_launcher import attach_aster_adapter_to_agent_manager
 from recipes.beta.coral.watcher import AttemptWatcher
 
-DEFAULT_REEF_URL = "http://127.0.0.1:8900"
+DEFAULT_ASTER_URL = "http://127.0.0.1:8900"
 SCENARIO = "coral-demo"
 TASK_DIR = Path(__file__).resolve().parent / "task"
 
@@ -98,22 +98,22 @@ def main() -> int:
     parser.add_argument("--runtime", default="", help="CORAL runtime (default: task.yaml's, opencode)")
     parser.add_argument("--model", default="", help="model name the runtime asks the gateway for")
     parser.add_argument("--gateway-port", type=int, default=0, help="override the gateway port")
-    parser.add_argument("--reef-token", default=os.environ.get("REEF_TOKEN", "reef-local"))
-    parser.add_argument("--reef-url", default=os.environ.get("REEF_URL", DEFAULT_REEF_URL))
+    parser.add_argument("--aster-token", default=os.environ.get("ASTER_TOKEN", "aster-local"))
+    parser.add_argument("--aster-url", default=os.environ.get("ASTER_URL", DEFAULT_ASTER_URL))
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     state = args.work.resolve()
     state.mkdir(parents=True, exist_ok=True)
-    os.environ["REEF_TOKEN"] = args.reef_token
-    os.environ["REEF_API_BASE"] = args.reef_url.rstrip("/") + "/v1"
+    os.environ["ASTER_TOKEN"] = args.aster_token
+    os.environ["ASTER_API_BASE"] = args.aster_url.rstrip("/") + "/v1"
 
-    wait_healthy(f"{args.reef_url}/healthz")
+    wait_healthy(f"{args.aster_url}/healthz")
     # The inference routes serve only a scenario that exists: create it before any agent calls the gateway.
     create = urllib.request.Request(
-        args.reef_url.rstrip("/") + "/reef/scenarios",
+        args.aster_url.rstrip("/") + "/aster/scenarios",
         data=json.dumps({"name": SCENARIO}).encode("utf-8"),
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {args.reef_token}"},
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {args.aster_token}"},
         method="POST",
     )
     with urllib.request.urlopen(create, timeout=60):
@@ -122,30 +122,30 @@ def main() -> int:
     config = load_config(args, state)
     run_id = f"coral-ttt-{time.strftime('%Y%m%d-%H%M%S')}"
     manager = AgentManager(config, verbose=True, config_dir=TASK_DIR)
-    journal = attach_reef_adapter_to_agent_manager(
+    journal = attach_aster_adapter_to_agent_manager(
         manager,
         scenario=SCENARIO,
-        journal_path=state / "reef" / "calls.jsonl",
+        journal_path=state / "aster" / "calls.jsonl",
         extra_tags={"coral-run": run_id},
     )
 
     manager.start_all()
     if manager.paths is None:
         raise RuntimeError("CORAL manager did not initialize run paths")
-    print(f"CORAL run dir: {manager.paths.run_dir}  (reef run id: {run_id})")
+    print(f"CORAL run dir: {manager.paths.run_dir}  (aster run id: {run_id})")
 
     watcher = AttemptWatcher(
         coral_dir=manager.paths.coral_dir,
         journal=journal,
-        reef_url=args.reef_url,
+        aster_url=args.aster_url,
         scenario=SCENARIO,
         run_id=run_id,
-        token=args.reef_token,
-        state_path=state / "reef" / "reported.json",
+        token=args.aster_token,
+        state_path=state / "aster" / "reported.json",
     )
     stop_reporting = threading.Event()
     reporter_thread = threading.Thread(
-        target=watcher.run, args=(stop_reporting,), name="reef-attempt-watcher", daemon=True
+        target=watcher.run, args=(stop_reporting,), name="aster-attempt-watcher", daemon=True
     )
     reporter_thread.start()
 

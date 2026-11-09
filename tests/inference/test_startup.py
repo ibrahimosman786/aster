@@ -11,21 +11,21 @@ from aiohttp.test_utils import TestClient, TestServer
 from tests.support._policy_recipe import TestPolicyRecipe
 from tests.support.runtime_stubs import StubInferenceRuntime, StubTrainingComponent, runtime_bindings
 
-from reef.artifact import InMemoryRepositoryBackend
-from reef.core.served_models import ScheduledStop
-from reef.dispatcher import Dispatcher
-from reef.dispatcher.serving import ServingWorker
-from reef.inference.interfaces import FixedEngineClients, InferenceHandler
-from reef.inference.null import NullInferenceRuntime
-from reef.service.app import create_app
-from reef.service.inference_service import build_inference_app
-from reef.storage.served_models import SERVING_KIND, SERVING_QUEUE
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.sqlite import SQLiteScenarioStorage
-from reef.storage.work_queue import WorkLeaseLost
+from aster.artifact import InMemoryRepositoryBackend
+from aster.core.served_models import ScheduledStop
+from aster.dispatcher import Dispatcher
+from aster.dispatcher.serving import ServingWorker
+from aster.inference.interfaces import FixedEngineClients, InferenceHandler
+from aster.inference.null import NullInferenceRuntime
+from aster.service.app import create_app
+from aster.service.inference_service import build_inference_app
+from aster.storage.served_models import SERVING_KIND, SERVING_QUEUE
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.sqlite import SQLiteScenarioStorage
+from aster.storage.work_queue import WorkLeaseLost
 
-STATUS = "/reef/scenarios/math/inference/status"
-CHAT = {"model": "reef", "messages": [{"role": "user", "content": "hello"}]}
+STATUS = "/aster/scenarios/math/inference/status"
+CHAT = {"model": "aster", "messages": [{"role": "user", "content": "hello"}]}
 
 
 class PausedRuntime(StubInferenceRuntime):
@@ -99,14 +99,14 @@ def startup(tmp_path):
 def test_slow_start_reports_its_result_without_blocking_control(startup, fails, caplog):
     control, worker, runtime, inference_app = startup
     runtime.fail_start = fails
-    caplog.set_level(logging.WARNING, logger="reef.execution.workers")
+    caplog.set_level(logging.WARNING, logger="aster.execution.workers")
 
     async def run() -> None:
         async with (
             TestClient(TestServer(create_app(control))) as control_client,
             TestClient(TestServer(inference_app)) as inference_client,
         ):
-            created = await asyncio.wait_for(control_client.post("/reef/scenarios", json={"name": "math"}), 2)
+            created = await asyncio.wait_for(control_client.post("/aster/scenarios", json={"name": "math"}), 2)
             assert created.status == 201
             assert runtime.opens == 0 and not runtime.entered.is_set()
             pending = await (await inference_client.get(STATUS)).json()
@@ -117,10 +117,10 @@ def test_slow_start_reports_its_result_without_blocking_control(startup, fails, 
                 assert await asyncio.to_thread(runtime.entered.wait, 2)
                 status = await (await inference_client.get(STATUS)).json()
                 assert status == {**pending, "state": "starting"}
-                settings = await asyncio.wait_for(control_client.get("/reef/scenarios/math/settings"), 2)
+                settings = await asyncio.wait_for(control_client.get("/aster/scenarios/math/settings"), 2)
                 assert settings.status == 200
                 waiting = await inference_client.post(
-                    "/v1/chat/completions", headers={"x-reef-scenario": "math"}, json=CHAT
+                    "/v1/chat/completions", headers={"x-aster-scenario": "math"}, json=CHAT
                 )
                 assert waiting.status == 503 and waiting.headers["Retry-After"] == "30"
                 assert (await waiting.json())["error"]["type"] == "inference_starting"
@@ -133,7 +133,7 @@ def test_slow_start_reports_its_result_without_blocking_control(startup, fails, 
             assert result["state"] == ("failed" if fails else "ready")
             assert (result["error"] is not None) == fails
             response = await inference_client.post(
-                "/v1/chat/completions", headers={"x-reef-scenario": "math"}, json=CHAT
+                "/v1/chat/completions", headers={"x-aster-scenario": "math"}, json=CHAT
             )
             assert response.status == (503 if fails else 200)
             if fails:
@@ -143,7 +143,7 @@ def test_slow_start_reports_its_result_without_blocking_control(startup, fails, 
                 assert warnings == [
                     f"work item serving/{failed.id} of scenario math failed: ValueError: the selected model cannot load"
                 ]
-            assert (await control_client.get("/reef/scenarios/math/settings")).status == 200
+            assert (await control_client.get("/aster/scenarios/math/settings")).status == 200
             assert runtime.opens == 1
 
     asyncio.run(run())
@@ -335,10 +335,10 @@ def test_the_worker_logs_its_ownership_its_opening_and_each_activation(startup, 
     control, worker, runtime = startup[0], startup[1], startup[2]
     runtime.release.set()
     control.create_scenario("math")
-    with caplog.at_level("INFO", logger="reef.dispatcher.serving"):
+    with caplog.at_level("INFO", logger="aster.dispatcher.serving"):
         assert worker.run_once()
         worker.stop()
-    messages = [record.getMessage() for record in caplog.records if record.name == "reef.dispatcher.serving"]
+    messages = [record.getMessage() for record in caplog.records if record.name == "aster.dispatcher.serving"]
     assert any("holds runtime ownership" in message for message in messages)
     assert any("opened the inference runtime" in message for message in messages)
     assert any("kept 0 of 0 routes from before" in message for message in messages)

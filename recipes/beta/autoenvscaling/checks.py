@@ -30,11 +30,11 @@ from pathlib import Path
 from typing import Literal
 
 from recipes.beta.autoenvscaling.author import ModelReplies
-from reef.core.prompts import untrusted_text
-from reef.core.tasks import HarborTask
-from reef.harness.harbor.rollouts import TaskRollout, rewards_of
-from reef.record2sample.generator.client import Generator, GeneratorError, WrittenTask
-from reef.record2sample.generator.designer import DesignerError
+from aster.core.prompts import untrusted_text
+from aster.core.tasks import HarborTask
+from aster.harness.harbor.rollouts import TaskRollout, rewards_of
+from aster.record2sample.generator.client import Generator, GeneratorError, WrittenTask
+from aster.record2sample.generator.designer import DesignerError
 
 # A check that is off does not run; one that measures records its result; one that refuses also keeps a task out.
 CHECK_MODES = ("off", "measure", "refuse")
@@ -52,7 +52,7 @@ BandPlace = Literal["below", "inside", "above"]
 BAND_BELOW: Literal["below"] = "below"
 BAND_INSIDE: Literal["inside"] = "inside"
 BAND_ABOVE: Literal["above"] = "above"
-# The generator service's arm of the calibration rollouts. Reef keeps no record of them.
+# The generator service's arm of the calibration rollouts. Aster keeps no record of them.
 CALIBRATION_ARM = "calibration"
 # What the calibration found, besides a mean reward below or above the band: the task is kept, its rewards vary
 # too little, or the calibration did not finish (fewer than CALIBRATION_MIN_SCORED rollouts scored, or the
@@ -223,22 +223,22 @@ def review_findings(reply: str) -> tuple[ReviewFinding, ...]:
 class ReviewCheck(TaskCheck):
     """One model call that lists each requirement the tests check and the instruction does not state.
 
-    The call asks for ``model`` through the Reef at ``reef_url``, in the ``api`` dialect (``openai`` or
-    ``responses``), and Reef records it under ``scenario``. Any finding is a defect. A refused or failed call, and a
+    The call asks for ``model`` through the Aster at ``aster_url``, in the ``api`` dialect (``openai`` or
+    ``responses``), and Aster records it under ``scenario``. Any finding is a defect. A refused or failed call, and a
     reply that is not the JSON asked for, mean the check could not run. The agent's own check calls
     :meth:`review` too, so the agent can revise its tests before it finishes.
     """
 
     def __init__(
-        self, *, reef_url: str, token: str | None, scenario: str, model: str, api: str, is_refusing: bool = True
+        self, *, aster_url: str, token: str | None, scenario: str, model: str, api: str, is_refusing: bool = True
     ) -> None:
         super().__init__("review", is_refusing=is_refusing)
-        self.replies = ModelReplies(reef_url=reef_url, token=token, api=api)
+        self.replies = ModelReplies(aster_url=aster_url, token=token, api=api)
         self.scenario = scenario
         self.model = model
 
     def review(self, task: HarborTask, *, tags: Mapping[str, str]) -> CheckResult:
-        """The review of ``task``, a blocking model call; ``tags`` label the call on Reef."""
+        """The review of ``task``, a blocking model call; ``tags`` label the call on Aster."""
         try:
             answer = self.replies.reply(
                 scenario=self.scenario,

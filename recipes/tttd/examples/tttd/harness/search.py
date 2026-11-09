@@ -2,7 +2,7 @@
 
 This module implements the environment/search side of Algorithm 1 and
 Appendix A.2 of "Learning to Discover at Test Time". It calls a model function,
-evaluates the response, and updates its local archive. Reef-specific behavior
+evaluates the response, and updates its local archive. Aster-specific behavior
 is added by the concrete harness subclass in ``agent.py``.
 
 The ``Scorer`` callable (``str -> ScoredSolution``) is the minimal interface
@@ -418,7 +418,7 @@ def build_prompt(instruction: str, parent: Candidate | None) -> Sequence[Mapping
 
 
 class _TTTDiscoverHarnessBase(SearchHarness):
-    """Shared search/evaluation mechanics for the plain and Reef harnesses."""
+    """Shared search/evaluation mechanics for the plain and Aster harnesses."""
 
     def __init__(
         self,
@@ -605,10 +605,10 @@ def openai_action(response: Mapping[str, Any]) -> str:
 
 
 class TTTDChatRequestBuilder:
-    """Describe TTTD sampling through Reef's OpenAI-compatible chat route.
+    """Describe TTTD sampling through Aster's OpenAI-compatible chat route.
 
     Prompt rendering and exact token/log-prob capture belong to the configured
-    inference backend. The harness supplies chat semantics only: Reef routes
+    inference backend. The harness supplies chat semantics only: Aster routes
     the request to whatever adapter the deployment serves,
     so no caller can sample the frozen base by forgetting to name it.
     """
@@ -643,7 +643,7 @@ class TTTDChatRequestBuilder:
         request_extra: Mapping[str, Any],
     ) -> dict[str, Any]:
         if "lora_path" in request_extra:
-            raise ValueError("lora_path belongs to Reef's inference routing, not to a harness request")
+            raise ValueError("lora_path belongs to Aster's inference routing, not to a harness request")
         payload: dict[str, Any] = {
             "model": model,
             "messages": [dict(message) for message in messages],

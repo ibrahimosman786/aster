@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from reef.core.plugins import ConfiguredPlugin, PluginConfigError, PluginReference
-from reef.evaluation.harness import TaskScorer, VerifierRewardScorer
+from aster.core.plugins import ConfiguredPlugin, PluginConfigError, PluginReference
+from aster.evaluation.harness import TaskScorer, VerifierRewardScorer
 
 MODULE = "tests.core.test_plugins"
 
@@ -78,7 +78,7 @@ def test_the_default_from_config_refuses_config() -> None:
         ("no-colon", r"must be 'package\.module:ClassName'"),
         (f"{MODULE}:Missing", r"cannot import evolution\.evaluation\.scorer"),
         (f"{MODULE}:plain_function", r"must name a class that inherits TaskScorer"),
-        ("reef.train.harness_backend:Method", r"must name a class that inherits TaskScorer"),
+        ("aster.train.harness_backend:Method", r"must name a class that inherits TaskScorer"),
         (f"{MODULE}:AbstractScorer", r"names an abstract class"),
         ({"module": f"{MODULE}:FixedScore", "extra": 1}, r"unknown key\(s\) extra"),
         ({"module": f"{MODULE}:FixedScore", "config": []}, r"evolution\.evaluation\.scorer\.config must be a mapping"),

@@ -5,7 +5,7 @@ from dataclasses import replace
 
 import pytest
 
-from reef.core.evaluation import (
+from aster.core.evaluation import (
     ArtifactEvaluationRequest,
     PolicyEvaluation,
     PolicyHarness,
@@ -13,9 +13,9 @@ from reef.core.evaluation import (
     RolloutScore,
     RolloutScores,
 )
-from reef.storage.evaluations import EvaluationStateConflict, StoredEvaluation
-from reef.storage.postgres import PostgresScenarioStorage
-from reef.storage.sqlite import SQLiteScenarioStorage
+from aster.storage.evaluations import EvaluationStateConflict, StoredEvaluation
+from aster.storage.postgres import PostgresScenarioStorage
+from aster.storage.sqlite import SQLiteScenarioStorage
 
 REQUEST = ArtifactEvaluationRequest("r1", "weights", harness={"name": "terminus-2"}, rollouts_per_task=2)
 RESULT = PolicyEvaluation(

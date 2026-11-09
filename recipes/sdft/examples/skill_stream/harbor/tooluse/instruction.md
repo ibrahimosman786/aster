@@ -1,13 +1,13 @@
-# Learn Tool Use through Reef
+# Learn Tool Use through Aster
 
-This stage trains the model Reef serves on the Tool Use skill of the
+This stage trains the model Aster serves on the Tool Use skill of the
 reference implementation of Self-Distillation Fine-Tuning
 (arXiv:2601.19897): ToolAlpaca's training split, where a prompt is a
 tool's documentation and a user request in the ReAct format and the
 demonstration is the dataset's golden response.
 
 The harness runs `python /opt/skills/stage.py` in this container. The runner samples each step's prompts through the
-Reef service at `$REEF_SERVICE_URL`, reports every demonstration against the
+Aster service at `$ASTER_SERVICE_URL`, reports every demonstration against the
 sample's receipt, and waits for the step's training snapshot. Every
 `SDFT_EVAL_EVERY` steps, and after the last, it submits the step number to
 the judge at `$JUDGE_URL`, which scores the served model on the test splits

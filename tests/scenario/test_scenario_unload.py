@@ -14,19 +14,19 @@ import pytest
 from tests.support._threshold_processor import threshold_pipeline
 from tests.support.runtime_stubs import StubTrainingComponent
 
-from reef.artifact import InMemoryRepositoryBackend
-from reef.core import AgentRecord, RequestType
-from reef.core.errors import ScenarioCapacityFull, ScenarioLimitReached
-from reef.dispatcher import Dispatcher
-from reef.recipe import Recipe
-from reef.scenario import Scenario
-from reef.scenario.admission import LoadAdmission, LoadedScenario, ScenarioAdmission, ScenarioLimits
-from reef.storage.scenario import ScenarioSettings
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.sqlite import SQLiteScenarioStorage
-from reef.train import Trainer
-from reef.train.component import SavedCheckpoint, TrainingJob
-from reef.train.jobs import JobLoop
+from aster.artifact import InMemoryRepositoryBackend
+from aster.core import AgentRecord, RequestType
+from aster.core.errors import ScenarioCapacityFull, ScenarioLimitReached
+from aster.dispatcher import Dispatcher
+from aster.recipe import Recipe
+from aster.scenario import Scenario
+from aster.scenario.admission import LoadAdmission, LoadedScenario, ScenarioAdmission, ScenarioLimits
+from aster.storage.scenario import ScenarioSettings
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.sqlite import SQLiteScenarioStorage
+from aster.train import Trainer
+from aster.train.component import SavedCheckpoint, TrainingJob
+from aster.train.jobs import JobLoop
 
 
 class StepJobs(StubTrainingComponent):
@@ -293,7 +293,7 @@ def test_registration_limit_refuses_a_new_scenario_and_stores_nothing(tmp_path) 
 
         # A registered scenario loads again. The limit counts registrations, not loads.
         assert dispatcher.get_or_create_scenario("a") is not None
-        with pytest.raises(ScenarioLimitReached, match=r"reef\.max_scenarios"):
+        with pytest.raises(ScenarioLimitReached, match=r"aster\.max_scenarios"):
             dispatcher.get_or_create_scenario("b")
         with pytest.raises(ScenarioLimitReached):
             dispatcher.create_scenario("b")

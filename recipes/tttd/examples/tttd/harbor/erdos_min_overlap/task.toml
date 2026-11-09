@@ -8,9 +8,9 @@ description = "Find a step function that minimizes the Erdős minimum-overlap co
 
 [metadata]
 category = "autoresearch"
-author_name = "Reef"
+author_name = "Aster"
 difficulty = "hard"
-tags = ["reef", "tttd", "erdos", "discovery"]
+tags = ["aster", "tttd", "erdos", "discovery"]
 
 [agent]
 # One Harbor trial owns the complete multi-step TTT trajectory.

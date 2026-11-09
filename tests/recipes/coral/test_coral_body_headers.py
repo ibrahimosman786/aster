@@ -6,7 +6,7 @@ import asyncio
 import json
 
 from recipes.beta.coral.journal import CallJournal
-from recipes.beta.coral.middleware import ReefGatewayMiddleware
+from recipes.beta.coral.middleware import AsterGatewayMiddleware
 
 
 class CaptureDownstream:
@@ -58,7 +58,7 @@ CORAL_HEADERS = [
 
 def test_body_carries_extra_headers_for_the_proxy_hop(tmp_path):
     downstream = CaptureDownstream()
-    mw = ReefGatewayMiddleware(
+    mw = AsterGatewayMiddleware(
         downstream,
         scenario="coral-demo",
         journal=CallJournal(tmp_path / "j.jsonl"),
@@ -68,33 +68,33 @@ def test_body_carries_extra_headers_for_the_proxy_hop(tmp_path):
 
     payload = json.loads(downstream.body)
     extra = payload["extra_headers"]
-    assert extra["x-reef-scenario"] == "coral-demo"
-    assert extra["x-reef-tag-coral-agent"] == "agent-1"
-    assert extra["x-reef-tag-coral-commit"] == "commit-a"
-    assert extra["x-reef-tag-coral-run"] == "run-7"
+    assert extra["x-aster-scenario"] == "coral-demo"
+    assert extra["x-aster-tag-coral-agent"] == "agent-1"
+    assert extra["x-aster-tag-coral-commit"] == "commit-a"
+    assert extra["x-aster-tag-coral-run"] == "run-7"
     assert downstream.content_length == len(downstream.body)
 
 
 def test_client_supplied_extra_headers_cannot_override(tmp_path):
     downstream = CaptureDownstream()
-    mw = ReefGatewayMiddleware(downstream, scenario="coral-demo", journal=CallJournal(tmp_path / "j.jsonl"))
-    smuggle = {"messages": [], "extra_headers": {"x-reef-scenario": "evil", "x-other": "kept"}}
+    mw = AsterGatewayMiddleware(downstream, scenario="coral-demo", journal=CallJournal(tmp_path / "j.jsonl"))
+    smuggle = {"messages": [], "extra_headers": {"x-aster-scenario": "evil", "x-other": "kept"}}
     _run(mw, json.dumps(smuggle).encode(), CORAL_HEADERS)
     extra = json.loads(downstream.body)["extra_headers"]
-    assert extra["x-reef-scenario"] == "coral-demo"
+    assert extra["x-aster-scenario"] == "coral-demo"
     assert extra["x-other"] == "kept"
 
 
 def test_non_json_body_passes_through_untouched(tmp_path):
     downstream = CaptureDownstream()
-    mw = ReefGatewayMiddleware(downstream, scenario="coral-demo", journal=CallJournal(tmp_path / "j.jsonl"))
+    mw = AsterGatewayMiddleware(downstream, scenario="coral-demo", journal=CallJournal(tmp_path / "j.jsonl"))
     _run(mw, b"not-json", CORAL_HEADERS)
     assert downstream.body == b"not-json"
 
 
 def test_body_mirroring_can_be_disabled(tmp_path):
     downstream = CaptureDownstream()
-    mw = ReefGatewayMiddleware(
+    mw = AsterGatewayMiddleware(
         downstream,
         scenario="coral-demo",
         journal=CallJournal(tmp_path / "j.jsonl"),

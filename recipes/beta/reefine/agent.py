@@ -54,26 +54,26 @@ from recipes.beta.reefine.answer import (
 from recipes.beta.reefine.multimodal import MultimodalProvider
 from recipes.beta.reefine.prompts import prompt
 from recipes.beta.reefine.trial import trial_script
-from reef.core.prompts import untrusted_text
-from reef.core.training_request import TrainingRequest
-from reef.execution.sandbox.environment import download_directory
-from reef.execution.sandbox.process import ProcessOutcome, ProgramExecutor, ProgramLaunchError, ProgramTimeout
-from reef.harness.adapters import get_adapter
-from reef.harness.adapters.descriptor import AdapterDescriptor
-from reef.harness.adapters.parts import TreeLayout
-from reef.harness.gateway import AgentTool
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tasks.run import headless_argv, launch_agent, read_session
-from reef.harness.tasks.trajectory import final_assistant_text
-from reef.harness.tree import HarnessTree, TreePatch, render_tree
-from reef.train.harness_backend import Services, Workspace
-from reef.train.harness_backend.agent.run import AgentExecution, agent_env
+from aster.core.prompts import untrusted_text
+from aster.core.training_request import TrainingRequest
+from aster.execution.sandbox.environment import download_directory
+from aster.execution.sandbox.process import ProcessOutcome, ProgramExecutor, ProgramLaunchError, ProgramTimeout
+from aster.harness.adapters import get_adapter
+from aster.harness.adapters.descriptor import AdapterDescriptor
+from aster.harness.adapters.parts import TreeLayout
+from aster.harness.gateway import AgentTool
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tasks.run import headless_argv, launch_agent, read_session
+from aster.harness.tasks.trajectory import final_assistant_text
+from aster.harness.tree import HarnessTree, TreePatch, render_tree
+from aster.train.harness_backend import Services, Workspace
+from aster.train.harness_backend.agent.run import AgentExecution, agent_env
 
 AGENT_RULES = Path(__file__).with_name("agent_rules.md")
 AGENT_TOOLS = Path(__file__).with_name("agent_tools.ts")
 TRIAL_DRIVER = Path(__file__).with_name("trial_driver.mjs")
 #: The agent's own harness: its rules and its tools, as a tree rendered for pi.
-AGENT_TOOLS_PATH = "extensions/reef-agent-tools.ts"
+AGENT_TOOLS_PATH = "extensions/aster-agent-tools.ts"
 #: How much of a trial the agent reads back: enough to see what happened, never a whole transcript.
 MAX_TRIAL_TEXT = 4000
 MAX_TRIAL_CALLS = 30
@@ -133,19 +133,19 @@ def agent_rules(provider: MultimodalProvider | None) -> str:
             f"This deployment's multimodal provider is {provider.preset.name} ({provider.base_url}); it serves "
             f"{routes}, and "
             "any other of these routes answers 501. List its models with "
-            f'`curl -s "$REEF_AGENT_URL/models?modality=speech"` (or {other_modalities}).'
+            f'`curl -s "$ASTER_AGENT_URL/models?modality=speech"` (or {other_modalities}).'
         )
     return AGENT_RULES.read_text(encoding="utf-8").replace("<!-- provider -->", note)
 
 
 def trial_env(gateway_url: str) -> dict[str, str]:
-    """Reef's address as a session sees it, pointed at the gateway: an extension calls the multimodal routes at
-    ``REEF_SERVICE_URL`` with the scenario and token headers as it will in a user's session, and the gateway
+    """Aster's address as a session sees it, pointed at the gateway: an extension calls the multimodal routes at
+    ``ASTER_SERVICE_URL`` with the scenario and token headers as it will in a user's session, and the gateway
     answers them without reading either."""
     return {
-        "REEF_SERVICE_URL": gateway_url,
-        "REEF_SCENARIO": "reef-agent-trial",
-        "REEF_TOKEN": "reef-agent-trial",
+        "ASTER_SERVICE_URL": gateway_url,
+        "ASTER_SCENARIO": "aster-agent-trial",
+        "ASTER_TOKEN": "aster-agent-trial",
     }
 
 
@@ -312,7 +312,7 @@ class AgentRun:
     def snapshot(self) -> tuple[HarnessTree, list[str]]:
         """Pull the agent's tree from its session and read it (see ``read``)."""
         with self.workspace_lock:
-            # The agent may edit a copy off the Reef host; a check reads that copy as it stands now.
+            # The agent may edit a copy off the Aster host; a check reads that copy as it stands now.
             download_directory(self.executor(), self.workspace.root, self.workspace.harness.name)
             return self.read()
 
@@ -416,7 +416,7 @@ class AgentRun:
         files = rendered_files(candidate, binding, self.descriptor)
         before = self.gateway.provider_call_count()
         # A trial runs where a session of the person's would: outside the step's directory.
-        root = Path(tempfile.mkdtemp(prefix="reef-agent-trial-"))
+        root = Path(tempfile.mkdtemp(prefix="aster-agent-trial-"))
         started = time.monotonic()
         checksum = candidate.checksum()
         try:
@@ -562,12 +562,12 @@ def answer_with_agent(
             machine=client_text(request),
             failures=failures_section(workspace.traces()),
         )
-        env = {"REEF_AGENT_URL": gateway.base_url, **trial_env(gateway.base_url)}
+        env = {"ASTER_AGENT_URL": gateway.base_url, **trial_env(gateway.base_url)}
         limit = agent.execution.timeout_s
         run.session = agent.execution.executor.open_session(forward_ports=(gateway.port,), timeout_s=limit)
         run.deadline = time.monotonic() + limit
-        env["REEF_AGENT_DEADLINE_MS"] = str(int((time.time() + limit) * 1000))
-        env["REEF_AGENT_FINISH_SECONDS"] = str(run.finish_seconds)
+        env["ASTER_AGENT_DEADLINE_MS"] = str(int((time.time() + limit) * 1000))
+        env["ASTER_AGENT_FINISH_SECONDS"] = str(run.finish_seconds)
         services.calls.note("agent", f"the coding agent started on the request (at most {limit:g} s)")
         outcome, trajectory = launch_pi(
             run.descriptor,
@@ -597,7 +597,7 @@ def answer_with_agent(
                 # reasoning model spends the budget on its reasoning first. Say that, not "changed no file".
                 record["error"] = (
                     "the model's reply hit its token budget and carried no answer; raise the harness's "
-                    "maxTokens (Reef renders the model binding's max_output_tokens into it)"
+                    "maxTokens (Aster renders the model binding's max_output_tokens into it)"
                 )
             break
     except ProgramTimeout:

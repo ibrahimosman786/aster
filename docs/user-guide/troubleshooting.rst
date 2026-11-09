@@ -4,7 +4,7 @@ Troubleshooting
 Symptoms, their usual cause, and the fix. Each entry names where to look.
 
 :For: anyone whose deployment, request, or learning step did not do what they expected
-:Before you start: access to the deployment's logs, ``reef.run-dir/*.log`` (``.reef/run/`` by default; the tutorials use ``work/reef.log``)
+:Before you start: access to the deployment's logs, ``aster.run-dir/*.log`` (``.aster/run/`` by default; the tutorials use ``work/aster.log``)
 :You will have: the cause found, or the right log to read
 
 Starting Aster
@@ -12,11 +12,11 @@ Starting Aster
 
 **aster serve cannot find the config.** A relative ``-c`` path is resolved against the current working directory. Pass an absolute path, or run from the directory that holds the stack file.
 
-**A setting is not what the config says.** The first lines of the launcher log list every resolved setting with its source (``file``, ``command line``, ``environment``, ``automatic``, ``default``), so a command-line flag or ``REEF_*`` variable that overrode the file shows up there; ``aster serve ... --print-config`` prints the full list, defaults included, without starting anything. A file that repeats a key, spells one field two ways, or sets ``null`` on a field that is not optional is refused before startup, naming the field and lines.
+**A setting is not what the config says.** The first lines of the launcher log list every resolved setting with its source (``file``, ``command line``, ``environment``, ``automatic``, ``default``), so a command-line flag or ``ASTER_*`` variable that overrode the file shows up there; ``aster serve ... --print-config`` prints the full list, defaults included, without starting anything. A file that repeats a key, spells one field two ways, or sets ``null`` on a field that is not optional is refused before startup, naming the field and lines.
 
-**A service never reports ready.** Its ``ready`` probe keeps failing; the stack waits that service's ``ready_timeout`` before giving up. The default is 30 seconds for the Aster HTTP service and 3600 seconds for a managed engine or a training stack, which download weights. Read that service's log under ``reef.run-dir``. For a training stack, the usual causes are a model that is still downloading, serving engines that fail to start on the inference component (read ``inference.log``), or GPUs already in use.
+**A service never reports ready.** Its ``ready`` probe keeps failing; the stack waits that service's ``ready_timeout`` before giving up. The default is 30 seconds for the Aster HTTP service and 3600 seconds for a managed engine or a training stack, which download weights. Read that service's log under ``aster.run-dir``. For a training stack, the usual causes are a model that is still downloading, serving engines that fail to start on the inference component (read ``inference.log``), or GPUs already in use.
 
-**Boot fails naming a config key.** A ``reef.*`` key that the selected recipe has no field for stops the start rather than being ignored. Recipe fields are listed in `Bundled recipes <recipes.rst>`__; a harness evolution recipe reads its settings from ``recipe.config.evolution`` (`Harness evolution keys <../reference/configuration.rst#harness-evolution-keys>`__).
+**Boot fails naming a config key.** A ``aster.*`` key that the selected recipe has no field for stops the start rather than being ignored. Recipe fields are listed in `Bundled recipes <recipes.rst>`__; a harness evolution recipe reads its settings from ``recipe.config.evolution`` (`Harness evolution keys <../reference/configuration.rst#harness-evolution-keys>`__).
 
 **Boot fails naming a credential in the tree.** A harness evolution seed whose config holds a literal key (``apiKey``, ``token``, and their plural and list forms), or whose other files hold a credential-shaped string, refuses startup: the seed becomes the scenario's first snapshot, and every snapshot stores its tree in git. A proposed patch that holds one is refused the same way. Rotate the key, remove it from the file, and keep credentials in ``inference.upstream-api-key`` or an ``api_key_env``.
 
@@ -29,11 +29,11 @@ answers it from the scenario's row in ``served_models``, as `Run the services in
 separate processes <operate.rst#run-the-services-in-separate-processes>`__
 describes.
 
-**401 invalid service token.** The ``Authorization: Bearer`` value (or ``x-api-key``, when no Authorization header is sent) is not one of ``reef.token`` / ``reef.tokens``. An unset ``${REEF_TOKEN}`` in the config becomes an empty entry, which is dropped; a deployment with no tokens at all accepts every request.
+**401 invalid service token.** The ``Authorization: Bearer`` value (or ``x-api-key``, when no Authorization header is sent) is not one of ``aster.token`` / ``aster.tokens``. An unset ``${ASTER_TOKEN}`` in the config becomes an empty entry, which is dropped; a deployment with no tokens at all accepts every request.
 
-**400 missing or empty x-reef-scenario.** Every inference, report, and harness read needs the header.
+**400 missing or empty x-aster-scenario.** Every inference, report, and harness read needs the header.
 
-**404 unknown scenario, or a scenario that serves no model.** An inference request never creates a scenario. Create it first with ``POST /reef/scenarios`` or a harness install, and check the name with ``GET /reef/scenarios``. A scenario serves no model when its runtime has no engine that the inference routes can reach, for example with ``inference.backend: none``. A report answers 404 for an unknown scenario only when the deployment sets ``allow_implicit_scenario_creation: false``. With implicit creation on, a typo in a report's scenario silently creates a second scenario instead. ``POST /reef/train`` answers 404 with either setting and creates nothing.
+**404 unknown scenario, or a scenario that serves no model.** An inference request never creates a scenario. Create it first with ``POST /aster/scenarios`` or a harness install, and check the name with ``GET /aster/scenarios``. A scenario serves no model when its runtime has no engine that the inference routes can reach, for example with ``inference.backend: none``. A report answers 404 for an unknown scenario only when the deployment sets ``allow_implicit_scenario_creation: false``. With implicit creation on, a typo in a report's scenario silently creates a second scenario instead. ``POST /aster/train`` answers 404 with either setting and creates nothing.
 
 **409 on an inference request.** The engine answered under another model name, or aborted the request, on two attempts. Aster reads the scenario's row again before the second attempt, so a single change of the served model does not cause it. A repeated 409 means that the engine does not serve the model name that the row names. Check the model names that the engine serves.
 
@@ -58,18 +58,18 @@ request timeout:
 Reports and training
 --------------------
 
-**A report was accepted but nothing trains.** Check whether the recipe's trigger is reached (``pipeline.sample2job.config.job_samples`` samples, or a complete TTTD rollout grid), whether training reported a data-contract error, and whether the receipts were already consumed by an earlier step. Reports cannot set training eligibility flags, and missing references are rejected at admission. ``GET /reef/scenarios/{scenario}/contract`` shows the recipe contract; ``/reef/status`` shows whether job data is ready (``job_data_ready``), and its ``processor`` entry compares ``ready_samples`` with ``job_samples``. A sample whose data is more than ``pipeline.record2sample.config.max_staleness`` artifacts behind the served artifact stays untrained.
+**A report was accepted but nothing trains.** Check whether the recipe's trigger is reached (``pipeline.sample2job.config.job_samples`` samples, or a complete TTTD rollout grid), whether training reported a data-contract error, and whether the receipts were already consumed by an earlier step. Reports cannot set training eligibility flags, and missing references are rejected at admission. ``GET /aster/scenarios/{scenario}/contract`` shows the recipe contract; ``/aster/status`` shows whether job data is ready (``job_data_ready``), and its ``processor`` entry compares ``ready_samples`` with ``job_samples``. A sample whose data is more than ``pipeline.record2sample.config.max_staleness`` artifacts behind the served artifact stays untrained.
 
 **400 on a report.** The recipe declares a report schema and the body violates it: a missing ``score``, a boolean where a number is expected, a missing ``metadata`` field. `Bundled recipes <recipes.rst>`__ lists each schema.
 
 **409 on a report.** The client-chosen ``agent_record_id`` was sent before with different content. Use a new id, or resend identical content.
 
-**A training job fails and /reef/status reports an error.** The service log has the traceback. Slime rejecting ``--wandb-key`` or ``--use-wandb`` means tracking must be configured under ``observability.wandb`` instead. A mismatch between the recipe's loss family and the Slime flags is refused at startup by design.
+**A training job fails and /aster/status reports an error.** The service log has the traceback. Slime rejecting ``--wandb-key`` or ``--use-wandb`` means tracking must be configured under ``observability.wandb`` instead. A mismatch between the recipe's loss family and the Slime flags is refused at startup by design.
 
-**A Slime job fails with checkpoint storage is full.** Slime admits a new checkpoint under the checkpoint root only when it fits. Retention first deletes older checkpoints in the order of ``--reef-checkpoint-policy`` (``latest`` or ``best_reward``). It never deletes the latest checkpoint or the checkpoint the job starts from. The error names the reason:
+**A Slime job fails with checkpoint storage is full.** Slime admits a new checkpoint under the checkpoint root only when it fits. Retention first deletes older checkpoints in the order of ``--aster-checkpoint-policy`` (``latest`` or ``best_reward``). It never deletes the latest checkpoint or the checkpoint the job starts from. The error names the reason:
 
-- the storage cap: ``--reef-checkpoint-max-storage-fraction`` (default 0.8) or ``--reef-checkpoint-max-storage``
-- the free-space floor: ``--reef-checkpoint-min-free-space-fraction`` (default 0.1) or ``--reef-checkpoint-min-free-space``
+- the storage cap: ``--aster-checkpoint-max-storage-fraction`` (default 0.8) or ``--aster-checkpoint-max-storage``
+- the free-space floor: ``--aster-checkpoint-min-free-space-fraction`` (default 0.1) or ``--aster-checkpoint-min-free-space``
 - ``unowned checkpoint assets``: files in the checkpoint directories that Slime did not save
 
 Free disk space, change the limits, or move the extra files out of the checkpoint root.
@@ -87,11 +87,11 @@ Harness evolution
 
 **No step publishes a change.** A step ran and its candidate was not selected. Read the step's ``candidate_rollouts`` in its snapshots row, and each rollout's record under the scenario's history (``<evolution.state_dir>/<scenario>/<component>/history/rollouts/``, where ``<component>`` is ``harness`` for ``HarnessEvolutionRecipe``; see `History <evolve-your-harness.rst#history>`__). Both sides scoring nothing means the rollouts could not run: the adapter binary could not be launched (``evolution.binary``, when set, must point at a real binary), the endpoint rejected ``tool_choice: "auto"`` (vLLM needs ``--enable-auto-tool-choice --tool-call-parser hermes``), or a rollout exceeded ``evolution.evaluation.task_timeout_s`` (600 seconds by default). Both sides scoring the same means the patch did not change the outcome; ``evolution.evaluation.policy: none`` publishes every valid candidate if that is what you want.
 
-**GET /reef/harness returns 404.** No request has named the scenario yet, the recipe's seed is empty and no step has published a tree, or the scenario's recipe serves no files; the answer's message says which. An inference call that names the scenario creates it, with the seed as its first snapshot, unless ``reef.allow_implicit_scenario_creation`` is false; then create it with ``POST /reef/scenarios``. The catalog at ``GET /reef/harness/artifacts`` lists what exists.
+**GET /aster/harness returns 404.** No request has named the scenario yet, the recipe's seed is empty and no step has published a tree, or the scenario's recipe serves no files; the answer's message says which. An inference call that names the scenario creates it, with the seed as its first snapshot, unless ``aster.allow_implicit_scenario_creation`` is false; then create it with ``POST /aster/scenarios``. The catalog at ``GET /aster/harness/artifacts`` lists what exists.
 
 **A client captures no receipts, so a report has nothing to send.** The installed ``reef-client`` is older than 0.2.0 and reads a header the service no longer sends. ``pip install -U "reef-client>=0.2.0"``.
 
-**An agent on a pulled tree gets HTTP 400 ``missing or empty x-reef-scenario``.** The default ``GET /reef/harness`` files carry no endpoint and no credential, so the client binds the agent's model itself. Install with ``reef-client harness connect``, or pull ``?form=client&service_url=<reef>&root=<directory>``: those files send each call to ``<reef>/reef/scenarios/<scenario>/v1``, which names the scenario in the path. A binding of your own must send the ``x-reef-scenario`` header and the token (`Use a published tree <evolve-your-harness.rst#use-a-published-tree>`__).
+**An agent on a pulled tree gets HTTP 400 ``missing or empty x-aster-scenario``.** The default ``GET /aster/harness`` files carry no endpoint and no credential, so the client binds the agent's model itself. Install with ``reef-client harness connect``, or pull ``?form=client&service_url=<aster>&root=<directory>``: those files send each call to ``<aster>/aster/scenarios/<scenario>/v1``, which names the scenario in the path. A binding of your own must send the ``x-aster-scenario`` header and the token (`Use a published tree <evolve-your-harness.rst#use-a-published-tree>`__).
 
 **``reef-client harness sync`` says that a snapshot and your files both changed a file.** A step changed the same lines of a file of the install that you changed. Your files stay as they are. Make those lines match one side, then sync again; ``sync --discard`` drops all your changes instead.
 

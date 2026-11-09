@@ -7,12 +7,12 @@ import time
 from tests.support._policy_recipe import TestPolicyRecipe
 from tests.support.runtime_stubs import StubInferenceRuntime, StubTrainingComponent, runtime_bindings
 
-from reef.artifact import InMemoryRepositoryBackend
-from reef.core import AgentRecord, RequestType
-from reef.dispatcher import Dispatcher
-from reef.observability import ExperimentTracker, NullExperimentLogger
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.sqlite import SQLiteScenarioStorage
+from aster.artifact import InMemoryRepositoryBackend
+from aster.core import AgentRecord, RequestType
+from aster.dispatcher import Dispatcher
+from aster.observability import ExperimentTracker, NullExperimentLogger
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.sqlite import SQLiteScenarioStorage
 
 
 class ImportingInference(StubInferenceRuntime):
@@ -125,7 +125,7 @@ def dispatcher(tmp_path, *, experiment_tracker=None):
 
 
 def finished_jobs(dispatcher: Dispatcher) -> int:
-    """The number of training jobs that scenario ``math`` finished, as ``GET /reef/status`` reports it."""
+    """The number of training jobs that scenario ``math`` finished, as ``GET /aster/status`` reports it."""
     dispatcher.get_or_create_scenario("math")
     return dispatcher.build_training_status()["scenarios"]["math"]["finished_jobs"]
 

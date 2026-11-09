@@ -4,17 +4,17 @@ One rollout is one training run:
 
     train  — reef-eval runs the ``harbor/chemistry`` task under our agent; the
              agent runs the stage in the task container, which samples each
-             step's 32x8 grid through Reef, reports every rollout with its
+             step's 32x8 grid through Aster, reports every rollout with its
              coordinates, waits for the step's training snapshot, and evaluates
              avg@n on the test split every few steps
     verify — Harbor's isolated verifier reads the run's curve and reports its
              last avg@n
 
 ``Lab.run`` is reef-eval's one primitive: task in, trusted scored row out. The
-row is keyed by the Reef scenario and the settings that shape the run, so a
+row is keyed by the Aster scenario and the settings that shape the run, so a
 run with other settings is a new rollout and a rerun of a recorded one is
 skipped. A scenario keeps the weights it trained, so a new run gets a new
-``REEF_SCENARIO``. The Reef stack is already serving; ``run.sh`` starts it
+``ASTER_SCENARIO``. The Aster stack is already serving; ``run.sh`` starts it
 from ``serve.yaml`` first.
 """
 
@@ -25,9 +25,9 @@ from pathlib import Path
 from reef_eval import Lab
 
 HERE = Path(__file__).resolve().parent
-#: Reef serves the trained weights under this name; the stage asks for it.
-MODEL = "reef"
-SCENARIO = os.environ.get("REEF_SCENARIO", "sdpo-chemistry")
+#: Aster serves the trained weights under this name; the stage asks for it.
+MODEL = "aster"
+SCENARIO = os.environ.get("ASTER_SCENARIO", "sdpo-chemistry")
 #: The host settings the stage reads in the container; with the scenario they name the run's row.
 RUN_SETTINGS = (
     "SDPO_STEPS",

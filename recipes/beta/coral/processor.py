@@ -1,6 +1,6 @@
 """CORAL attempts -> grouped policy batches (the training-semantics piece).
 
-CORAL's attempt tree already has the shape reef's grouped relative-reward
+CORAL's attempt tree already has the shape aster's grouped relative-reward
 training wants: every attempt names its ``parent_hash``, so the siblings of
 one parent form one comparison group — attempts that started from the same
 code and diverged. ``CoralSamples`` groups reports by parent commit
@@ -13,7 +13,7 @@ The stages consume exactly the reports that :mod:`recipes.beta.coral.reporter` e
 compare against each other under a sentinel group — they all diverged from
 the task seed.
 
-Token/loss-mask/logprob materialization is reef's ``SampleAssembly`` over the
+Token/loss-mask/logprob materialization is aster's ``SampleAssembly`` over the
 referenced INFERENCE records; a CORAL attempt is a multi-call trajectory, so
 ``CoralSamples`` turns multi-turn assembly on by default.
 """
@@ -25,13 +25,13 @@ from collections.abc import Hashable, Mapping
 from dataclasses import dataclass, replace
 from typing import Any, Self
 
-from reef.core.config import config_option
-from reef.core.trajectories import trajectory_reward
-from reef.pipeline_context import PipelineContext
-from reef.record2sample import GroupDecision, Record2Sample, ReportContext, ReportGrouping, ReportSamples
-from reef.record2sample.assembly import SampleAssembly, SampleAssemblySettings
-from reef.sample2job import Sample2Job, Sample2JobSettings
-from reef.train.types import JobData, Sample, TrajectorySample, trajectories
+from aster.core.config import config_option
+from aster.core.trajectories import trajectory_reward
+from aster.pipeline_context import PipelineContext
+from aster.record2sample import GroupDecision, Record2Sample, ReportContext, ReportGrouping, ReportSamples
+from aster.record2sample.assembly import SampleAssembly, SampleAssemblySettings
+from aster.sample2job import Sample2Job, Sample2JobSettings
+from aster.train.types import JobData, Sample, TrajectorySample, trajectories
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,6 @@
 # tttd
 
-Reproduction of [Learning to Discover at Test Time](https://arxiv.org/abs/2601.16175) as a Reef weight-training recipe. TTT-Discover makes repeated attempts at one hard problem at test time: rollouts arrive as a fixed grid of sibling attempts, the step trains on the whole group, and the next grid runs on the weights it produced. The package holds the method; the search loop that drives it lives in [examples/tttd](examples/tttd/README.md).
+Reproduction of [Learning to Discover at Test Time](https://arxiv.org/abs/2601.16175) as an Aster weight-training recipe. TTT-Discover makes repeated attempts at one hard problem at test time: rollouts arrive as a fixed grid of sibling attempts, the step trains on the whole group, and the next grid runs on the weights it produced. The package holds the method; the search loop that drives it lives in [examples/tttd](examples/tttd/README.md).
 
 - Paper: [arXiv:2601.16175](https://arxiv.org/abs/2601.16175)
 - Pins: `slime` pinned to `THUDM/slime@8a53b680e82932dabb48cbfcd34f749854400857` (via `pyproject.toml` `dependency-groups.runtime`); the completed run used Slime `41014d1f` and `Qwen/Qwen3-8B` with thinking, rank-32 LoRA, Adam lr `4e-5`, and the Erdos minimum-overlap task

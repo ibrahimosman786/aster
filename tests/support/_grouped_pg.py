@@ -3,13 +3,13 @@
 Group-relative pg is the shape a cookbook grouped method would register: a
 processor that groups reports by ``metadata.comparison_set`` and an objective
 that turns the resulting ``JobData`` into group-relative
-advantages. Both live here rather than in ``reef`` because no bundled recipe
+advantages. Both live here rather than in ``aster`` because no bundled recipe
 uses them — the grouping machinery they exercise (group keys, slots, the
 ``ReportGrouping.decide`` barrier, ``JobData`` through the trainer and the
 runtime) IS production code, and these suites are what keep it pinned.
 
 ``GROUPED_PG_OBJECTIVE`` is the dotted ``module:Objective`` spelling the
-resolver (``reef.train.slime_backend.objectives.resolve_slime_objective``) accepts, so tests exercise
+resolver (``aster.train.slime_backend.objectives.resolve_slime_objective``) accepts, so tests exercise
 the same custom-objective path a reader's package would.
 """
 
@@ -19,17 +19,17 @@ from collections.abc import Hashable, Mapping
 from dataclasses import replace
 from typing import Any
 
-from reef.core.records_types import AgentRecord
-from reef.core.trajectories import trajectory_reward
-from reef.pipeline_context import PipelineContext
-from reef.record2sample import GroupDecision, ReportContext, ReportGrouping, ReportSamples
-from reef.record2sample.assembly import SampleAssembly, SampleAssemblySettings
-from reef.sample2job import Sample2Job
-from reef.train.algos.helpers import next_steps
-from reef.train.algos.signals import TrainingSignal
-from reef.train.pipeline import TrainingPipeline
-from reef.train.slime_backend.objectives import SlimeObjective
-from reef.train.types import JobData, Sample, TrajectorySample, trajectory_groups
+from aster.core.records_types import AgentRecord
+from aster.core.trajectories import trajectory_reward
+from aster.pipeline_context import PipelineContext
+from aster.record2sample import GroupDecision, ReportContext, ReportGrouping, ReportSamples
+from aster.record2sample.assembly import SampleAssembly, SampleAssemblySettings
+from aster.sample2job import Sample2Job
+from aster.train.algos.helpers import next_steps
+from aster.train.algos.signals import TrainingSignal
+from aster.train.pipeline import TrainingPipeline
+from aster.train.slime_backend.objectives import SlimeObjective
+from aster.train.types import JobData, Sample, TrajectorySample, trajectory_groups
 
 GROUPED_PG_OBJECTIVE = "tests.support._grouped_pg:GroupedPolicyObjective"
 

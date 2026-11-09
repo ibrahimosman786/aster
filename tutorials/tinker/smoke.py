@@ -9,7 +9,7 @@ import os
 import time
 import uuid
 
-from reef_client import ReefClient
+from reef_client import AsterClient
 
 
 def main() -> None:
@@ -17,13 +17,13 @@ def main() -> None:
     parser.add_argument("--url", default="http://127.0.0.1:8900")
     parser.add_argument("--timeout", type=float, default=1800)
     args = parser.parse_args()
-    client = ReefClient(args.url, token=os.environ["REEF_TOKEN"], timeout_s=args.timeout)
+    client = AsterClient(args.url, token=os.environ["ASTER_TOKEN"], timeout_s=args.timeout)
     scenario = f"tinker-smoke-{uuid.uuid4().hex[:8]}"
     # The inference routes serve only a scenario that exists: create it first.
-    client.post("/reef/scenarios", scenario, {"name": scenario})
+    client.post("/aster/scenarios", scenario, {"name": scenario})
     deadline = time.monotonic() + args.timeout
     while time.monotonic() < deadline:
-        startup = client.get(f"/reef/scenarios/{scenario}/inference/status")
+        startup = client.get(f"/aster/scenarios/{scenario}/inference/status")
         if startup["state"] == "ready":
             break
         if startup["state"] == "failed":
@@ -63,13 +63,13 @@ def main() -> None:
         )
     deadline = time.monotonic() + args.timeout
     while time.monotonic() < deadline:
-        status = client.get("/reef/status")
+        status = client.get("/aster/status")
         block = status.get("scenarios", {}).get(scenario) or {}
         if block.get("scenario_step", 0) >= 1 and block.get("served_artifact_id") not in (None, base_artifact_id):
             print(f"Committed one Tinker update for {scenario}; it serves as {block['served_artifact_id']}")
             return
         time.sleep(2)
-    raise TimeoutError("Reef did not commit the Tinker update; inspect service training status and logs")
+    raise TimeoutError("Aster did not commit the Tinker update; inspect service training status and logs")
 
 
 if __name__ == "__main__":

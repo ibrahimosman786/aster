@@ -9,11 +9,11 @@ import pytest
 import yaml
 from tests.support.config_helpers import deployment_layout
 
-from reef.execution.executor.ray import RayExecutor
-from reef.service.deploy.execution import validate_services
-from reef.service.deploy.orchestrator import _Stack
+from aster.execution.executor.ray import RayExecutor
+from aster.service.deploy.execution import validate_services
+from aster.service.deploy.orchestrator import _Stack
 
-pytestmark = pytest.mark.skipif(os.environ.get("REEF_TEST_RAY") != "1", reason="opt-in real Ray integration")
+pytestmark = pytest.mark.skipif(os.environ.get("ASTER_TEST_RAY") != "1", reason="opt-in real Ray integration")
 
 
 @pytest.mark.parametrize(
@@ -69,13 +69,13 @@ def test_local_training_controllers_leave_all_model_gpus_available(tmp_path, mon
         stack = _Stack(config, validate_services(config, "test.yaml"), tmp_path, 60, tmp_path / "input.yaml")
         stack.start()
         driver = json.loads((tmp_path / "slime-driver.json").read_text())
-        address = stack.config["reef"]["ray_address"]
+        address = stack.config["aster"]["ray_address"]
         assert driver == {"available": capacity, "address": address}
-        assert json.loads((tmp_path / "reef.json").read_text()) == address
+        assert json.loads((tmp_path / "aster.json").read_text()) == address
         assert not any(isinstance(executor, RayExecutor) for executor in stack._executors.values())
-        for name in ("slime-driver", "reef"):
+        for name in ("slime-driver", "aster"):
             snapshot = yaml.safe_load((tmp_path / name / "runtime.yaml").read_text())
-            assert snapshot["reef"]["ray_address"] == address
+            assert snapshot["aster"]["ray_address"] == address
     finally:
         if stack is not None:
             stack.shutdown(grace=1)

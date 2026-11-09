@@ -306,9 +306,9 @@ include all displayed baseline values, source checksums, and numerical histories
 Inspect progress and resume
 ---------------------------
 
-Each task writes ``reef.log``, ``guidance-run/``, ``checkpoints/``,
+Each task writes ``aster.log``, ``guidance-run/``, ``checkpoints/``,
 ``agent-record/``, and ``lab/`` under its state directory. After each step the
-controller polls ``GET /reef/status`` until the step's training job has ended,
+controller polls ``GET /aster/status`` until the step's training job has ended,
 then reads the job's checkpoint metrics from the scenario's commits. It
 commits the matching archive only after these checks pass.
 

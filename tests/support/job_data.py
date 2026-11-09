@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from reef.core.job_data import JobData
-from reef.storage.data import MemoryDataStore
-from reef.storage.job_data import JobDataRef
-from reef.storage.tasks import LocalTaskFileStore
+from aster.core.job_data import JobData
+from aster.storage.data import MemoryDataStore
+from aster.storage.job_data import JobDataRef
+from aster.storage.tasks import LocalTaskFileStore
 
 
 def job_data_ref(data: JobData) -> JobDataRef:

@@ -12,27 +12,27 @@ from tests.support._threshold_processor import ThresholdJobData, threshold_pipel
 from tests.support.runtime_stubs import StubInferenceRuntime, StubTrainingComponent
 from tests.support.samples import data_storage
 
-from reef.artifact import DefaultStart, InMemoryRepositoryBackend, SnapshotRef
-from reef.artifact.components import ComponentSpec, ScenarioComponents, TextFileTree
-from reef.core import AgentRecord, RequestType
-from reef.core.activation import ActivationRule
-from reef.dispatcher import Dispatcher
-from reef.evaluation.activation import AlwaysActivate
-from reef.execution.jobs import SupportsReceipt
-from reef.observability import ExperimentTracker, NullExperimentLogger
-from reef.pipeline_context import PipelineContext
-from reef.recipe import Recipe
-from reef.scenario import Scenario
-from reef.storage.samples import TrainerSamples
-from reef.storage.sql_coordination import open_coordination
-from reef.train import ComponentTrainer, Trainer
-from reef.train.component import JobStatus, SavedCheckpoint, TrainingJob
-from reef.train.jobs import JobLoop
-from reef.train.pipeline import TrainingPipeline
+from aster.artifact import DefaultStart, InMemoryRepositoryBackend, SnapshotRef
+from aster.artifact.components import ComponentSpec, ScenarioComponents, TextFileTree
+from aster.core import AgentRecord, RequestType
+from aster.core.activation import ActivationRule
+from aster.dispatcher import Dispatcher
+from aster.evaluation.activation import AlwaysActivate
+from aster.execution.jobs import SupportsReceipt
+from aster.observability import ExperimentTracker, NullExperimentLogger
+from aster.pipeline_context import PipelineContext
+from aster.recipe import Recipe
+from aster.scenario import Scenario
+from aster.storage.samples import TrainerSamples
+from aster.storage.sql_coordination import open_coordination
+from aster.train import ComponentTrainer, Trainer
+from aster.train.component import JobStatus, SavedCheckpoint, TrainingJob
+from aster.train.jobs import JobLoop
+from aster.train.pipeline import TrainingPipeline
 
 WEIGHTS = "weights"
 HARNESS = "harness"
-from reef.execution.workers import SERVICE_COMPONENTS
+from aster.execution.workers import SERVICE_COMPONENTS
 
 
 class ComponentJobs(StubTrainingComponent):

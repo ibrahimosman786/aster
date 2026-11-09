@@ -7,7 +7,7 @@ import { test } from "node:test";
 import { pathToFileURL } from "node:url";
 
 function fixture(context) {
-  const directory = mkdtempSync(join(tmpdir(), "reef-stats-"));
+  const directory = mkdtempSync(join(tmpdir(), "aster-stats-"));
   context.after(() => rmSync(directory, { recursive: true, force: true }));
   mkdirSync(join(directory, "scripts"));
   const script = join(directory, "scripts/fetch-repo-stats.mjs");

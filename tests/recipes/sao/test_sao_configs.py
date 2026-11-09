@@ -4,7 +4,7 @@ The SAO migration (commit 55e551d) removed ``--advantage-estimator=sao`` from
 Slime's argparse choices while the SAO config still passed it — the deployment
 could not boot, and nothing in CI noticed because no test ever
 re-parsed a cookbook YAML's flags. These tests close that hole: for each Slime
-deployment they build the Slime arguments exactly as ``reef serve`` and the
+deployment they build the Slime arguments exactly as ``aster serve`` and the
 HTTP service do (``SlimeDeployment.runtime_config`` and ``slime_arguments``),
 strip the retention and loss-family options exactly as
 ``start_slime_runner`` does, and then feed the remaining flags to the
@@ -15,7 +15,7 @@ Level of validation achieved on CPU (no Megatron, no sglang installed):
 
 * Every Slime-owned flag is parsed by the real parser — a typo, a removed
   flag, an invalid choice, or a bad value fails here.
-* Reef-level flags (``--reef-checkpoint-*``, ``--sao-*``) are parsed by the
+* Aster-level flags (``--aster-checkpoint-*``, ``--sao-*``) are parsed by the
   real retention and loss-family parsers.
 * The recipe's backend contract (``validate_backend_args``) and the component
   preflight (``validate_slime_args``) run on the parsed namespace, with the
@@ -89,7 +89,7 @@ def _discover_example_deployments() -> list[Path]:
     deployments: list[Path] = []
     for path in _iter_config_files():
         text = path.read_text()
-        if re.search(r"(?m)^reef:", text):
+        if re.search(r"(?m)^aster:", text):
             deployments.append(path)
     return sorted(deployments)
 
@@ -111,7 +111,7 @@ def _set_test_endpoints(config: dict) -> None:
 
 def _resolved_strings(config: dict, value):
     """Yield every string after applying the orchestrator's config pass."""
-    from reef.service.deploy.config_utils import interpolate_config
+    from aster.service.deploy.config_utils import interpolate_config
 
     if isinstance(value, dict):
         for item in value.values():
@@ -185,23 +185,23 @@ _MEGATRON_ONLY_FLAGS = frozenset(
 )
 
 # Representative values for the parameterized training deployments.  Each
-# example's ``run.sh`` normally supplies these before invoking ``reef serve``;
+# example's ``run.sh`` normally supplies these before invoking ``aster serve``;
 # setting them here makes the generated command testable without a GPU stack.
 _CONFIG_ENV = {
     "OPD_MODEL_PATH": "/root/models/Qwen3-8B-Base-SFT",
-    "OPD_RUN_DIR": "/tmp/reef-opd-config-test",
+    "OPD_RUN_DIR": "/tmp/aster-opd-config-test",
     "OPD_TEACHER_PATH": "/root/models/Qwen3-32B",
-    "REEF_TOKEN": "config-test-token",
+    "ASTER_TOKEN": "config-test-token",
     "SDPO_MODEL_PATH": "/root/models/Qwen3-8B",
-    "SDPO_RUN_DIR": "/tmp/reef-config-test/sdpo",
+    "SDPO_RUN_DIR": "/tmp/aster-config-test/sdpo",
     "SDFT_LR_DECAY_ITERS": "252",
     "SDFT_MODEL_PATH": "/root/models/Qwen2.5-7B-Instruct",
     # Tinker deployments check their API key's variable when they resolve.
     "TINKER_API_KEY": "config-test-key",
-    "REEF_UPSTREAM_URL": "http://127.0.0.1:8000/v1",
-    "REEF_UPSTREAM_MODEL": "config-test-model",
+    "ASTER_UPSTREAM_URL": "http://127.0.0.1:8000/v1",
+    "ASTER_UPSTREAM_MODEL": "config-test-model",
     "SAO_BATCH": "128",
-    "SAO_CKPT_DIR": "/tmp/reef-config-test/sao-checkpoints",
+    "SAO_CKPT_DIR": "/tmp/aster-config-test/sao-checkpoints",
     "SAO_ROLLOUT_GPUS": "8",
     "SAO_TRAIN_NODES": "4",
     "TTTD_CHECKPOINT_INTERVAL": "2",
@@ -209,20 +209,20 @@ _CONFIG_ENV = {
     "TTTD_GLOBAL_BATCH_SIZE": "8",
     "TTTD_GROUPS_PER_STEP": "2",
     "TTTD_INFERENCE_HOST": "127.0.0.1",
-    "TTTD_LOAD_PATH": "/tmp/reef-config-test/checkpoints/megatron",
+    "TTTD_LOAD_PATH": "/tmp/aster-config-test/checkpoints/megatron",
     "TTTD_LORA_ALPHA": "32",
     "TTTD_LORA_RANK": "32",
     "TTTD_LOG_PROBS_CHUNK_SIZE": "512",
     "TTTD_MAX_RESPONSE_LENGTH": "4096",
     "TTTD_MAX_TOKENS_PER_GPU": "8192",
-    "TTTD_MODEL_PATH": "/tmp/reef-config-test/model",
+    "TTTD_MODEL_PATH": "/tmp/aster-config-test/model",
     "TTTD_NUM_GPUS": "2",
     "TTTD_NUM_STEPS": "1",
     "TTTD_PHASE1_MAX_TOKENS": "4096",
     "TTTD_RAY_NUM_CPUS": str(min(60, os.cpu_count() or 1)),
     "TTTD_ROLLOUTS_PER_GROUP": "4",
     "TTTD_SEQ_LENGTH": "8192",
-    "TTTD_STATE_DIR": "/tmp/reef-config-test/state",
+    "TTTD_STATE_DIR": "/tmp/aster-config-test/state",
     "TTTD_STEPS": "1",
     "TTTD_TENSOR_PARALLEL_SIZE": "2",
 }
@@ -266,25 +266,25 @@ def _build_slime_parser() -> argparse.ArgumentParser:
     pytest.importorskip("slime.utils.arguments")
     from slime.utils.arguments import get_slime_extra_args_provider
 
-    from reef.train.slime_backend.reef_adapters.slime_arguments import add_reef_slime_arguments
+    from aster.train.slime_backend.aster_adapters.slime_arguments import add_aster_slime_arguments
 
     parser = argparse.ArgumentParser(allow_abbrev=False, exit_on_error=False)
     get_slime_extra_args_provider()(parser)
-    add_reef_slime_arguments(parser)
+    add_aster_slime_arguments(parser)
     return parser
 
 
 def _slime_tokens(config: dict) -> tuple[list[str], str, str]:
     """The Slime arguments the HTTP service builds, the recipe reference and its loss family."""
-    from reef.recipe.registry import recipe_class_for
-    from reef.service.deploy.deployment_config import selected_weight_training
-    from reef.service.deploy.service_config import service_config_from_mapping
-    from reef.train.slime_backend.launch import TEACHER_URL_ENV, SlimeDeployment, slime_arguments
+    from aster.recipe.registry import recipe_class_for
+    from aster.service.deploy.deployment_config import selected_weight_training
+    from aster.service.deploy.service_config import service_config_from_mapping
+    from aster.train.slime_backend.launch import TEACHER_URL_ENV, SlimeDeployment, slime_arguments
 
-    recipe = config["reef"]["recipe"]
+    recipe = config["aster"]["recipe"]
     recipe_type = recipe_class_for(recipe)
     weight_type = None if recipe_type is None else selected_weight_training(recipe_type, config)
-    assert weight_type is not None, f"reef.recipe {recipe!r} must train weights"
+    assert weight_type is not None, f"aster.recipe {recipe!r} must train weights"
     runtime = SlimeDeployment().component_config(
         asdict(service_config_from_mapping(config)), default_parameters=weight_type.default_parameters()
     )
@@ -316,8 +316,8 @@ def _parse_config(config_path: Path):
     Returns ``(args, spec, options, recipe)`` with ``args`` parsed by the real
     Slime parser and Megatron-only leftovers verified against the allowlist.
     """
-    from reef.train.slime_backend.loss_families import resolve_loss_family
-    from reef.train.slime_backend.reef_adapters.training_job.storage import retention_options
+    from aster.train.slime_backend.loss_families import resolve_loss_family
+    from aster.train.slime_backend.aster_adapters.training_job.storage import retention_options
 
     with patch.dict(os.environ, _CONFIG_ENV, clear=False):
         config = load_deployment(config_path)
@@ -330,7 +330,7 @@ def _parse_config(config_path: Path):
     tokens = _strip_sglang_flags(tokens)
 
     parser = _build_slime_parser()
-    from reef.train.slime_backend.reef_adapters.arguments import SlimeArguments
+    from aster.train.slime_backend.aster_adapters.arguments import SlimeArguments
 
     # The full parser adds these bootstrap flags before its Slime option provider.
     parser.add_argument("--debug-train-only", action="store_true")
@@ -374,7 +374,7 @@ def _apply_validation_derivations(args) -> None:
         args.eps_clip_high = args.eps_clip
     # ppo implies a critic.
     args.use_critic = args.use_critic or args.advantage_estimator == "ppo"
-    # Without --colocate, which Reef refuses, both offload phases default to off.
+    # Without --colocate, which Aster refuses, both offload phases default to off.
     if args.offload_train is None:
         args.offload_train = False
     if args.offload_rollout is None:
@@ -387,7 +387,7 @@ def test_config_discovery_excludes_materialized_runtime_files(tmp_path, monkeypa
     generated = tmp_path / "example" / "work" / "deployment" / "runtime.yaml"
     for path in (shipped, generated):
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("reef: {}\ntraining:\n  backend: slime\n")
+        path.write_text("aster: {}\ntraining:\n  backend: slime\n")
     monkeypatch.setattr(sys.modules[__name__], "CONFIG_ROOTS", (tmp_path,))
     assert _discover_example_deployments() == [shipped]
 
@@ -441,12 +441,12 @@ def test_user_facing_example_deployments_are_discovered() -> None:
 @pytest.mark.unit
 @pytest.mark.parametrize("config_path", EXAMPLE_DEPLOYMENTS, ids=_config_id)
 def test_user_facing_example_deployment_resolves(config_path: Path) -> None:
-    from reef.recipe import load_recipe_config
-    from reef.recipe.registry import recipe_class_for
-    from reef.service.assembly import _recipe_owned_settings
-    from reef.service.deploy.execution import validate_services
-    from reef.service.deploy.service_config import service_config_from_mapping
-    from reef.service.deploy.serving import inference_handler_factory_for
+    from aster.recipe import load_recipe_config
+    from aster.recipe.registry import recipe_class_for
+    from aster.service.assembly import _recipe_owned_settings
+    from aster.service.deploy.execution import validate_services
+    from aster.service.deploy.service_config import service_config_from_mapping
+    from aster.service.deploy.serving import inference_handler_factory_for
 
     with patch.dict(os.environ, _CONFIG_ENV, clear=False):
         config = load_deployment(config_path)
@@ -491,7 +491,7 @@ def test_user_facing_example_deployment_resolves(config_path: Path) -> None:
 
 @pytest.mark.unit
 def test_tttd_deployment_anchors_git_and_checkpoint_state_to_absolute_root() -> None:
-    from reef.service.deploy.service_config import service_config_from_mapping
+    from aster.service.deploy.service_config import service_config_from_mapping
 
     with patch.dict(os.environ, _CONFIG_ENV, clear=False):
         config = load_deployment(REPO_ROOT / "recipes" / "tttd" / "examples" / "tttd" / "serve.yaml")
@@ -508,19 +508,19 @@ def test_tttd_deployment_anchors_git_and_checkpoint_state_to_absolute_root() -> 
 @pytest.mark.unit
 @pytest.mark.parametrize("config_path", TRAINING_CONFIGS, ids=_config_id)
 def test_cookbook_training_config_parses_and_validates(config_path: Path) -> None:
-    from reef.train.slime_backend.reef_adapters.preflight import validate_slime_args
-    from reef.train.slime_backend.reef_adapters.slime_arguments import configure_reef_loss_args
+    from aster.train.slime_backend.aster_adapters.preflight import validate_slime_args
+    from aster.train.slime_backend.aster_adapters.slime_arguments import configure_aster_loss_args
 
     args, spec, options, recipe = _parse_config(config_path)
     _apply_validation_derivations(args)
     spec.apply_driver_options(args, options)
     # Match start_slime_runner: family projection can intentionally re-enable
     # the Slime pre-train pass after the YAML's initial --disable flag.
-    configure_reef_loss_args(args)
+    configure_aster_loss_args(args)
 
     # Paths are representative placeholders; tokenizer compatibility has its
     # own contract tests and is checked against real models during GPU startup.
-    with patch("reef.train.slime_backend.distill.algorithm.validate_teacher_tokenizer") as validate_tokenizers:
+    with patch("aster.train.slime_backend.distill.algorithm.validate_teacher_tokenizer") as validate_tokenizers:
         spec.validate_backend_args(args, recipe=recipe)
     if getattr(args, "distill_teacher_url", ""):
         validate_tokenizers.assert_called_once_with(args.hf_checkpoint, args.distill_teacher_model_path)
@@ -572,7 +572,7 @@ def test_critic_steps_per_actor_defaults_to_the_paper_k() -> None:
     # The flag has no default of its own: unset means "the family's default",
     # and for SAO that is the paper's K=2 (SaoSchedule), so an unset flag
     # never silently halves the critic cadence.
-    from reef.train.slime_backend.loss_families import resolve_loss_family
+    from aster.train.slime_backend.loss_families import resolve_loss_family
 
     parser = _build_slime_parser()
     args, _ = parser.parse_known_args(_REQUIRED_BASELINE)

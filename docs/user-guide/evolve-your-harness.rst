@@ -16,7 +16,7 @@ You evolve a harness in four stages:
    selection as your agent's own plugin. It also sends the agent's model calls
    through Aster.
 #. **Use the agent and score it.** Use the agent as you always do, and score
-   sessions with ``POST /reef/report``. When enough scored sessions wait, a
+   sessions with ``POST /aster/report``. When enough scored sessions wait, a
    training step changes the harness and evaluates the change. The offline
    way uses uploaded tasks in place of sessions.
 #. **Get the new snapshot.** Aster stores each selected change as a new snapshot.
@@ -57,12 +57,12 @@ How it works
      - ``reef-client harness run`` installs the active selection and starts the
        agent with your own configuration plus the snapshot.
    * - 2
-     - The agent's model calls go to ``/reef/scenarios/<scenario>/v1/*``.
+     - The agent's model calls go to ``/aster/scenarios/<scenario>/v1/*``.
        Aster forwards and records each one. When the agent exits, the client
        sends the files that the session changed.
    * - 3
      - The person, or a program that checks the work, scores the session with
-       ``POST /reef/report``.
+       ``POST /aster/report``.
    * - 4
      - When ``job_samples`` traces wait (default 1), a training step starts
        (see `Step data`_).
@@ -115,31 +115,31 @@ You need an Aster checkout (`Laptop, no GPU
 reef-client``, a model endpoint that can call tools, and Node with ``npm``.
 The offline way also needs Docker. The tutorial's deployment listens on
 ``127.0.0.1:8901`` without a token; with one, add ``-H "Authorization:
-Bearer $REEF_TOKEN"`` to each ``curl``.
+Bearer $ASTER_TOKEN"`` to each ``curl``.
 
 Online: learn from your sessions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
-   export REEF_UPSTREAM_URL=https://api.moonshot.ai   # without /v1
-   export REEF_UPSTREAM_MODEL=kimi-k2.6
-   export REEF_UPSTREAM_API_KEY=sk-...
+   export ASTER_UPSTREAM_URL=https://api.moonshot.ai   # without /v1
+   export ASTER_UPSTREAM_MODEL=kimi-k2.6
+   export ASTER_UPSTREAM_API_KEY=sk-...
    aster serve -c tutorials/evolve-your-harness/configs/deployment.yaml
 
    # On your machine: connect once, then use pi as you always do.
-   reef-client harness connect <scenario> --reef http://127.0.0.1:8901
+   reef-client harness connect <scenario> --aster http://127.0.0.1:8901
    pi
 
    # Score the session over its model calls: 0 fails, 1 succeeds.
-   CALLS=$(curl -s "http://127.0.0.1:8901/reef/scenarios/<scenario>/records?request_type=inference&limit=100" \
+   CALLS=$(curl -s "http://127.0.0.1:8901/aster/scenarios/<scenario>/records?request_type=inference&limit=100" \
      | jq -c '[.records[].agent_record_id]')
-   curl -s -X POST http://127.0.0.1:8901/reef/report \
-     -H "x-reef-scenario: <scenario>" -H "Content-Type: application/json" \
+   curl -s -X POST http://127.0.0.1:8901/aster/report \
+     -H "x-aster-scenario: <scenario>" -H "Content-Type: application/json" \
      -d "{\"references\": $CALLS, \"score\": 0, \"feedback\": \"it said the test passed without running it\"}"
 
    # The steps and their results; a row with "selected": true is a new snapshot.
-   curl -s -H "x-reef-scenario: <scenario>" http://127.0.0.1:8901/reef/harness/artifacts
+   curl -s -H "x-aster-scenario: <scenario>" http://127.0.0.1:8901/aster/harness/artifacts
 
 The next ``pi`` session starts on the new active selection. `Tutorial: evolve your
 agent's harness <../getting-started/harness-tutorial.rst>`__ walks through
@@ -157,11 +157,11 @@ Change the deployment's evaluation and add a ``pipeline`` section:
        evolution:
          evaluation:
            imported_tasks: true
-           scorer: reef.evaluation.harness:VerifierRewardScorer
+           scorer: aster.evaluation.harness:VerifierRewardScorer
            policy: compare
    pipeline:
      sample2job:
-       module: reef.sample2job.traces:TrainTaskJobData
+       module: aster.sample2job.traces:TrainTaskJobData
        config: {buffer_size: 4}
 
 Then upload Harbor task directories as task items of the scenario's owner,
@@ -172,11 +172,11 @@ run:
 .. code:: bash
 
    tar -czf train.tar.gz -C <tasks-directory> <task-a> <task-b>
-   curl -f "http://127.0.0.1:8901/reef/namespaces/<scenario>/data/tasks" \
+   curl -f "http://127.0.0.1:8901/aster/namespaces/<scenario>/data/tasks" \
      --get --data-urlencode 'metadata={"scenarios": {"<scenario>": "train"}}' -X POST \
      -H "Content-Type: application/gzip" --data-binary @train.tar.gz
    tar -czf eval.tar.gz -C <tasks-directory> <task-c>
-   curl -f "http://127.0.0.1:8901/reef/namespaces/<scenario>/data/tasks" \
+   curl -f "http://127.0.0.1:8901/aster/namespaces/<scenario>/data/tasks" \
      --get --data-urlencode 'metadata={"scenarios": {"<scenario>": "eval"}}' -X POST \
      -H "Content-Type: application/gzip" --data-binary @eval.tar.gz
 
@@ -187,12 +187,12 @@ The example runs the online way without a person:
 
 .. code:: bash
 
-   export REEF_UPSTREAM_API_KEY=sk-...    # only if your endpoint needs one
+   export ASTER_UPSTREAM_API_KEY=sk-...    # only if your endpoint needs one
    cd tutorials/evolve-your-harness && ./run.sh
 
 ``configs/serve.yaml`` holds the endpoint, the model and the token. Three
 exact-answer tasks go through Aster, and each graded reply is one step. The
-run succeeds when a row of ``/reef/harness/artifacts`` shows ``selected:
+run succeeds when a row of ``/aster/harness/artifacts`` shows ``selected:
 true``. When both sides score nothing, no run gave an answer: vLLM, for
 example, needs ``--enable-auto-tool-choice --tool-call-parser hermes``. See
 `Troubleshooting <troubleshooting.rst>`__.
@@ -277,7 +277,7 @@ Step data
 A step starts when ``pipeline.sample2job.config.job_samples`` traces wait
 (default 1). One trace is one scored report, with every model call it names.
 In ``manual`` mode (``recipe.config.training_mode: manual``), a training
-request starts each step instead: ``POST /reef/train`` with a ``text`` that
+request starts each step instead: ``POST /aster/train`` with a ``text`` that
 the method reads as an instruction (`Manual training
 <../reference/http-api.rst#manual-training>`__). The step needs no trace.
 To learn from inference traffic without reports, name the inference stage;
@@ -286,12 +286,12 @@ each call is then one unscored trace:
 .. code-block:: yaml
 
    pipeline:
-     record2sample: {module: reef.record2sample.traces:InferenceSamples}
+     record2sample: {module: aster.record2sample.traces:InferenceSamples}
 
 Offline runs on uploaded tasks
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``reef.sample2job.traces:TrainTaskJobData`` makes each step from the train
+``aster.sample2job.traces:TrainTaskJobData`` makes each step from the train
 split of the scenario's imported tasks:
 
 - Each uploaded train task trains once, in upload
@@ -392,8 +392,8 @@ screens each prompt, and caps them at ``max_collected_per_client`` (5) and
 History
 ~~~~~~~
 
-- ``GET /reef/harness/artifacts`` has a row per step: the patch, the scores,
-  the method's summary and its cost. ``/reef/harness/artifacts/<step>/page``
+- ``GET /aster/harness/artifacts`` has a row per step: the patch, the scores,
+  the method's summary and its cost. ``/aster/harness/artifacts/<step>/page``
   explains one step.
 - ``<evolution.state_dir>/<scenario>/harness/`` keeps ``history/`` (every
   tree, run and decision; the score cache) and ``steps/<step>/`` (each
@@ -409,12 +409,12 @@ beside your own configuration. A session that starts through Aster also sends
 its model calls to Aster. To go back to an earlier snapshot, activate it
 (`Activate an inactive artifact`_); your next sync installs it.
 The deployment's ``evolution.adapter`` decides the agent; ``GET
-/reef/scenarios`` lists each harness with its ``adapter``.
+/aster/scenarios`` lists each harness with its ``adapter``.
 
 .. code:: bash
 
    pip install reef-client
-   reef-client harness connect --reef http://127.0.0.1:8901
+   reef-client harness connect --aster http://127.0.0.1:8901
 
 .. list-table::
    :header-rows: 1
@@ -450,7 +450,7 @@ The deployment's ``evolution.adapter`` decides the agent; ``GET
    * - Agent
      - The snapshot, as your agent's plugin
    * - ``claude``
-     - The plugin ``reef``: skills and commands as ``reef:<name>``, the rules
+     - The plugin ``aster``: skills and commands as ``aster:<name>``, the rules
        as its output style, the extensions as its hooks.
    * - ``pi``
      - A pi package: skills, prompts and extensions beside yours, the rules
@@ -460,15 +460,15 @@ The deployment's ``evolution.adapter`` decides the agent; ``GET
        opencode has no command that removes a plugin, so its entry stays after
        ``disconnect`` and loads nothing.
    * - ``codex``
-     - The plugin ``reef`` in ``~/.codex``: skills and commands as
-       ``$reef:<name>``.
+     - The plugin ``aster`` in ``~/.codex``: skills and commands as
+       ``$aster:<name>``.
 
 Aster never reads your own configuration, and evaluates each snapshot without
 it. Your configuration still reaches the model calls that Aster records, such
 as your rules and the names of your skills.
 
-A client of your own reads a snapshot with ``GET /reef/harness`` and commits a
-sync with ``POST /reef/harness/import`` (see `HTTP API
+A client of your own reads a snapshot with ``GET /aster/harness`` and commits a
+sync with ``POST /aster/harness/import`` (see `HTTP API
 <../reference/http-api.rst#importing-a-harness>`__).
 
 Activate an inactive artifact
@@ -485,7 +485,7 @@ the deployment's top-level ``activation`` section (`Configuration
 - A kind that is always reviewed, such as native's ``native_loop``, always
   waits.
 
-An inactive artifact sits in ``GET /reef/harness/artifacts`` with ``active:
+An inactive artifact sits in ``GET /aster/harness/artifacts`` with ``active:
 false`` and ``activated: false``, and Aster serves it to no client. The next
 steps train from it in the meantime. To serve it, send the row's
 ``artifact_id`` to the activate route. The same route serves an earlier
@@ -494,7 +494,7 @@ snapshot again. Clients install the active selection at their next sync:
 .. code:: bash
 
    curl -sS -X POST -H "Content-Type: application/json" -d '{"artifact_id": "<artifact_id>"}' \
-     http://127.0.0.1:8901/reef/scenarios/<scenario>/activate
+     http://127.0.0.1:8901/aster/scenarios/<scenario>/activate
 
 `Activate an artifact <operate.rst#activate-an-artifact>`__ describes
 activation, and `Train from an artifact

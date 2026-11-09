@@ -1,0 +1,775 @@
+"""Artifact-agnostic contracts for evaluating and selecting candidate updates.
+
+An evaluation runs rollouts and gives their scores (``RolloutScores``). A publication policy reads the scores
+and decides whether a snapshot is published; training on tasks assembles the same rollouts into samples.
+"""
+
+from __future__ import annotations
+
+import math
+from abc import ABC, abstractmethod
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
+from pathlib import Path
+from types import MappingProxyType
+from typing import Any, Literal
+
+from aster.core.values import JsonValue, require_text
+
+#: The JSON value of a failed rollout's score (``RolloutScore.to_json``).
+FAILED = "failed"
+
+
+@dataclass(frozen=True)
+class RolloutScore:
+    """The score of one rollout: one run of a task under one policy in one environment.
+
+    Values: ``value`` is a finite number when the rollout ran: the scorer's value, or 0 when the policy gave no
+    answer. ``value`` is None when the rollout failed: the environment could not run it, so the policy did not
+    cause the result. Purpose: a rollout runner makes it; publication policies and sample assembly read it
+    through ``RolloutScores``.
+    """
+
+    value: float | None
+
+    def __post_init__(self) -> None:
+        value = self.value
+        if value is None:
+            return
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            raise ValueError("a rollout score is a finite number, or None for a failed rollout")
+        object.__setattr__(self, "value", float(value))
+
+    @classmethod
+    def scored(cls, value: float) -> RolloutScore:
+        """The score of a rollout that ran; ``ValueError`` unless ``value`` is a finite number."""
+        if value is None:
+            raise ValueError("a scored rollout has a finite value")
+        return cls(value)
+
+    @classmethod
+    def failed(cls) -> RolloutScore:
+        return cls(None)
+
+    @property
+    def is_failed(self) -> bool:
+        return self.value is None
+
+    def to_json(self) -> float | str:
+        """The value, or ``FAILED`` for a failed rollout."""
+        return FAILED if self.value is None else self.value
+
+    @classmethod
+    def from_json(cls, value: object) -> RolloutScore:
+        """Read ``to_json``'s value; ``ValueError`` for another value."""
+        if value == FAILED:
+            return cls.failed()
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"a rollout score is a number or {FAILED!r}, not {value!r}")
+        return cls.scored(value)
+
+
+@dataclass(frozen=True)
+class RolloutScores:
+    """The scores of an evaluation's rollouts, by task.
+
+    Values: ``tasks`` is a non-empty tuple of ``(task, scores)`` pairs, in run order. ``task`` is a non-empty
+    string; a task may appear more than once. ``scores`` is a non-empty tuple of ``RolloutScore`` values, one
+    for each run of the task, and every task has the same number of them (``count``). Purpose: an evaluation
+    gives it; a publication policy reads it, such as ``compare_scores`` and ``check_floor``.
+    """
+
+    tasks: tuple[tuple[str, tuple[RolloutScore, ...]], ...]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.tasks, tuple) or not self.tasks:
+            raise ValueError("RolloutScores holds one or more tasks")
+        counts = set()
+        for entry in self.tasks:
+            if not isinstance(entry, tuple) or len(entry) != 2:
+                raise TypeError("RolloutScores.tasks holds (task, scores) pairs")
+            task, scores = entry
+            if not isinstance(task, str) or not task:
+                raise ValueError("a RolloutScores task is a non-empty string")
+            if not isinstance(scores, tuple) or not scores or not all(isinstance(s, RolloutScore) for s in scores):
+                raise TypeError("a RolloutScores task has a non-empty tuple of RolloutScore values")
+            counts.add(len(scores))
+        if len(counts) != 1:
+            raise ValueError("every task of a RolloutScores has the same number of rollouts")
+
+    @classmethod
+    def by_task(cls, tasks: Sequence[str], scores: Sequence[RolloutScore]) -> RolloutScores:
+        """The scores of ``scores``, given task by task: the first ``len(scores) // len(tasks)`` belong to the first
+        task, and so on. ``ValueError`` when ``scores`` does not divide evenly."""
+        if not tasks or len(scores) % len(tasks):
+            raise ValueError("the rollout scores divide evenly among one or more tasks")
+        count = len(scores) // len(tasks)
+        return cls(
+            tuple((task, tuple(scores[index * count : (index + 1) * count])) for index, task in enumerate(tasks))
+        )
+
+    @property
+    def count(self) -> int:
+        """The rollouts of each task."""
+        return len(self.tasks[0][1])
+
+    def rollouts(self) -> tuple[RolloutScore, ...]:
+        """Every rollout's score, task by task, in run order."""
+        return tuple(score for _, scores in self.tasks for score in scores)
+
+    def failed_count(self) -> int:
+        """The rollouts that failed."""
+        return sum(score.is_failed for score in self.rollouts())
+
+    def to_json(self) -> list[dict[str, Any]]:
+        """The value as JSON: ``[{"task": ..., "scores": [...]}, ...]``; ``from_json`` reads it back."""
+        return [{"task": task, "scores": [score.to_json() for score in scores]} for task, scores in self.tasks]
+
+    @classmethod
+    def from_json(cls, value: object) -> RolloutScores:
+        """Read ``to_json``'s value; ``ValueError`` for another value."""
+        if not isinstance(value, list):
+            raise ValueError("rollout scores are a list of tasks")
+        tasks = []
+        for entry in value:
+            if (
+                not isinstance(entry, Mapping)
+                or set(entry) != {"task", "scores"}
+                or not isinstance(entry["scores"], list)
+            ):
+                raise ValueError("each task of rollout scores is an object of task and scores")
+            tasks.append((entry["task"], tuple(RolloutScore.from_json(score) for score in entry["scores"])))
+        return cls(tuple(tasks))
+
+
+def mean_score(scores: Iterable[RolloutScore]) -> float | None:
+    """The mean of the rollouts that did not fail; None when every rollout failed."""
+    values = [score.value for score in scores if score.value is not None]
+    return math.fsum(values) / len(values) if values else None
+
+
+#: The kind of an artifact. A ``harness`` is a whole agent harness that Aster runs as it is, such as a Harbor agent
+#: or an adapter's binary. A ``harness_plugin`` installs into a base harness, such as an evolved tree, a skill
+#: tree, or request defaults. A ``model`` is a whole model, such as a provider's model or full weights. A ``model_adapter`` is a LoRA
+#: adapter on a base model.
+ArtifactKind = Literal["harness", "harness_plugin", "model", "model_adapter"]
+ARTIFACT_KINDS: tuple[ArtifactKind, ...] = ("harness", "harness_plugin", "model", "model_adapter")
+
+
+@dataclass(frozen=True)
+class PolicyHarness:
+    """The harness side of a policy: a base harness, with the plugin that installs into it.
+
+    Values: ``base`` is the non-empty name of the base harness: an adapter name, such as ``pi`` or ``native``, or a
+    Harbor agent name, such as ``terminus-2``. ``plugin`` maps each relative path of the plugin's files to the
+    file's text. An empty ``plugin`` runs the base harness as it is.
+    Purpose: a ``RolloutRequest`` names the harness of its rollout, and a ``RolloutRunner`` runs it.
+    ``kind`` is ``harness_plugin`` when ``plugin`` has files, else ``harness``.
+    """
+
+    base: str
+    plugin: Mapping[str, str] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.base, str) or not self.base:
+            raise ValueError("a policy harness names its base harness")
+        if not isinstance(self.plugin, Mapping) or any(
+            not isinstance(path, str) or not path or not isinstance(text, str) for path, text in self.plugin.items()
+        ):
+            raise ValueError("a policy harness plugin maps non-empty file paths to text")
+        object.__setattr__(self, "plugin", MappingProxyType(dict(self.plugin)))
+
+    @property
+    def kind(self) -> ArtifactKind:
+        return "harness_plugin" if self.plugin else "harness"
+
+    def to_json(self) -> dict[str, Any]:
+        return {"base": self.base, "plugin": dict(self.plugin)}
+
+    @classmethod
+    def from_json(cls, value: object) -> PolicyHarness:
+        """The harness that ``to_json`` gave; raise ``ValueError`` for any other value."""
+        if not isinstance(value, Mapping) or set(value) != {"base", "plugin"}:
+            raise ValueError("a policy harness is an object of base and plugin")
+        return cls(value["base"], value["plugin"])
+
+
+@dataclass(frozen=True)
+class PolicyModel:
+    """The model side of a policy: a model, with at most one LoRA adapter on it.
+
+    Values: ``name`` is the non-empty name that an endpoint serves the model under: a provider's model name, or the
+    name that a deployment serves its weights under. ``adapter`` is None, or the non-empty location of a LoRA
+    adapter on that model, such as a Tinker sampler path.
+    Purpose: a ``RolloutRequest`` names the model of its rollout, and a ``RolloutRunner`` serves it.
+    ``kind`` is ``model_adapter`` when ``adapter`` is set, else ``model``.
+    """
+
+    name: str
+    adapter: str | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not self.name:
+            raise ValueError("a policy model names the model")
+        if self.adapter is not None and (not isinstance(self.adapter, str) or not self.adapter):
+            raise ValueError("a policy model adapter is None or a non-empty location")
+
+    @property
+    def kind(self) -> ArtifactKind:
+        return "model" if self.adapter is None else "model_adapter"
+
+    def to_json(self) -> dict[str, Any]:
+        return {"name": self.name, "adapter": self.adapter}
+
+    @classmethod
+    def from_json(cls, value: object) -> PolicyModel:
+        """The model that ``to_json`` gave; raise ``ValueError`` for any other value."""
+        if not isinstance(value, Mapping) or set(value) != {"name", "adapter"}:
+            raise ValueError("a policy model is an object of name and adapter")
+        return cls(value["name"], value["adapter"])
+
+
+@dataclass(frozen=True)
+class PolicyEvaluation:
+    """One evaluation of a policy: the policy, and the score of each of its rollouts.
+
+    Values: ``harness`` and ``model`` are the policy that every rollout ran. ``scores`` holds the score of each
+    rollout, by task, in run order. ``mean_score`` is ``mean_score(scores.rollouts())``.
+    Purpose: an evaluation of an artifact gives it; ``to_json`` and ``from_json`` keep it with the evaluation.
+    """
+
+    harness: PolicyHarness
+    model: PolicyModel
+    scores: RolloutScores
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.harness, PolicyHarness) or not isinstance(self.model, PolicyModel):
+            raise TypeError("a policy evaluation holds a PolicyHarness and a PolicyModel")
+        if not isinstance(self.scores, RolloutScores):
+            raise TypeError("a policy evaluation holds RolloutScores")
+
+    @property
+    def mean_score(self) -> float | None:
+        return mean_score(self.scores.rollouts())
+
+    def to_json(self) -> dict[str, Any]:
+        return {"harness": self.harness.to_json(), "model": self.model.to_json(), "scores": self.scores.to_json()}
+
+    @classmethod
+    def from_json(cls, value: object) -> PolicyEvaluation:
+        """The evaluation that ``to_json`` gave; raise ``ValueError`` for any other value."""
+        if not isinstance(value, Mapping) or set(value) != {"harness", "model", "scores"}:
+            raise ValueError("a policy evaluation is an object of harness, model and scores")
+        return cls(
+            PolicyHarness.from_json(value["harness"]),
+            PolicyModel.from_json(value["model"]),
+            RolloutScores.from_json(value["scores"]),
+        )
+
+
+@dataclass(frozen=True)
+class RolloutRequest:
+    """One rollout to run: a task, under a harness and a model.
+
+    Values: ``harness`` and ``model`` are the policy of the rollout. ``task`` is a non-empty task: a task prompt,
+    or the path of a Harbor task directory. ``record_dir`` is None, or a directory that does not exist yet, where
+    the runner keeps the rollout's trajectory.
+    Purpose: a caller gives requests to ``RolloutRunner.run_rollouts``, which runs one rollout for each.
+    """
+
+    harness: PolicyHarness
+    model: PolicyModel
+    task: str
+    record_dir: Path | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.harness, PolicyHarness) or not isinstance(self.model, PolicyModel):
+            raise TypeError("a rollout request holds a PolicyHarness and a PolicyModel")
+        if not isinstance(self.task, str) or not self.task:
+            raise ValueError("a rollout request names a non-empty task")
+        if self.record_dir is not None and not isinstance(self.record_dir, Path):
+            raise TypeError("a rollout request's record_dir is None or a Path")
+
+
+def harness_item(harness: Mapping[str, Any] | None) -> str | None:
+    """The artifact item that ``harness``, an ``ArtifactEvaluationRequest``'s value, names; None for a Harbor agent or
+    no harness."""
+    return None if harness is None else harness.get("item")
+
+
+@dataclass(frozen=True)
+class ArtifactEvaluationRequest:
+    """A client's request to evaluate one artifact: a component of a snapshot, with the other side of its policy.
+
+    Values: ``artifact_id`` is the non-empty ID of one of the scenario's artifacts, and ``component`` a
+    non-empty name of one of its components: the evaluated artifact. Exactly one of ``harness`` and ``model`` is set: ``harness``, the
+    harness that runs a model artifact: a Harbor agent (an object with a non-empty ``name`` or ``import_path``, as
+    ``TaskRolloutRunner``'s ``agent``), or an artifact item of a harness tree of the scenario's owner (an object
+    with a non-empty ``item`` and no other key); or ``model``, the non-empty name of the deployment's model binding that a
+    harness artifact runs on. ``task_names`` names distinct eval tasks, or is empty for every eval task.
+    ``rollouts_per_task`` is a positive int, and ``environment`` a non-empty Harbor environment type.
+    ``max_concurrent_rollouts`` is the most rollouts of the evaluation that run at once, a positive int, or None for
+    no limit.
+    Purpose: the evaluation service reads it from a request (``from_json``), stores it (``to_json``), and runs it.
+    """
+
+    artifact_id: str
+    component: str
+    harness: Mapping[str, Any] | None = None
+    model: str | None = None
+    task_names: tuple[str, ...] = ()
+    rollouts_per_task: int = 1
+    environment: str = "docker"
+    max_concurrent_rollouts: int | None = None
+
+    def __post_init__(self) -> None:
+        for name, value in (
+            ("artifact_id", self.artifact_id),
+            ("component", self.component),
+            ("environment", self.environment),
+        ):
+            if not isinstance(value, str) or not value:
+                raise ValueError(f"an artifact evaluation's {name} must be a non-empty string")
+        if (self.harness is None) == (self.model is None):
+            raise ValueError("an artifact evaluation configures exactly one of harness and model")
+        if self.harness is not None:
+            if not isinstance(self.harness, Mapping):
+                raise ValueError("an artifact evaluation's harness is a JSON object")
+            if "item" in self.harness:
+                if (
+                    set(self.harness) != {"item"}
+                    or not isinstance(self.harness["item"], str)
+                    or not self.harness["item"]
+                ):
+                    raise ValueError("an artifact evaluation's harness item is one non-empty string and no other key")
+            elif not any(
+                isinstance(self.harness.get(key), str) and self.harness[key] for key in ("name", "import_path")
+            ):
+                raise ValueError("an artifact evaluation's harness is a Harbor agent with a name or an import_path")
+            object.__setattr__(self, "harness", MappingProxyType(dict(self.harness)))
+        if self.model is not None and (not isinstance(self.model, str) or not self.model):
+            raise ValueError("an artifact evaluation's model is the non-empty name of a model binding")
+        if (
+            not isinstance(self.task_names, tuple)
+            or any(not isinstance(name, str) or not name for name in self.task_names)
+            or len(set(self.task_names)) != len(self.task_names)
+        ):
+            raise ValueError("an artifact evaluation's task_names are distinct non-empty strings")
+        count = self.rollouts_per_task
+        if isinstance(count, bool) or not isinstance(count, int) or count < 1:
+            raise ValueError("an artifact evaluation's rollouts_per_task is a positive integer")
+        limit = self.max_concurrent_rollouts
+        if limit is not None and (isinstance(limit, bool) or not isinstance(limit, int) or limit < 1):
+            raise ValueError("an artifact evaluation's max_concurrent_rollouts is a positive integer or null")
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "artifact_id": self.artifact_id,
+            "component": self.component,
+            "harness": None if self.harness is None else dict(self.harness),
+            "model": self.model,
+            "task_names": list(self.task_names),
+            "rollouts_per_task": self.rollouts_per_task,
+            "environment": self.environment,
+            "max_concurrent_rollouts": self.max_concurrent_rollouts,
+        }
+
+    @classmethod
+    def from_json(cls, value: object) -> ArtifactEvaluationRequest:
+        """The request that ``to_json`` gave; raise ``ValueError`` for any other value. A request stored before
+        ``max_concurrent_rollouts`` existed has no limit."""
+        keys = {"artifact_id", "component", "harness", "model", "task_names", "rollouts_per_task", "environment"}
+        if (
+            not isinstance(value, Mapping)
+            or set(value) - {"max_concurrent_rollouts"} != keys
+            or not isinstance(value["task_names"], list)
+        ):
+            raise ValueError(f"an artifact evaluation request is an object of {sorted(keys)}")
+        return cls(
+            value["artifact_id"],
+            value["component"],
+            value["harness"],
+            value["model"],
+            tuple(value["task_names"]),
+            value["rollouts_per_task"],
+            value["environment"],
+            value.get("max_concurrent_rollouts"),
+        )
+
+
+@dataclass(frozen=True)
+class ArtifactEvaluationSettings:
+    """How to evaluate an artifact that is not named yet: an ``ArtifactEvaluationRequest`` without its
+    ``artifact_id``.
+
+    Values: ``component`` is None, for the one component of the snapshots that has a kind, or a non-empty
+    component name. ``harness``, ``model``, ``task_names``, ``rollouts_per_task``, ``environment`` and
+    ``max_concurrent_rollouts`` meet the conditions of ``ArtifactEvaluationRequest``. Purpose: a client's evaluation
+    request is these settings and an artifact ID, and a scenario keeps settings to evaluate each new artifact with;
+    ``request`` makes the request of one artifact.
+    """
+
+    component: str | None = None
+    harness: Mapping[str, Any] | None = None
+    model: str | None = None
+    task_names: tuple[str, ...] = ()
+    rollouts_per_task: int = 1
+    environment: str = "docker"
+    max_concurrent_rollouts: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.component is not None and (not isinstance(self.component, str) or not self.component):
+            raise ValueError("an artifact evaluation's component is None or a non-empty string")
+        # The request of any snapshot checks every other field.
+        checked = self.request("any", self.component or "any")
+        object.__setattr__(self, "harness", checked.harness)
+
+    def request(self, artifact_id: str, component: str) -> ArtifactEvaluationRequest:
+        """The request to evaluate ``component`` of the artifact ``artifact_id`` with these settings."""
+        return ArtifactEvaluationRequest(
+            artifact_id,
+            component,
+            self.harness,
+            self.model,
+            self.task_names,
+            self.rollouts_per_task,
+            self.environment,
+            self.max_concurrent_rollouts,
+        )
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "component": self.component,
+            "harness": None if self.harness is None else dict(self.harness),
+            "model": self.model,
+            "task_names": list(self.task_names),
+            "rollouts_per_task": self.rollouts_per_task,
+            "environment": self.environment,
+            "max_concurrent_rollouts": self.max_concurrent_rollouts,
+        }
+
+    @classmethod
+    def from_json(cls, value: object) -> ArtifactEvaluationSettings:
+        """The settings of a JSON object of these fields, each left-out field at its default.
+
+        Raise ``ValueError`` for a value that is not an object, has a field of another name, or has
+        ``task_names`` that is not a list.
+        """
+        if not isinstance(value, Mapping):
+            raise ValueError("artifact evaluation settings are a JSON object")
+        known = {
+            "component",
+            "harness",
+            "model",
+            "task_names",
+            "rollouts_per_task",
+            "environment",
+            "max_concurrent_rollouts",
+        }
+        unknown = sorted(set(value) - known)
+        if unknown:
+            raise ValueError(f"artifact evaluation settings take no {unknown}; they take {sorted(known)}")
+        task_names = value.get("task_names", [])
+        if not isinstance(task_names, list):
+            raise ValueError("task_names is a list of task names")
+        return cls(
+            value.get("component"),
+            value.get("harness"),
+            value.get("model"),
+            tuple(task_names),
+            value.get("rollouts_per_task", 1),
+            value.get("environment", "docker"),
+            value.get("max_concurrent_rollouts"),
+        )
+
+
+class RolloutRunner[RolloutT](ABC):
+    """Runs rollouts in one environment: one rollout for each ``RolloutRequest``.
+
+    Values: an implementation holds what all its rollouts share, such as the environment and the model endpoint.
+    ``RolloutT`` is the result of one rollout, with its trajectory. The Harbor agent runner
+    (``TaskRolloutRunner``) and the harness tree runner (``HarnessTaskEvaluator``) implement it.
+    Purpose: a harness evaluation, a checkpoint evaluation and training on tasks run their rollouts through it.
+    To run a task ``count`` times, a caller repeats its request ``count`` times.
+    """
+
+    @abstractmethod
+    def run_rollouts(self, requests: Sequence[RolloutRequest]) -> list[RolloutT]:
+        """Run one rollout of each request, and give one rollout per request, in request order.
+
+        Raise ``ValueError`` before any rollout runs when a request names a harness, a model or a record
+        directory that this runner cannot use.
+        """
+
+    @abstractmethod
+    def rollout_score(self, rollout: RolloutT) -> RolloutScore:
+        """The score of one rollout that ``run_rollouts`` gave."""
+
+
+@dataclass(frozen=True)
+class UpdateCandidate:
+    """One update that has been produced but not selected for serving.
+
+    ``candidate_id`` is the stable idempotency and audit key for the attempt.
+    """
+
+    candidate_id: str
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.candidate_id, str) or not self.candidate_id:
+            raise ValueError("candidate_id must be a non-empty string")
+
+
+@dataclass(frozen=True)
+class EvaluationResult:
+    """Measurements produced by evaluating one candidate against the incumbent."""
+
+    evaluator: str
+    evaluator_version: str
+    metrics: Mapping[str, Any]
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.evaluator, str) or not self.evaluator:
+            raise ValueError("evaluator must be a non-empty string")
+        if not isinstance(self.evaluator_version, str) or not self.evaluator_version:
+            raise ValueError("evaluator_version must be a non-empty string")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "evaluator": self.evaluator,
+            "evaluator_version": self.evaluator_version,
+            "metrics": dict(self.metrics),
+            "metadata": dict(self.metadata),
+        }
+
+
+@dataclass(frozen=True)
+class SelectionDecision:
+    """The durable, explainable decision for one evaluated candidate."""
+
+    selected: bool
+    policy: str
+    reason: str
+    evaluation: EvaluationResult
+    metrics: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.selected, bool):
+            raise ValueError("selected must be a boolean")
+        if not isinstance(self.policy, str) or not self.policy:
+            raise ValueError("policy must be a non-empty string")
+        if not isinstance(self.reason, str) or not self.reason:
+            raise ValueError("reason must be a non-empty string")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "selected": self.selected,
+            "policy": self.policy,
+            "reason": self.reason,
+            "evaluation": self.evaluation.to_dict(),
+            "metrics": dict(self.metrics),
+        }
+
+
+class CandidateSelector(ABC):
+    """Turn an evaluation result into a select-or-reject decision.
+
+    Implementations inherit this contract explicitly. Evaluation and selection
+    remain independent capabilities; a complete plugin implements both.
+    """
+
+    @abstractmethod
+    def decide(self, candidate: UpdateCandidate, evaluation: EvaluationResult) -> SelectionDecision: ...
+
+
+class CandidateEvaluator(ABC):
+    """Measure a candidate without deciding whether to publish it."""
+
+    @abstractmethod
+    def evaluate(self, candidate: UpdateCandidate) -> EvaluationResult: ...
+
+
+class CandidateEvaluationPlugin(CandidateEvaluator, CandidateSelector):
+    """Measure a candidate and decide whether Aster serves it."""
+
+    def evaluate_and_decide(self, candidate: UpdateCandidate) -> SelectionDecision:
+        """Evaluate ``candidate`` and decide on that evaluation.
+
+        Raise ``ValueError`` when the decision does not carry the evaluation
+        that ``evaluate`` returned, since Aster records the two together.
+        """
+        evaluation = self.evaluate(candidate)
+        decision = self.decide(candidate, evaluation)
+        if decision.evaluation is not evaluation:
+            raise ValueError("candidate evaluator must retain the evaluation result supplied by Aster")
+        return decision
+
+
+def require_integer(value: object, name: str, *, minimum: int = 0) -> None:
+    """Raise ``ValueError`` naming ``name`` unless ``value`` is an integer from ``minimum``."""
+    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+        raise ValueError(f"{name} is an integer from {minimum}")
+
+
+@dataclass(frozen=True)
+class EvaluationCallSummary:
+    """One model call of an evaluation rollout, without its bodies.
+
+    Values: ``task_index`` and ``repeat`` name the rollout in its evaluation, as ``EvaluationRollout`` does.
+    ``attempt`` is the 1-based attempt of the rollout's work item that made the call. ``index`` is the 0-based
+    position of the call in that attempt, in the order in which the calls ended. ``path`` is the non-empty path that
+    the agent called, and ``status`` the HTTP status that it got, an integer from 100. ``started_at`` is a finite time in seconds, and
+    ``duration_s`` a finite number of seconds from 0. ``prompt_tokens`` and ``completion_tokens`` are integers from 0,
+    or None when the reply does not tell them. ``finish_reason`` is the non-empty reason that the reply gives, or
+    None. ``tool_calls`` is the number of tool calls in the reply, an integer from 0. A call whose ``status`` is not
+    200 has no ``finish_reason`` and no tool call. ``(task_index, repeat, attempt, index)`` is the key of the call in
+    its evaluation.
+
+    Purpose: the evaluation worker makes it for each call that a rollout's capture proxy captures; the evaluation
+    routes answer it with ``to_json``.
+    """
+
+    task_index: int
+    repeat: int
+    attempt: int
+    index: int
+    path: str
+    status: int
+    started_at: float
+    duration_s: float
+    prompt_tokens: int | None
+    completion_tokens: int | None
+    finish_reason: str | None
+    tool_calls: int
+
+    def __post_init__(self) -> None:
+        for count, name in (
+            (self.task_index, "task_index"),
+            (self.repeat, "repeat"),
+            (self.index, "index"),
+            (self.tool_calls, "tool_calls"),
+        ):
+            require_integer(count, name)
+        require_integer(self.attempt, "attempt", minimum=1)
+        require_integer(self.status, "status", minimum=100)
+        for tokens, name in ((self.prompt_tokens, "prompt_tokens"), (self.completion_tokens, "completion_tokens")):
+            if tokens is not None:
+                require_integer(tokens, name)
+        require_text(self.path, "path")
+        if not math.isfinite(self.started_at):
+            raise ValueError("a call's started_at is a finite time")
+        if not math.isfinite(self.duration_s) or self.duration_s < 0:
+            raise ValueError("a call's duration_s is a finite number of seconds from 0")
+        if self.finish_reason is not None and (not isinstance(self.finish_reason, str) or not self.finish_reason):
+            raise ValueError("a call's finish_reason is a non-empty string or None")
+        if self.status != 200 and (self.finish_reason is not None or self.tool_calls):
+            raise ValueError("a failed call has no finish_reason and no tool call")
+
+    def to_json(self) -> dict[str, JsonValue]:
+        """The call as the call routes answer it in its rollout: every field but ``task_index`` and ``repeat``."""
+        return {
+            "attempt": self.attempt,
+            "index": self.index,
+            "path": self.path,
+            "status": self.status,
+            "started_at": self.started_at,
+            "duration_s": self.duration_s,
+            "prompt_tokens": self.prompt_tokens,
+            "completion_tokens": self.completion_tokens,
+            "finish_reason": self.finish_reason,
+            "tool_calls": self.tool_calls,
+        }
+
+
+@dataclass(frozen=True)
+class EvaluationCall:
+    """One model call of an evaluation rollout, with its bodies.
+
+    Values: ``summary`` is the call's ``EvaluationCallSummary``. ``request`` is the JSON object that the agent sent,
+    and ``response`` the JSON object that it got: the reply, or the error body of a failed call. Each is None when the
+    capture proxy kept no JSON object.
+
+    Purpose: the evaluation worker makes it for each captured call, and the data store keeps it as a record item
+    (``aster.storage.record_items.evaluation_call_item``). The call route answers it with ``to_json``.
+    """
+
+    summary: EvaluationCallSummary
+    request: Mapping[str, JsonValue] | None
+    response: Mapping[str, JsonValue] | None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.summary, EvaluationCallSummary):
+            raise TypeError("a call's summary is an EvaluationCallSummary")
+        for body, name in ((self.request, "request"), (self.response, "response")):
+            if body is not None and not isinstance(body, Mapping):
+                raise TypeError(f"a call's {name} is a JSON object or None")
+
+    def to_json(self) -> dict[str, JsonValue]:
+        """The summary's ``to_json`` with ``request`` and ``response``."""
+        return {
+            **self.summary.to_json(),
+            "request": None if self.request is None else dict(self.request),
+            "response": None if self.response is None else dict(self.response),
+        }
+
+
+@dataclass(frozen=True)
+class EvaluationCallTotals:
+    """The totals of the kept calls of one evaluation rollout, over all its attempts.
+
+    Values: ``count`` is the number of calls, an integer from 1. ``failed`` is the number of calls whose status is
+    not 200, from 0 to ``count``. ``prompt_tokens`` and ``completion_tokens`` are the sums of the known token counts
+    of the calls, integers from 0; a call whose count is None adds nothing.
+
+    Purpose: ``ArtifactEvaluations.rollouts_json`` adds up the calls of each rollout into one; the rollouts route
+    answers it with ``to_json``.
+    """
+
+    count: int
+    failed: int
+    prompt_tokens: int
+    completion_tokens: int
+
+    def __post_init__(self) -> None:
+        require_integer(self.count, "count", minimum=1)
+        require_integer(self.failed, "failed")
+        require_integer(self.prompt_tokens, "prompt_tokens")
+        require_integer(self.completion_tokens, "completion_tokens")
+        if self.failed > self.count:
+            raise ValueError("a rollout has no more failed calls than calls")
+
+    def to_json(self) -> dict[str, JsonValue]:
+        return {
+            "count": self.count,
+            "failed": self.failed,
+            "prompt_tokens": self.prompt_tokens,
+            "completion_tokens": self.completion_tokens,
+        }
+
+
+__all__ = [
+    "ARTIFACT_KINDS",
+    "FAILED",
+    "ArtifactEvaluationRequest",
+    "ArtifactEvaluationSettings",
+    "ArtifactKind",
+    "CandidateEvaluationPlugin",
+    "CandidateEvaluator",
+    "CandidateSelector",
+    "EvaluationCall",
+    "EvaluationCallSummary",
+    "EvaluationCallTotals",
+    "EvaluationResult",
+    "PolicyEvaluation",
+    "PolicyHarness",
+    "PolicyModel",
+    "RolloutRequest",
+    "RolloutRunner",
+    "RolloutScore",
+    "RolloutScores",
+    "SelectionDecision",
+    "UpdateCandidate",
+    "mean_score",
+]

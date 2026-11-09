@@ -22,13 +22,13 @@ torch = pytest.importorskip("torch")
 
 from recipes.sao.slime import SaoAlgorithm
 from recipes.sao.slime.objective import compute_sao_loss
-from reef.train.slime_backend.algorithm import PolicyGradientWeight
-from reef.train.slime_backend.importance_sampling import ImportanceSamplingAlgorithm
-from reef.train.slime_backend.importance_sampling.objective import truncated_importance_sampling
-from reef.train.slime_backend.score_centering import ScoreCenteringSettings
-from reef.train.slime_backend.score_centering.heads import PADDING_LOG_PROB
-from reef.train.slime_backend.score_centering.term import centering_term, importance_weight
-from reef.train.slime_backend.vocab_parallel import gather_log_probs_at_ids
+from aster.train.slime_backend.algorithm import PolicyGradientWeight
+from aster.train.slime_backend.importance_sampling import ImportanceSamplingAlgorithm
+from aster.train.slime_backend.importance_sampling.objective import truncated_importance_sampling
+from aster.train.slime_backend.score_centering import ScoreCenteringSettings
+from aster.train.slime_backend.score_centering.heads import PADDING_LOG_PROB
+from aster.train.slime_backend.score_centering.term import centering_term, importance_weight
+from aster.train.slime_backend.vocab_parallel import gather_log_probs_at_ids
 
 VOCAB = 7
 MIN_TAIL_MASS = ScoreCenteringSettings().min_tail_mass

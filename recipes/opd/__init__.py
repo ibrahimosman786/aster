@@ -6,7 +6,7 @@ and Slime backend, and trains only on the student's recorded samples.
 
 from recipes.opd.processor import OPDSamples, OPDSettings
 from recipes.opd.recipe import OPDRecipe
-from reef.train.algos.registry import register_loss_family_ref, register_objective_ref
+from aster.train.algos.registry import register_loss_family_ref, register_objective_ref
 
 register_objective_ref("opd", "recipes.opd.slime:OpdObjective")
 register_loss_family_ref("opd", "recipes.opd.slime:OpdAlgorithm")

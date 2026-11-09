@@ -10,14 +10,14 @@ from dataclasses import dataclass
 from numbers import Real
 from typing import Any
 
-from reef.core.job_data import TrajectorySample
-from reef.core.trajectories import source_record_id, trajectory_reward
-from reef.train.algos.helpers import next_steps
-from reef.train.algos.signals import TrainingSignal
-from reef.train.slime_backend.algorithm import SlimeAlgorithm, register_loss_family
-from reef.train.slime_backend.data_builder import build_policy_rollout_data
-from reef.train.slime_backend.objectives import SlimeObjective, register_slime_objective
-from reef.train.types import JobData, trajectories
+from aster.core.job_data import TrajectorySample
+from aster.core.trajectories import source_record_id, trajectory_reward
+from aster.train.algos.helpers import next_steps
+from aster.train.algos.signals import TrainingSignal
+from aster.train.slime_backend.algorithm import SlimeAlgorithm, register_loss_family
+from aster.train.slime_backend.data_builder import build_policy_rollout_data
+from aster.train.slime_backend.objectives import SlimeObjective, register_slime_objective
+from aster.train.types import JobData, trajectories
 
 _HINT_SELECTIONS = ("shortest", "token_optimal", "sequence_optimal")
 _SUBSET_MODES = ("student", "overlap", "teacher")
@@ -54,10 +54,10 @@ class OpenclawrlSettings:
 
 
 def openclawrl_sample_row(sample: TrajectorySample) -> list[Any]:
-    """Shape one Reef sample into this family's 6-column wire row.
+    """Shape one Aster sample into this family's 6-column wire row.
 
     Outbound mirror of :func:`build_openclawrl_rollout_data`. The teacher candidates are those that the component
-    rendered (``reef.core.chat_rendering.rendered_job_data``).
+    rendered (``aster.core.chat_rendering.rendered_job_data``).
     """
     return [
         source_record_id(sample),
@@ -141,8 +141,8 @@ class OpenclawrlAlgorithm(SlimeAlgorithm):
     required_objective_hooks = (
         "custom_loss_function_path",
         "custom_advantage_function_path",
-        "reef_actor_init_hook_path",
-        "reef_actor_pre_train_hook_path",
+        "aster_actor_init_hook_path",
+        "aster_actor_pre_train_hook_path",
     )
 
     # Wire surface the adapter layer serves generically: per-sample payload
@@ -235,7 +235,7 @@ class OpenclawrlAlgorithm(SlimeAlgorithm):
     def configure_backend_args(self, args: Namespace) -> None:
         # The top-K objective needs an old-actor log-probability pass. Its
         # registered custom-advantage hook preserves the values supplied by
-        # Reef.
+        # Aster.
         args.compute_advantages_and_returns = True
 
     def build_rollout_data(self, payload, samples):

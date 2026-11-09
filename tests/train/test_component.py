@@ -8,11 +8,11 @@ import pytest
 from tests.support.job_data import job_data_ref
 from tests.support.runtime_stubs import StubTrainingComponent
 
-from reef.artifact.files import DirectoryFiles
-from reef.core.weight_layout import ADAPTER_DIR, ArtifactFormat
-from reef.train.algos.signals import PreparedJob
-from reef.train.component import JobStatus, SavedCheckpoint, TrainingJob, job_id_for
-from reef.train.types import JobData
+from aster.artifact.files import DirectoryFiles
+from aster.core.weight_layout import ADAPTER_DIR, ArtifactFormat
+from aster.train.algos.signals import PreparedJob
+from aster.train.component import JobStatus, SavedCheckpoint, TrainingJob, job_id_for
+from aster.train.types import JobData
 
 
 @pytest.mark.unit

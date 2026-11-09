@@ -6,12 +6,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from reef.execution.executor.ray import RayExecutor
-from reef.execution.executor.uniproc import UniProcExecutor
-from reef.inference.deployment import InferenceConnection
-from reef.inference.sglang.backend import SGLangInferenceBackend
-from reef.inference.sglang.config import SGLangConfig, SGLangGroupConfig
-from reef.inference.sglang.service import INFERENCE_PROTOCOL, SGLangInferenceService
+from aster.execution.executor.ray import RayExecutor
+from aster.execution.executor.uniproc import UniProcExecutor
+from aster.inference.deployment import InferenceConnection
+from aster.inference.sglang.backend import SGLangInferenceBackend
+from aster.inference.sglang.config import SGLangConfig, SGLangGroupConfig
+from aster.inference.sglang.service import INFERENCE_PROTOCOL, SGLangInferenceService
 
 
 class Receiver:
@@ -97,7 +97,7 @@ def test_receiver_recovery_rejects_a_malformed_engine_count(replaced):
 
 
 def test_worker_recovery_counts_the_dead_engines_it_refilled():
-    from reef.inference.sglang import worker as worker_module
+    from aster.inference.sglang import worker as worker_module
 
     group = SimpleNamespace(all_engines=[object(), None, None])
     restarts = []
@@ -136,11 +136,11 @@ def test_initial_version_stamping_keeps_receiver_paused_on_partial_failure(monke
     operations.pause()
     if fail_second:
         with pytest.raises(TimeoutError, match="acknowledgement lost"):
-            operations.initialize_version("reef:initial")
-        assert operations.runtime_load_ids() == ("reef:initial", "native:0")
+            operations.initialize_version("aster:initial")
+        assert operations.runtime_load_ids() == ("aster:initial", "native:0")
     else:
-        operations.initialize_version("reef:initial")
-        assert operations.runtime_load_ids() == ("reef:initial", "reef:initial")
+        operations.initialize_version("aster:initial")
+        assert operations.runtime_load_ids() == ("aster:initial", "aster:initial")
     assert receiver.paused
 
 
@@ -175,7 +175,7 @@ def test_adapter_eviction_requires_every_engine_acknowledgement(monkeypatch, las
 
 
 def test_worker_loads_an_adapter_directory_into_every_engine_then_stamps_the_version(monkeypatch):
-    from reef.inference.sglang import worker as worker_module
+    from aster.inference.sglang import worker as worker_module
 
     calls = []
 
@@ -195,12 +195,12 @@ def test_worker_loads_an_adapter_directory_into_every_engine_then_stamps_the_ver
     monkeypatch.setattr(worker_module.ray, "get", lambda refs: list(refs))
     worker = worker_module.SGLangWorker.__new__(worker_module.SGLangWorker)
     worker.servers = {"default": SimpleNamespace(update_weights=True, engines=[engine(), engine()])}
-    worker.load_adapter_from_disk("reef-adapter-math.v1", "/ckpt/adapter", "inc:1")
+    worker.load_adapter_from_disk("aster-adapter-math.v1", "/ckpt/adapter", "inc:1")
     assert [name for name, _, _ in calls] == ["load", "load", "version", "version"]
-    assert calls[0][2] == {"lora_name": "reef-adapter-math.v1", "lora_path": "/ckpt/adapter"}
+    assert calls[0][2] == {"lora_name": "aster-adapter-math.v1", "lora_path": "/ckpt/adapter"}
     assert calls[2][1] == ("inc:1",)
     calls.clear()
-    worker.load_adapter_from_disk("reef-adapter-math.v1", "/ckpt/adapter")
+    worker.load_adapter_from_disk("aster-adapter-math.v1", "/ckpt/adapter")
     assert [name for name, _, _ in calls] == ["load", "load"]
     worker.servers = {
         "default": SimpleNamespace(update_weights=True, engines=[engine({"success": False, "message": "rank"})])
@@ -213,7 +213,7 @@ def test_worker_loads_an_adapter_directory_into_every_engine_then_stamps_the_ver
 
 
 def test_worker_reloads_full_weights_into_every_updatable_engine(monkeypatch):
-    from reef.inference.sglang import worker as worker_module
+    from aster.inference.sglang import worker as worker_module
 
     calls = []
 
@@ -239,9 +239,9 @@ def test_worker_reloads_full_weights_into_every_updatable_engine(monkeypatch):
 
 
 def test_engine_control_and_weight_loads_skip_encoder_groups(monkeypatch):
-    from reef.inference.recovery import InferenceControl
-    from reef.inference.sglang import worker as worker_module
-    from reef.inference.sglang.launch import SGLangEngineGroup, SGLangModel
+    from aster.inference.recovery import InferenceControl
+    from aster.inference.sglang import worker as worker_module
+    from aster.inference.sglang.launch import SGLangEngineGroup, SGLangModel
 
     calls = []
 

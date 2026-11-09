@@ -7,7 +7,7 @@ every response position, the divergence over the full vocabulary between
 the teacher's next-token distribution and the student's; the per-sample
 mean over the trained tokens; and the truncated importance-sampling weight.
 ``tests/slime_backend/test_distill_parity.py`` pins the tensor code in
-``reef/train/slime_backend/distill/divergence.py`` to it.
+``aster/train/slime_backend/distill/divergence.py`` to it.
 """
 
 from __future__ import annotations

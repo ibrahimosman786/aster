@@ -1,13 +1,13 @@
 # Qwen3-8B TTT-Discover LoRA stack for harbor/erdos_min_overlap on four GPUs:
 # two for the actor (tensor parallel 2) and two for two single-GPU engines.
 # Every value is literal except the two run.sh computes: TTTD_STATE_DIR, the
-# absolute root all durable state hangs off, and REEF_INFERENCE_HOST, this
+# absolute root all durable state hangs off, and ASTER_INFERENCE_HOST, this
 # machine's IP.
 
-reef:
+aster:
   host: 127.0.0.1
   port: 8900
-  token: reef-local
+  token: aster-local
   run-dir: ${TTTD_STATE_DIR}/stack
   ready-timeout: 120
 
@@ -22,7 +22,7 @@ inference:
     cuda-graph-max-bs-decode: "128"
   model-path: work/model
   timeout-s: 7200
-  handler-factory: reef.inference.sglang.chat.SGLangInferenceHandler
+  handler-factory: aster.inference.sglang.chat.SGLangInferenceHandler
 recipe:
   implementation: recipes.tttd.recipe:TTTDRecipe
 # TTTD's stages. The record-to-sample stage owns the step grid; the job stage reads it from there.
@@ -39,7 +39,7 @@ pipeline:
 training:
   backend: slime
   ready-timeout: 3600
-  ray-namespace: reef
+  ray-namespace: aster
   timeout-s: 7200
   config:
     num_gpus: 2
@@ -60,9 +60,9 @@ training:
     save: "${training.config.checkpoint_dir}/megatron"
     save-interval: "1"
     save-hf: "${training.config.checkpoint_dir}/hf/{rollout_id}"
-    reef-checkpoint-max-storage-fraction: "${training.config.checkpoint_retention.max_storage_fraction}"
-    reef-checkpoint-min-free-space-fraction: "${training.config.checkpoint_retention.min_free_space_fraction}"
-    reef-checkpoint-policy: "${training.config.checkpoint_retention.policy}"
+    aster-checkpoint-max-storage-fraction: "${training.config.checkpoint_retention.max_storage_fraction}"
+    aster-checkpoint-min-free-space-fraction: "${training.config.checkpoint_retention.min_free_space_fraction}"
+    aster-checkpoint-policy: "${training.config.checkpoint_retention.policy}"
     megatron-to-hf-mode: "bridge"
     num-rollout: "${training.config.steps}"
     rollout-batch-size: "${pipeline.record2sample.config.groups_per_step}"
@@ -134,5 +134,5 @@ execution:
 observability:
   wandb:
     enabled: false
-    project: reef
+    project: aster
     directory: ${TTTD_STATE_DIR}/wandb

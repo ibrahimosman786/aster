@@ -1,4 +1,4 @@
-"""A Harbor agent harness that talks to a Reef service over HTTP.
+"""A Harbor agent harness that talks to an Aster service over HTTP.
 
 The export is lazy: importing this package must not require Harbor.
 """

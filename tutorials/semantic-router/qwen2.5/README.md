@@ -1,6 +1,6 @@
 # Route between two Qwen2.5 models on one GPU
 
-This example starts two vLLM servers, sends chat requests through Reef and
+This example starts two vLLM servers, sends chat requests through Aster and
 changes the default target twice while both models stay loaded. The student
 serves Qwen2.5-0.5B-Instruct and the teacher serves Qwen2.5-1.5B-Instruct.
 Both models generate answers. The example exercises serving only.
@@ -10,8 +10,8 @@ Both models generate answers. The example exercises serving only.
 Use a Linux host or Ubuntu under WSL2 with Docker Compose, GPU access from
 Docker, and enough free GPU memory for both servers. The model settings are
 sized for one 32 GiB RTX 5090. Activate the Python environment containing
-this Reef checkout. The update check uses Linux process descriptors for
-`SIGHUP`. If your Reef Python lacks `signal.pidfd_send_signal`, it uses
+this Aster checkout. The update check uses Linux process descriptors for
+`SIGHUP`. If your Aster Python lacks `signal.pidfd_send_signal`, it uses
 Ubuntu's `/usr/bin/python3` for this one call. Build the pinned SR image as described in the
 [routing tutorial](../README.md#1-build-the-semantic-router-image).
 
@@ -19,7 +19,7 @@ From the repository root, set `SR_IMAGE` to the **locally available repository
 digest** printed by `docker image inspect`, then run:
 
 ```bash
-export SR_IMAGE='reef-semantic-router@sha256:<your-image-digest>'
+export SR_IMAGE='aster-semantic-router@sha256:<your-image-digest>'
 bash tutorials/semantic-router/qwen2.5/run.sh
 ```
 
@@ -36,7 +36,7 @@ and shuts down the example's services when it exits.
 | Check | Expected result |
 | --- | --- |
 | Send an ordinary prompt with `model: auto` | The student answers. |
-| Send a prompt containing `reef_teacher_required` with `model: auto` | The keyword rule sends the request to the teacher. |
+| Send a prompt containing `aster_teacher_required` with `model: auto` | The keyword rule sends the request to the teacher. |
 | Send the same keyword with an explicit student target | The student answers because the explicit target takes precedence. |
 | Change the default to the teacher and send `SIGHUP` | The same ordinary prompt now gets a teacher answer. |
 | Restore the student default during a teacher stream | A new `auto` request gets a student answer while the original teacher stream is still producing tokens. Each receipt points to its own policy. |
@@ -44,7 +44,7 @@ and shuts down the example's services when it exits.
 Read `result.json` for the returned models, receipts and update timings. The
 time from `SIGHUP` to the first answer under the new policy includes update
 preparation and model response time. The public admission probes measure
-the shorter interval during which Reef refuses new inference. By default the
+the shorter interval during which Aster refuses new inference. By default the
 teacher generates 384 tokens. To compare multiple stream lengths on the same
 warm deployment, run `bash tutorials/semantic-router/qwen2.5/run.sh --stream-tokens 384 768`.
 Each length runs one idle update and one update during generation.

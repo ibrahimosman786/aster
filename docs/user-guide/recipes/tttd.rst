@@ -223,15 +223,15 @@ the grid and training settings in ``serve.yaml``. A reduced smoke can use two
 groups of two rollouts, one step, and thinking disabled; that run checks the
 integration path rather than the sampling budget used for the formal results.
 
-Aster writes its service log to ``work/erdos_min_overlap/reef.log``. The public
+Aster writes its service log to ``work/erdos_min_overlap/aster.log``. The public
 status endpoint reports the scenario step and the served artifact
 (``served_artifact_id``):
 
 .. code:: bash
 
    curl -s \
-     -H "Authorization: Bearer reef-local" \
-     http://127.0.0.1:8900/reef/status
+     -H "Authorization: Bearer aster-local" \
+     http://127.0.0.1:8900/aster/status
 
 The controller returns an error when the rollout count, scenario step, served
 artifact, or stored search identity does not match the current run. A successful
@@ -412,7 +412,7 @@ of ``1e-12``. Floating point summation changed the recorded values by less than
    :alt: Verified circle configurations for Packing 26 and Packing 32
 
 W&B recorded 50 committed rows for each packing task. The static export merges
-resumed run segments by the monotonic ``reef/step`` field and checks that steps
+resumed run segments by the monotonic ``aster/step`` field and checks that steps
 1 through 50 are present. ``rollout/rewards`` is the mean reward across one
 training grid, not the best score in the search archive.
 
@@ -446,7 +446,7 @@ project and an optional entity:
    observability:
      wandb:
        enabled: true
-       project: reef
+       project: aster
        entity: your-team
        mode: online
        directory: work/wandb
@@ -499,7 +499,7 @@ Each task stores its durable files under ``work/<task>/``:
 .. code:: text
 
    work/<task>/
-     reef.log
+     aster.log
      tttd-search-state.json
      agent-record/
      artifacts.git/

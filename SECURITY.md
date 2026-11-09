@@ -5,11 +5,11 @@
 Do not report suspected vulnerabilities in an issue, pull request, discussion,
 shared chat, or social-media post. If GitHub shows a **Report a vulnerability**
 button to you on the repository Security page, use it. Otherwise, contact a
-Reef maintainer through an existing private organizational channel and ask the
+Aster maintainer through an existing private organizational channel and ask the
 maintainer to open a draft GitHub Security Advisory before sending exploit
 details. Include:
 
-- the affected Reef version or commit;
+- the affected Aster version or commit;
 - the affected deployment or trust boundary;
 - reproduction steps or a proof of concept;
 - the realistic impact and required attacker capabilities; and

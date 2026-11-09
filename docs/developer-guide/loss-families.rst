@@ -6,7 +6,7 @@ A method's objective owns signal preparation and declares its
 one backend. Preparation runs on the job's full data; tensor loss hooks run after
 the backend's forward passes.
 
-- ``reef/train/slime_backend/`` holds Slime integration machinery, with the
+- ``aster/train/slime_backend/`` holds Slime integration machinery, with the
   ``SlimeObjective`` base class and its registry in ``objectives.py``. Each
   method's Slime implementation lives in ``recipes/<name>/slime/``. Its
   ``__init__.py`` holds the objective and the spec, torch-free code that runs in
@@ -87,7 +87,7 @@ The spec
 
 .. code:: python
 
-   from reef.train.slime_backend.algorithm import SlimeAlgorithm, register_loss_family
+   from aster.train.slime_backend.algorithm import SlimeAlgorithm, register_loss_family
 
 
    @register_loss_family
@@ -145,13 +145,13 @@ loss.
 - ``custom_loss_function_path``: ``<name>_loss(args, batch, logits, sum_of_sample_mean)``
 - ``custom_pg_loss_function_path``: ``<name>_loss(args, ppo_kl, log_probs, advantages)``
 - ``custom_advantage_function_path``: ``<name>_advantages(args, rollout_data)``
-- ``reef_actor_init_hook_path``: ``<name>_actor_init(actor)``, once, after the
+- ``aster_actor_init_hook_path``: ``<name>_actor_init(actor)``, once, after the
   actor has loaded its weights
-- ``reef_actor_pre_train_hook_path``: ``<name>_actor_pre_train(actor, rollout_data)``,
+- ``aster_actor_pre_train_hook_path``: ``<name>_actor_pre_train(actor, rollout_data)``,
   before every training step
 
 ``tests/slime_backend/test_slime_algorithm_contract.py`` enforces the entry point
-names and the layering: family packages never import ``reef_adapters``, the
+names and the layering: family packages never import ``aster_adapters``, the
 adapter layer never names a family, the spec module stays torch-free, family flags
 carry the ``--<name>-`` prefix.
 
@@ -174,9 +174,9 @@ A family that ships more than the five policy columns declares them on the spec.
 - ``critic_value_head_zero_init`` and ``critic_value_mask_key``: critic
   families only.
 
-Bundled families worth reading: ``reef/train/slime_backend/sft.py`` (the
+Bundled families worth reading: ``aster/train/slime_backend/sft.py`` (the
 built-in SFT family: Slime's ``sft_loss`` and no hooks),
-``reef/train/slime_backend/native.py`` (the built-in ``slime`` family of dataset
+``aster/train/slime_backend/native.py`` (the built-in ``slime`` family of dataset
 jobs and task jobs, whose advantages and loss are Slime's; see `Dataset jobs on
 Slime <../reference/configuration.rst#dataset-jobs-on-slime>`__),
 ``recipes/tttd/slime/`` (two hooks, the default row), ``recipes/sao/slime/`` (critic schedule, the pg-primitive lane),
@@ -220,7 +220,7 @@ The distillation base
 The recipes that distil a teacher on the student's own samples (SDFT, SDPO,
 on-policy distillation) compute the same per-token divergence and differ in
 who the teacher is and which divergence is minimized. Both are settings of
-one implementation in the backend, ``reef/train/slime_backend/distill/``,
+one implementation in the backend, ``aster/train/slime_backend/distill/``,
 and each such recipe's family is a thin subclass of it:
 
 - ``DistillAlgorithm`` is the base that runs in the component's process: the
@@ -254,16 +254,16 @@ and each such recipe's family is a thin subclass of it:
   renormalized over them, the reverse KL then estimated at the sampled
   token, or with one bucket for the rest of the vocabulary as SDPO's
   reference does. The kernels reduce across the vocab shards of tensor
-  parallel with ``reef/train/slime_backend/vocab_parallel.py`` and write the
+  parallel with ``aster/train/slime_backend/vocab_parallel.py`` and write the
   gradients out where autograd over one shard would drop the coupling
   through the global log-sum-exp;
   ``tests/slime_backend/test_distill_parity.py`` pins them to a pure-Python
   reference and to the dense gradients across four ranks.
 
-The base registers no family and imports nothing from ``reef_adapters``;
+The base registers no family and imports nothing from ``aster_adapters``;
 ``recipes/openclawrl/slime/`` imports its packing schedule from it. The
 operations over vocab shards (log-sum-exp, the log-probs at ids on any
-shard, the top-K ids) live in ``reef/train/slime_backend/vocab_parallel.py``,
+shard, the top-K ids) live in ``aster/train/slime_backend/vocab_parallel.py``,
 shared by the distillation base, score centering and OpenClaw-RL's teacher.
 
 Teacher engine
@@ -338,7 +338,7 @@ engine's probability:
        # importance_sampling: the ratio truncated at Slime's --tis-clip.
        return PolicyGradientWeight("truncated", upper=args.tis_clip)
 
-``PolicyGradientWeight`` (``reef.train.slime_backend.algorithm``) is ``none``
+``PolicyGradientWeight`` (``aster.train.slime_backend.algorithm``) is ``none``
 (``f = 1``, plain off-policy REINFORCE), ``truncated`` (``min(r, upper)``) or
 ``masked`` (``r`` strictly inside ``(lower, upper)``, else 0). The default,
 ``None``, refuses score centering: a clipped surrogate against a recomputed
@@ -427,7 +427,7 @@ make the off-policy update an exact on-policy KL gradient.
 Inputs and requirements:
 
 - Samples need the sampler's top-K, at least ``score-centering-top-k`` per
-  trained position, in ``extra.reef.training`` (``topk_indices`` and
+  trained position, in ``extra.aster.training`` (``topk_indices`` and
   ``topk_log_probs``). A sample that serving recorded has none, and the
   component fails the job. The Spindle full-parameter component's task rollouts
   record them when its ``score_centering`` option is on. A task job on Slime

@@ -7,9 +7,9 @@ import shutil
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
-from reef.core.tasks import HarborTask, HarborTaskConflict, HarborTaskError, read_harbor_task, write_harbor_task
-from reef.harness.harbor.rollouts import RolloutTurn, TaskRollout
-from reef.record2sample.generator import (
+from aster.core.tasks import HarborTask, HarborTaskConflict, HarborTaskError, read_harbor_task, write_harbor_task
+from aster.harness.harbor.rollouts import RolloutTurn, TaskRollout
+from aster.record2sample.generator import (
     DesignerRequest,
     DuplicateTask,
     Generator,
@@ -112,7 +112,7 @@ class StandInGenerator(Generator):
         self.root = root
         self.refusals = dict(refusals or {})
         self.same_port = same_port
-        # Names no write ever takes, the way a directory that is no task of reef's holds one.
+        # Names no write ever takes, the way a directory that is no task of aster's holds one.
         self.taken = set(taken)
         self.is_solvable = is_solvable
         self.rewards = dict(rewards or {"plain": 0.25, "hint": 0.75})
@@ -173,7 +173,7 @@ class StandInGenerator(Generator):
         if content_hash(task) in known:
             raise DuplicateTask("duplicate of a task already under the root")
         if task.name in self.taken:
-            raise TaskNameConflict(f"a different task holds the name {task.name}: it is not a task reef wrote")
+            raise TaskNameConflict(f"a different task holds the name {task.name}: it is not a task aster wrote")
         try:
             path = write_harbor_task(task, self.root)
         except HarborTaskConflict as exc:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from reef.inference.sglang.chat import SGLangInferenceHandler
+from aster.inference.sglang.chat import SGLangInferenceHandler
 
 
 def handler() -> SGLangInferenceHandler:

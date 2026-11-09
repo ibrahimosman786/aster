@@ -7,12 +7,12 @@ import pytest
 import yaml
 from tests.support.config_helpers import deployment_layout
 
-from reef.execution.executor.config import role_executor_settings, select_executor
-from reef.recipe.config import recipe_config_from_file_layout
-from reef.service.deploy.execution import service_executor_selection, validate_services
-from reef.service.deploy.inference import INFERENCE_COMPONENT_SERVICE
-from reef.service.deploy.service_config import service_config_from_mapping
-from reef.train.slime_backend.launch import SlimeDeployment, slime_arguments
+from aster.execution.executor.config import role_executor_settings, select_executor
+from aster.recipe.config import recipe_config_from_file_layout
+from aster.service.deploy.execution import service_executor_selection, validate_services
+from aster.service.deploy.inference import INFERENCE_COMPONENT_SERVICE
+from aster.service.deploy.service_config import service_config_from_mapping
+from aster.train.slime_backend.launch import SlimeDeployment, slime_arguments
 
 ROOT = Path(__file__).resolve().parents[2]
 SERVICE_CONFIGS = (
@@ -54,8 +54,8 @@ def test_training_examples_start_an_inference_component_without_reserving_gpus(r
     path = ROOT / relative
     config = deployment_layout(yaml.safe_load(path.read_text()))
     services = validate_services(config, relative)
-    assert [service["name"] for service in services] == [INFERENCE_COMPONENT_SERVICE, "reef"]
-    assert "ray_address" not in config["reef"]
+    assert [service["name"] for service in services] == [INFERENCE_COMPONENT_SERVICE, "aster"]
+    assert "ray_address" not in config["aster"]
     assert not {"cuda_visible_devices", "ray_port", "ray_dashboard_port"} & config["training"].keys()
     for service in services:
         assert "cuda" not in service
@@ -65,11 +65,11 @@ def test_training_examples_start_an_inference_component_without_reserving_gpus(r
         assert service_executor_selection(config, service).settings.backend == "uni"
     assert not services[0].get("depends_on")
     assert services[1]["depends_on"] == [INFERENCE_COMPONENT_SERVICE]
-    assert not config["reef"].get("colocate")
+    assert not config["aster"].get("colocate")
     # Training and serving use separate GPUs of one node.
     flags = slime_flags(config)
     training_gpus = int(flags.get("actor-num-nodes", "1")) * int(flags["actor-num-gpus-per-node"])
-    serving_gpus = config["reef"]["inference_num_gpus"]
+    serving_gpus = config["aster"]["inference_num_gpus"]
     assert training_gpus + serving_gpus == int(flags["num-gpus-per-node"])
     if "coral" not in relative:
         launcher = path.with_name("run.sh").read_text().replace('"', "")
@@ -98,7 +98,7 @@ def test_examples_select_service_executors_from_resources_and_slime_workers_on_r
     for service in services:
         expected = "ray" if service.get("resources") else "uni"
         assert service_executor_selection(config, service).settings.backend == expected
-    if config["reef"].get("training_backend") == "slime":
+    if config["aster"].get("training_backend") == "slime":
         assert config["execution"]["training"] == "ray"
         assert select_executor(role_executor_settings(config, "training"), role="training").settings.backend == "ray"
 
@@ -122,23 +122,23 @@ def test_gepa_allows_backend_selection_without_default_resource_boilerplate():
     config = yaml.safe_load((ROOT / "recipes/gepa/examples/aime/gepa.yaml").read_text())
     execution = config["execution"]["evolution"]
     assert set(execution) == {"backend", "workers"}
-    assert execution["backend"] == "${REEF_GEPA_EXECUTOR}"
+    assert execution["backend"] == "${ASTER_GEPA_EXECUTOR}"
 
 
-def test_openclawrl_isolates_external_models_from_reef_training():
+def test_openclawrl_isolates_external_models_from_aster_training():
     root = ROOT / "recipes/openclawrl/examples/openclawrl"
     config = deployment_layout(yaml.safe_load((root / "serve.yaml").read_text()))
     compose = yaml.safe_load((root / "docker-compose.yaml").read_text())["services"]
     component, http = validate_services(config, "serve.yaml")
-    assert [component["name"], http["name"]] == [INFERENCE_COMPONENT_SERVICE, "reef"]
+    assert [component["name"], http["name"]] == [INFERENCE_COMPONENT_SERVICE, "aster"]
     assert not component.get("resources") and not component.get("depends_on")
     assert http["depends_on"] == [INFERENCE_COMPONENT_SERVICE]
-    assert compose["reef"]["environment"]["RAY_ADDRESS"] == "${RAY_ADDRESS:-}"
+    assert compose["aster"]["environment"]["RAY_ADDRESS"] == "${RAY_ADDRESS:-}"
     pools = {
         name: set(service["deploy"]["resources"]["reservations"]["devices"][0]["device_ids"])
         for name, service in compose.items()
     }
-    assert pools == {"prm": {"1"}, "user-model": {"2"}, "reef": {"3", "4", "5", "6", "7"}}
+    assert pools == {"prm": {"1"}, "user-model": {"2"}, "aster": {"3", "4", "5", "6", "7"}}
     for name in ("prm", "user-model"):
         command = compose[name]["command"]
         assert command[:3] == ["python", "-m", "sglang.launch_server"]
@@ -148,14 +148,14 @@ def test_openclawrl_isolates_external_models_from_reef_training():
     judging = config["pipeline"]["record2sample"]["config"]
     assert judging["prm_url"] == f"http://127.0.0.1:{prm[prm.index('--port') + 1]}"
     assert judging["prm_tokenizer_path"] == prm[prm.index("--model-path") + 1]
-    assert compose["reef"]["depends_on"] == {"prm": {"condition": "service_healthy"}}
+    assert compose["aster"]["depends_on"] == {"prm": {"condition": "service_healthy"}}
     flags = slime_flags(config)
     training_gpus = int(flags.get("actor-num-nodes", "1")) * int(flags["actor-num-gpus-per-node"])
     # Slime's trajectory jobs start no engine; the inference section sizes the serving engines.
     assert "rollout-num-gpus" not in flags
-    rollout_gpus = int(config["reef"]["inference_num_gpus"])
+    rollout_gpus = int(config["aster"]["inference_num_gpus"])
     assert (training_gpus, rollout_gpus, int(flags["num-gpus-per-node"])) == (4, 1, 5)
-    assert training_gpus + rollout_gpus == len(pools["reef"])
+    assert training_gpus + rollout_gpus == len(pools["aster"])
 
 
 @pytest.mark.parametrize("relative", (*TRAINING_CONFIGS, "recipes/openclawrl/examples/openclawrl/serve.yaml"))
@@ -163,5 +163,5 @@ def test_examples_keep_inference_flags_in_the_inference_namespace(relative):
     raw = yaml.safe_load((ROOT / relative).read_text())
     assert not any(key.startswith(("sglang-", "rollout-num-gpus")) for key in raw["training"]["options"])
     config = deployment_layout(raw)
-    assert config["reef"]["inference_num_gpus"] > 0
-    assert config["reef"]["tensor_parallel_size"] == 1
+    assert config["aster"]["inference_num_gpus"] > 0
+    assert config["aster"]["tensor_parallel_size"] == 1

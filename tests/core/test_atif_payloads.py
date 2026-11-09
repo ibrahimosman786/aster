@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from harbor.models.trajectories import Trajectory
 
-from reef.core.atif_payloads import atif_call, canonical_json, folded_steps, patch_of, patched, provider_payload
+from aster.core.atif_payloads import atif_call, canonical_json, folded_steps, patch_of, patched, provider_payload
 
 CHAT = {
     "model": "m",
@@ -151,12 +151,12 @@ def test_private_fields_stay_in_extra_and_tools_take_the_function_schema() -> No
             "function": {"name": "inspect", "parameters": {"type": "object"}, "description": "Inspect"},
         }
     ]
-    assert call.agent["extra"]["reef"]["other_tools"] == [
+    assert call.agent["extra"]["aster"]["other_tools"] == [
         {"index": 1, "tool": {"type": "web_search_20250305", "name": "web_search"}}
     ]
     system, user, assistant, results = call.entries
     assert system[0]["message"] == [{"type": "text", "text": "Be precise"}]
-    assert system[0]["extra"]["reef"]["patch"] == {"[]": {"0": {"~": {"cache_control": {"=": {"type": "ephemeral"}}}}}}
+    assert system[0]["extra"]["aster"]["patch"] == {"[]": {"0": {"~": {"cache_control": {"=": {"type": "ephemeral"}}}}}}
     assert user[0]["message"][1] == {
         "type": "image",
         "source": {"media_type": "image/png", "path": "data:image/png;base64,AAAA"},

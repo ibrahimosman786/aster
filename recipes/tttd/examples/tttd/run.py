@@ -4,10 +4,10 @@ One rollout:
 
     solve  — reef-eval runs the selected harbor/ task under our agent; every
              rollout is
-             an inference through Reef, stamped with its step-grid
+             an inference through Aster, stamped with its step-grid
              coordinates
     verify — the task's judge scores each attempt
-    learn  — the agent reports the scores; Reef's TTTD recipe waits for
+    learn  — the agent reports the scores; Aster's TTTD recipe waits for
              one complete step grid (8 groups x 64 rollouts), trains, and
              serves the updated weights
 

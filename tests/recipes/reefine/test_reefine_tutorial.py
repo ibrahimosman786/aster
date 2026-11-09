@@ -1,6 +1,6 @@
 """Guarantees of the recipes/beta/reefine/examples demos, hermetic: the deployment builds in manual mode, answering in
 text, with the evaluation's floor over the one health task, the driver parses and installs a source tree locally, the
-demo requests and the measurement's fixed list pass the request screens on POST /reef/train, the bugfix fixture fails
+demo requests and the measurement's fixed list pass the request screens on POST /aster/train, the bugfix fixture fails
 its one test, and the README examples have valid shell syntax and local links resolve."""
 
 from __future__ import annotations
@@ -22,17 +22,17 @@ from recipes.beta.reefine import AnswerScorer, ReefineMethod, ReefineRecipe
 from recipes.beta.reefine import answer as reefine_answer
 from recipes.beta.reefine.recipe import SEED_DIRECTORY
 from recipes.beta.reefine.scorer import grade_text
-from reef.dispatcher.ingest import training_request_refusal
-from reef.evaluation.activation import AlwaysActivate
-from reef.harness.tree import HarnessTree
-from reef.harness.tree.checks import directive_shaped, secret_shaped
-from reef.service.deploy.service_config import service_config_from_mapping
+from aster.dispatcher.ingest import training_request_refusal
+from aster.evaluation.activation import AlwaysActivate
+from aster.harness.tree import HarnessTree
+from aster.harness.tree.checks import directive_shaped, secret_shaped
+from aster.service.deploy.service_config import service_config_from_mapping
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 TUTORIAL = REPO_ROOT / "recipes" / "beta" / "reefine" / "examples"
 #: The one evaluation task, the profile's: the floor checks that the tree still runs a shell command and answers.
 HEALTH_TASK = (
-    "[health] Run the shell command `echo reef-ok` with your shell tool and reply with its exact output as a "
+    "[health] Run the shell command `echo aster-ok` with your shell tool and reply with its exact output as a "
     "plain word alone on the last line."
 )
 #: Additional retired concepts in the tutorial; check-doc-contracts.mjs checks simplified terminology repository-wide.
@@ -50,7 +50,7 @@ DROPPED_WORDS = (
 @pytest.fixture
 def run_module(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     """recipes/beta/reefine/examples/run.py as a module, loaded from its path: it is a script, not a package."""
-    monkeypatch.setenv("REEF_UPSTREAM_MODEL", "provider/model-a")
+    monkeypatch.setenv("ASTER_UPSTREAM_MODEL", "provider/model-a")
     spec = importlib.util.spec_from_file_location("harness_requests_run", TUTORIAL / "run.py")
     if spec is None or spec.loader is None:
         raise RuntimeError("run.py could not be loaded")
@@ -63,13 +63,13 @@ def test_deployment_yaml_builds_the_recipe_answering_in_text_with_the_floor(monk
     """The demos use the built-in recipe with tutorial-local state, no agent, training_mode manual (one step per
     accepted instruction and no failure driven step between them) and the evaluation's floor over the one health task,
     so a change publishes when the tree still works and an extension still waits."""
-    from reef.recipe.registry import build_named_recipe
-    from reef.service.assembly import _upstream_runtime
+    from aster.recipe.registry import build_named_recipe
+    from aster.service.assembly import _upstream_runtime
 
-    monkeypatch.setenv("REEF_UPSTREAM_URL", "http://127.0.0.1:8000")
-    monkeypatch.setenv("REEF_UPSTREAM_MODEL", "provider/model-a")
-    monkeypatch.setenv("REEF_UPSTREAM_API_KEY", "dummy")
-    monkeypatch.setenv("REEF_PYTHON", sys.executable)
+    monkeypatch.setenv("ASTER_UPSTREAM_URL", "http://127.0.0.1:8000")
+    monkeypatch.setenv("ASTER_UPSTREAM_MODEL", "provider/model-a")
+    monkeypatch.setenv("ASTER_UPSTREAM_API_KEY", "dummy")
+    monkeypatch.setenv("ASTER_PYTHON", sys.executable)
     monkeypatch.setenv("PWD", str(REPO_ROOT))
     path = TUTORIAL / "configs" / "deployment.yaml"
     config = load_config(path)
@@ -84,24 +84,24 @@ def test_deployment_yaml_builds_the_recipe_answering_in_text_with_the_floor(monk
     assert serve["evaluation"]["tasks"] == [HEALTH_TASK]
     # The serve config's agent works in a step's directory, and pi reads every AGENTS.md above it: not this checkout's.
     assert not Path(serve["state_dir"]).expanduser().resolve().is_relative_to(REPO_ROOT)
-    assert grade_text(HEALTH_TASK, "$ echo reef-ok\nreef-ok") == 1.0
-    assert [service["name"] for service in config["services"]] == ["reef"]
+    assert grade_text(HEALTH_TASK, "$ echo aster-ok\naster-ok") == 1.0
+    assert [service["name"] for service in config["services"]] == ["aster"]
     module_name = section["evaluation"]["scorer"].partition(":")[0]
     spec = importlib.util.find_spec(module_name)
     assert spec is not None
-    # The scorer belongs to the active Reef installation, including a wheel outside the checkout.
+    # The scorer belongs to the active Aster installation, including a wheel outside the checkout.
     assert Path(spec.origin).resolve() == Path(reefine.__file__).with_name("scorer.py").resolve()
     for key in ("agent_record_dir", "artifact_repository", "artifact_work_dir", "artifact_cache_dir"):
-        assert config["reef"][key].startswith("recipes/beta/reefine/examples/work/")
+        assert config["aster"][key].startswith("recipes/beta/reefine/examples/work/")
     assert config["run_dir"].startswith("recipes/beta/reefine/examples/work/")
     # The step workspaces and the history stay with the run's state.
     assert section["state_dir"].startswith("recipes/beta/reefine/examples/work/")
-    assert config["reef"]["port"] == 8901 and config["reef"]["token"] == "reef-local"
+    assert config["aster"]["port"] == 8901 and config["aster"]["token"] == "aster-local"
 
     service = service_config_from_mapping(config)
     built = build_named_recipe(
         "deployment",
-        {**os.environ, "REEF_RECIPE_CONFIG_DIR": str(TUTORIAL / "configs")},
+        {**os.environ, "ASTER_RECIPE_CONFIG_DIR": str(TUTORIAL / "configs")},
         default_runtime=_upstream_runtime(service),
     )
     assert isinstance(built, ReefineRecipe) and built.evolution.adapter == "pi"
@@ -146,7 +146,7 @@ def test_run_sh_refuses_an_unknown_mode_before_touching_anything() -> None:
 
 
 def test_the_measurement_requests_pass_the_request_screens(run_module) -> None:
-    """The fixed list becomes the method's input through POST /reef/train: none of it may trip the directive or
+    """The fixed list becomes the method's input through POST /aster/train: none of it may trip the directive or
     credential screen, and the default --n has that many to file."""
     requests = run_module.MEASURE_REQUESTS
     assert len(requests) >= 10 and len(set(requests)) == len(requests)
@@ -243,7 +243,7 @@ def test_the_measurement_counts_won_and_published_apart(run_module) -> None:
     }
 
 
-def test_install_renders_the_source_tree_for_pi_with_a_binding_at_this_reef(run_module, tmp_path, monkeypatch) -> None:
+def test_install_renders_the_source_tree_for_pi_with_a_binding_at_this_aster(run_module, tmp_path, monkeypatch) -> None:
     """The demo is the client: it pulls the source tree, checks what the snapshot requires on this machine, and
     renders the tree locally with its own model binding; a snapshot that requires what the machine lacks stops it."""
     manifest: dict = {"artifact_id": "r1", "files": {"rules.md": "Answer briefly.\n"}, "requires": []}
@@ -257,12 +257,12 @@ def test_install_renders_the_source_tree_for_pi_with_a_binding_at_this_reef(run_
     monkeypatch.setattr(run_module, "service_client", Client)
     monkeypatch.setattr(run_module, "ensure_scenario", lambda client: None)
     monkeypatch.setattr(run_module, "INSTALL_ROOT", tmp_path / "harness")
-    assert run_module.install() == "r1" and paths == ["/reef/harness?form=source"]
+    assert run_module.install() == "r1" and paths == ["/aster/harness?form=source"]
     rendered = tmp_path / "harness" / "pi-agent"
     assert "Answer briefly." in (tmp_path / "harness" / "plugin" / "rules.md").read_text()
     models = json.loads((rendered / "models.json").read_text())
-    assert run_module.SERVICE_URL in models["providers"]["reef"]["baseUrl"]
-    assert models["providers"]["reef"]["headers"] == {"x-reef-scenario": run_module.SCENARIO}
+    assert run_module.SERVICE_URL in models["providers"]["aster"]["baseUrl"]
+    assert models["providers"]["aster"]["headers"] == {"x-aster-scenario": run_module.SCENARIO}
     record = json.loads((tmp_path / "harness" / run_module.RELEASE_FILE).read_text())
     assert record["artifact_id"] == "r1" and "plugin/rules.md" in record["files"]
     assert "release_id" not in record
@@ -270,9 +270,9 @@ def test_install_renders_the_source_tree_for_pi_with_a_binding_at_this_reef(run_
     # An older install names no artifact: it reads as nothing installed, and the next install replaces it.
     (tmp_path / "harness" / run_module.RELEASE_FILE).write_text(json.dumps({"release_id": "storage:old"}))
     assert run_module.installed_artifact() is None
-    monkeypatch.delenv("REEF_DEMO_PHONE", raising=False)
-    manifest["requires"] = [{"name": "REEF_DEMO_PHONE", "kind": "env", "prompt": "The phone number to text"}]
-    assert run_module.install("r2") is None and paths[-1] == "/reef/harness?form=source&artifact_id=r2"
+    monkeypatch.delenv("ASTER_DEMO_PHONE", raising=False)
+    manifest["requires"] = [{"name": "ASTER_DEMO_PHONE", "kind": "env", "prompt": "The phone number to text"}]
+    assert run_module.install("r2") is None and paths[-1] == "/aster/harness?form=source&artifact_id=r2"
 
 
 def test_the_workspace_fixture_fails_exactly_one_test() -> None:
@@ -326,21 +326,21 @@ def test_the_example_is_listed_with_the_beta_recipes() -> None:
 
 
 def test_the_model_call_budget_follows_the_environment(monkeypatch) -> None:
-    """run.sh exports REEF_REEFINE_CALL_TIMEOUT_S because the method package's defaults (60 s for a failure step,
-    120 s for a request) are short of what a local 26B model needs, and pins REEF_REEFINE_CALL_MAX_TOKENS at the
+    """run.sh exports ASTER_ASTERINE_CALL_TIMEOUT_S because the method package's defaults (60 s for a failure step,
+    120 s for a request) are short of what a local 26B model needs, and pins ASTER_ASTERINE_CALL_MAX_TOKENS at the
     package's request default of 16384, the budget a thinking model needs; unset, the defaults stand."""
-    monkeypatch.delenv("REEF_REEFINE_CALL_TIMEOUT_S", raising=False)
+    monkeypatch.delenv("ASTER_ASTERINE_CALL_TIMEOUT_S", raising=False)
     assert reefine_answer.timeout_s(120.0) == 120.0
-    monkeypatch.setenv("REEF_REEFINE_CALL_TIMEOUT_S", "900")
+    monkeypatch.setenv("ASTER_ASTERINE_CALL_TIMEOUT_S", "900")
     assert reefine_answer.timeout_s(120.0) == 900.0
-    monkeypatch.setenv("REEF_REEFINE_CALL_TIMEOUT_S", " ")
+    monkeypatch.setenv("ASTER_ASTERINE_CALL_TIMEOUT_S", " ")
     assert reefine_answer.timeout_s(60.0) == 60.0
-    monkeypatch.delenv("REEF_REEFINE_CALL_MAX_TOKENS", raising=False)
+    monkeypatch.delenv("ASTER_ASTERINE_CALL_MAX_TOKENS", raising=False)
     assert reefine_answer.max_tokens(16384) == 16384
-    monkeypatch.setenv("REEF_REEFINE_CALL_MAX_TOKENS", "32768")
+    monkeypatch.setenv("ASTER_ASTERINE_CALL_MAX_TOKENS", "32768")
     assert reefine_answer.max_tokens(16384) == 32768
-    monkeypatch.setenv("REEF_REEFINE_CALL_MAX_TOKENS", "16k")
+    monkeypatch.setenv("ASTER_ASTERINE_CALL_MAX_TOKENS", "16k")
     assert reefine_answer.max_tokens(16384) == 16384
     run_sh = (TUTORIAL / "run.sh").read_text(encoding="utf-8")
-    assert 'REEF_REEFINE_CALL_TIMEOUT_S="${REEF_REEFINE_CALL_TIMEOUT_S:-900}"' in run_sh
-    assert 'REEF_REEFINE_CALL_MAX_TOKENS="${REEF_REEFINE_CALL_MAX_TOKENS:-16384}"' in run_sh
+    assert 'ASTER_ASTERINE_CALL_TIMEOUT_S="${ASTER_ASTERINE_CALL_TIMEOUT_S:-900}"' in run_sh
+    assert 'ASTER_ASTERINE_CALL_MAX_TOKENS="${ASTER_ASTERINE_CALL_MAX_TOKENS:-16384}"' in run_sh

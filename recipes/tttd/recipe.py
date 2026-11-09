@@ -8,10 +8,10 @@ from typing import Any
 
 from recipes.tttd.processor import TTTDJobData, TTTDSamples
 from recipes.tttd.report import TTTDGroupedRolloutReport
-from reef.core.reports import ReportBase
-from reef.recipe.base import WeightTrainingRecipe
-from reef.storage.samples import SAMPLE_KINDS, SampleKind
-from reef.train.pipeline import PipelineSpec
+from aster.core.reports import ReportBase
+from aster.recipe.base import WeightTrainingRecipe
+from aster.storage.samples import SAMPLE_KINDS, SampleKind
+from aster.train.pipeline import PipelineSpec
 
 
 @dataclass(frozen=True, kw_only=True)

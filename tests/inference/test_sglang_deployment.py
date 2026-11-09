@@ -7,13 +7,13 @@ import sys
 
 import pytest
 
-from reef.inference.sglang import deployment
-from reef.inference.sglang.executor import SGLangExecutor
+from aster.inference.sglang import deployment
+from aster.inference.sglang.executor import SGLangExecutor
 
 
 @pytest.mark.parametrize("executor", [None, "auto", "ray"])
 def test_native_inference_factory_accepts_plain_input_without_starting_workers(monkeypatch, executor):
-    from reef.execution.executor.ray import RayExecutor
+    from aster.execution.executor.ray import RayExecutor
 
     def fail_allocation(*args, **kwargs):
         raise AssertionError("factory must not allocate workers")
@@ -104,8 +104,8 @@ def test_native_factory_imports_and_builds_with_training_stack_blocked():
             "-c",
             """
 import sys
-sys.modules.update(dict.fromkeys(('slime', 'megatron', 'torch', 'reef.train.slime_backend')))
-from reef.inference.sglang.deployment import create_inference
+sys.modules.update(dict.fromkeys(('slime', 'megatron', 'torch', 'aster.train.slime_backend')))
+from aster.inference.sglang.deployment import create_inference
 service = create_inference(dict(model_path='model', num_gpus=1, gpus_per_engine=1, gpus_per_node=1))
 assert service.config.options['disable_radix_cache'] is True
 service.close()

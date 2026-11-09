@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from reef.core import AgentRecord, RequestType
-from reef.core.trajectories import make_trajectory
-from reef.record2sample.assembly import ReportContext, SampleAssembly, SampleAssemblySettings
-from reef.train.types import TrajectorySample
+from aster.core import AgentRecord, RequestType
+from aster.core.trajectories import make_trajectory
+from aster.record2sample.assembly import ReportContext, SampleAssembly, SampleAssemblySettings
+from aster.train.types import TrajectorySample
 
 TASK = {"name": "openenv-00012-003-deduction", "path": "/tasks/openenv-00012-003-deduction", "digest": "ab" * 32}
 

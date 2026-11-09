@@ -7,17 +7,17 @@ from tests.support.records import memory_records
 from tests.support.runtime_stubs import STUB_ROOT, RecordingComponent
 from tests.support.samples_service import make_samples
 
-from reef.core.training_request import normalize_training_request_payload
-from reef.pipeline_context import PipelineContext
-from reef.sample2job import Sample2Job
-from reef.storage.records import RecordConflict
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.work_queue import NewWork
-from reef.train.jobs import JobLoop
-from reef.train.pipeline import TrainingPipeline
-from reef.train.trainer import Trainer
-from reef.train.training_requests import TRAINING_REQUESTS_QUEUE, TrainingRequestQueue, training_request_kind
-from reef.train.types import JobData
+from aster.core.training_request import normalize_training_request_payload
+from aster.pipeline_context import PipelineContext
+from aster.sample2job import Sample2Job
+from aster.storage.records import RecordConflict
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.work_queue import NewWork
+from aster.train.jobs import JobLoop
+from aster.train.pipeline import TrainingPipeline
+from aster.train.trainer import Trainer
+from aster.train.training_requests import TRAINING_REQUESTS_QUEUE, TrainingRequestQueue, training_request_kind
+from aster.train.types import JobData
 
 
 def payload(text: str) -> dict:

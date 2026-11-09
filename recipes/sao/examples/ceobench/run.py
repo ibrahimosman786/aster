@@ -2,10 +2,10 @@
 
     solve  — reef-eval runs the harbor/ task under our agent; the benchmark's
              bash agent plays the configured number of days with every model
-             call served by Reef
+             call served by Aster
     learn  — when a week ends, the agent reports that week's turns with the
              week's change in company value (cash plus the subscription
-             run-rate over the weeks left); Reef's SAO recipe trains on the
+             run-rate over the weeks left); Aster's SAO recipe trains on the
              accepted turns while the agent is already playing the next
              week, and the engine serves the updated adapter
     verify — Harbor's verifier scores the finished run from its world.nmdb
@@ -13,7 +13,7 @@
 This is test-time training: the policy adapts inside the rollout it is
 scored on. ``CEOBENCH_SEED`` (default ``42``) and ``CEOBENCH_DAYS`` (default
 ``500``) pick the rollout. Replicates are independent runs from the base
-model, one stack each: a Reef process trains one scenario for its lifetime,
+model, one stack each: an Aster process trains one scenario for its lifetime,
 so a second seed on the same stack would start from the first seed's adapter.
 After the rollout the loop waits for the scenario's version chain to stop
 growing, so the adapter on disk is the one the rollout ended with.
@@ -29,12 +29,12 @@ from pathlib import Path
 
 from reef_eval import Lab
 
-MODEL = "reef"  # model name the agent sends; Reef's SGLang serves it
+MODEL = "aster"  # model name the agent sends; Aster's SGLang serves it
 
 HERE = Path(__file__).resolve().parent
-SERVICE_URL = os.environ["REEF_SERVICE_URL"].rstrip("/")
-SCENARIO = os.environ.get("REEF_SCENARIO", "ceobench-sao")
-TOKEN = os.environ.get("REEF_TOKEN", "reef-local")
+SERVICE_URL = os.environ["ASTER_SERVICE_URL"].rstrip("/")
+SCENARIO = os.environ.get("ASTER_SCENARIO", "ceobench-sao")
+TOKEN = os.environ.get("ASTER_TOKEN", "aster-local")
 SEED = int(os.environ.get("CEOBENCH_SEED", "42"))
 DAYS = int(os.environ.get("CEOBENCH_DAYS", "500"))
 #: Training is quiescent once the step count holds for this long: longer than one
@@ -56,7 +56,7 @@ def training_step_count() -> int | None:
     terminal: the stack is gone, or this loop is talking to something that is
     not its deployment.
     """
-    request = urllib.request.Request(f"{SERVICE_URL}/reef/status", headers={"Authorization": f"Bearer {TOKEN}"})
+    request = urllib.request.Request(f"{SERVICE_URL}/aster/status", headers={"Authorization": f"Bearer {TOKEN}"})
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
             payload = json.loads(response.read())
@@ -79,7 +79,7 @@ def wait_for_training() -> int:
     last, last_change = training_step_count(), time.time()
     while time.time() < deadline:
         if last == SERVICE_GONE:
-            print("    WARNING: the Reef service is not reachable; skipping the training drain")
+            print("    WARNING: the Aster service is not reachable; skipping the training drain")
             return 0
         time.sleep(10)
         current = training_step_count()

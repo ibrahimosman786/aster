@@ -1,6 +1,6 @@
-# Contributing to Reef
+# Contributing to Aster
 
-Thank you for helping improve Reef. Contributions can include bug reports,
+Thank you for helping improve Aster. Contributions can include bug reports,
 documentation, tests, examples, code, design proposals, and reviews.
 
 ## Before you start
@@ -61,7 +61,7 @@ These are defaults, not limits: include detail when it changes the decision.
 
 Before submitting, remove any sentence that neither helps explain the problem
 nor affects the decision or its verification. The concise proposal in
-[#688](https://github.com/Human-Agent-Society/reef/issues/688) illustrates this
+[#688](https://github.com/Human-Agent-Society/aster/issues/688) illustrates this
 style; it is not a required outline or an endorsement of its design.
 
 ### Issue titles and classification
@@ -83,7 +83,7 @@ An issue title starts with exactly one controlled type prefix:
 Write the rest of the title as a concise outcome, normally beginning with a
 verb: `[Feature] Add W&B experiment tracking for training`. Do not add a second
 bracketed tag for an area, project, status, or method. In particular, use
-`[Roadmap] Reef 2026 Q3`, not `[Roadmap][Draft] ...`; record `Draft`, `Active`,
+`[Roadmap] Aster 2026 Q3`, not `[Roadmap][Draft] ...`; record `Draft`, `Active`,
 or `Complete` in the roadmap body.
 
 Labels carry the independent classification dimensions. Maintainers may apply
@@ -119,7 +119,7 @@ invitation to submit competing pull requests without coordination.
 
 Write an RFC before implementing a change that:
 
-- adds a new top-level package under `reef`;
+- adds a new top-level package under `aster`;
 - adds a shared training backend or changes the recipe extension contract;
 - makes a significant or backwards-incompatible public interface change;
 - changes a persisted format, wire contract, trust boundary, or service
@@ -130,7 +130,7 @@ Small bug fixes, documentation improvements, tests, internal refactors that
 preserve behavior, and implementation work for an accepted RFC do not normally
 need a new RFC.
 
-Open an [RFC issue](https://github.com/Human-Agent-Society/reef/issues/new?template=rfc.yml)
+Open an [RFC issue](https://github.com/Human-Agent-Society/aster/issues/new?template=rfc.yml)
 and complete the full proposal in the issue body. The issue is the RFC and its
 decision record; do not add an RFC document to the repository. Keep material
 design changes, the maintainer decision, and implementation links on the issue.
@@ -161,7 +161,7 @@ reproducing or implementing the change directly.
 
 ## Set up the repository
 
-Follow the [development guide](https://reefinfra.ai/docs/contributing/development/) to initialize
+Follow the [development guide](https://asterinfra.ai/docs/contributing/development/) to initialize
 submodules, create an environment, install dependencies, and enable
 `pre-commit`.
 
@@ -192,18 +192,18 @@ pre-commit checks and CI. The structural check does not judge translation
 quality, so its success does not replace human review of meaning and wording.
 
 The full test suite needs the supported container environment and training
-dependencies. See the [testing guide](https://reefinfra.ai/docs/contributing/testing/) for
+dependencies. See the [testing guide](https://asterinfra.ai/docs/contributing/testing/) for
 focused commands and dependency details.
 
 ## Understand the codebase
 
-Use the [codebase structure map](https://reefinfra.ai/docs/contributing/codebase-structure/) to
+Use the [codebase structure map](https://asterinfra.ai/docs/contributing/codebase-structure/) to
 decide which package owns a change. Each package's `__init__` docstring states
 the invariants inside its area; the map is the repository-wide routing guide.
 
 When adding a recipe, training integration, runtime, component, artifact type,
 service route, or harness adapter, follow the
-[component playbooks](https://reefinfra.ai/docs/contributing/adding-components/). They list the
+[component playbooks](https://asterinfra.ai/docs/contributing/adding-components/). They list the
 implementation location, registration point, tests, configuration, and
 documentation expected in the same pull request.
 
@@ -212,9 +212,9 @@ documentation expected in the same pull request.
 Python changes should follow [PEP 8](https://peps.python.org/pep-0008/), the
 [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html),
 and the principles below. The repository configuration in `pyproject.toml` is
-the authority when a general guide differs from Reef's mechanical style: Black
+the authority when a general guide differs from Aster's mechanical style: Black
 formats code, isort orders imports, Ruff checks common errors and
-maintainability issues, and mypy checks the `reef` package. Do not hand-format
+maintainability issues, and mypy checks the `aster` package. Do not hand-format
 code against these tools.
 
 ### Write Pythonic code
@@ -311,13 +311,13 @@ can hold or which code reads them.
   integration boundary.
 - Do not use `typing.Protocol`, `typing_extensions.Protocol`, or `runtime_checkable`.
   Define abstract base classes and inherit them explicitly. The Python design
-  check enforces this across all first-party Python files, including `reef/`,
+  check enforces this across all first-party Python files, including `aster/`,
   `recipes/`, `tests/`, `tutorials/`, `docker/`, `docs/`, `.github/scripts/`, and
   root files. It excludes third-party code, local dependency/build trees, vendored
   benchmark inputs, published result programs, and golden fixtures using the paths
   in [.github/scripts/check_python_design.py](.github/scripts/check_python_design.py).
   Protocol findings cannot be exempted through the design baseline. The existing
-  `TYPE_CHECKING` and Callable checks keep their `reef/`, `recipes/`, and `tests/` scope.
+  `TYPE_CHECKING` and Callable checks keep their `aster/`, `recipes/`, and `tests/` scope.
 - Do not model long-lived behavior as `Callable` constructor arguments,
   callable-valued fields, or containers of callbacks. Define an abstract base class
   with meaningful methods or a cohesive class so the contract, state, and
@@ -375,7 +375,7 @@ reliably:
 - Ruff's `pep8-naming` rules enforce the naming forms above. Narrow exceptions
   for established public APIs and mathematical notation are documented in
   `pyproject.toml`.
-- mypy checks type consistency in the `reef` package.
+- mypy checks type consistency in the `aster` package.
 - The Python design-policy check rejects `Protocol`, `runtime_checkable`,
   `TYPE_CHECKING`, and new Callable-based object state or callback bundles. Its baseline identifies existing migration
   debt for Callable patterns; Protocol and `TYPE_CHECKING` findings cannot be baselined.
@@ -417,13 +417,13 @@ builds and real-harness smoke tests run automatically when their files change.
 Run relevant checks locally and batch each round of review fixes before pushing.
 
 Before merging, the required checks must pass on the latest revision:
-`lint`, `test (3.12)`, and `package (3.12)`. Reef supports Python 3.12 only, so
+`lint`, `test (3.12)`, and `package (3.12)`. Aster supports Python 3.12 only, so
 every run tests the same version. A new push cancels older runs. To retry a
 failed check, any contributor with repository write access can rerun the latest
 `ci` run of the pull request:
 
 ```bash
-gh run rerun RUN_ID --repo Human-Agent-Society/reef
+gh run rerun RUN_ID --repo Human-Agent-Society/aster
 ```
 
 A rerun fails if the pull request is closed, is a draft, or has newer commits.

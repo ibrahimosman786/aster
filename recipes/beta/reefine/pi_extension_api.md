@@ -1,12 +1,12 @@
 ---
 name: pi-extension-api
-description: The pi 0.84.2 extension API in brief. Read before writing or changing an extension file for pi. Covers the file shape, tools with typebox parameters, commands, events, ctx.ui, messages, exec, and the rules an extension in a Reef tree must keep.
+description: The pi 0.84.2 extension API in brief. Read before writing or changing an extension file for pi. Covers the file shape, tools with typebox parameters, commands, events, ctx.ui, messages, exec, and the rules an extension in an Aster tree must keep.
 ---
 # pi extension API (0.84.2)
 
 An extension is one module at plugin/extensions/<name>.ts, in the snapshot's pi package. pi loads it with jiti, so plain JavaScript in a .ts file runs as is; type annotations are allowed but not needed. An extension file has no npm install: import only node: modules, typebox, @earendil-works/pi-coding-agent, @earendil-works/pi-ai and @earendil-works/pi-tui.
 
-This summary is versioned with Reef's pi installation pin. For a missing detail, locate `pi` on PATH,
+This summary is versioned with Aster's pi installation pin. For a missing detail, locate `pi` on PATH,
 resolve its symlink and check the owning `package.json`. In that package, use these specific references:
 
 | Question | Documentation / types | Implementation when needed |
@@ -76,11 +76,11 @@ pi.registerCommand("standup", {
 });
 ```
 
-The handler gets the text after /standup as args. A command runs no model call by itself; send a user message to start a turn. The evolve and versions commands and the reef_ask_user and reef_file_request tools belong to reef: register nothing under those names.
+The handler gets the text after /standup as args. A command runs no model call by itself; send a user message to start a turn. The evolve and versions commands and the aster_ask_user and aster_file_request tools belong to aster: register nothing under those names.
 
 Registered commands appear in pi's native `/` autocomplete dropdown alongside built-in commands; `description` tells the user what each does. Register at extension load, after the required `PI_OFFLINE` guard, not inside an event handler or behind `ctx.hasUI`. Guard UI operations inside the handler instead. An `input` hook that recognizes `/name` does not register it for the dropdown. Avoid names already used by built-in commands, prompt templates or other extensions.
 
-For a command that only expands a prompt, use a `command` file (`commands/<name>.md` in the tree) instead of an extension. Reef renders its text to `plugin/prompts/<name>.md`; start the text with YAML frontmatter containing `description` for the native dropdown. Check both menu selection and direct invocation after reload/startup. A headless run does not verify the dropdown.
+For a command that only expands a prompt, use a `command` file (`commands/<name>.md` in the tree) instead of an extension. Aster renders its text to `plugin/prompts/<name>.md`; start the text with YAML frontmatter containing `description` for the native dropdown. Check both menu selection and direct invocation after reload/startup. A headless run does not verify the dropdown.
 
 ## Events: pi.on(name, handler)
 
@@ -153,18 +153,18 @@ Pass values as arguments, never as shell source. The directory of this harness's
 
 ## Network
 
-fetch is global. Pass signal. Reef's own routes take the headers { "x-reef-scenario": process.env.REEF_SCENARIO } and, when set, { authorization: `Bearer ${process.env.REEF_TOKEN}` }; the service is at process.env.REEF_SERVICE_URL.
+fetch is global. Pass signal. Aster's own routes take the headers { "x-aster-scenario": process.env.ASTER_SCENARIO } and, when set, { authorization: `Bearer ${process.env.ASTER_TOKEN}` }; the service is at process.env.ASTER_SERVICE_URL.
 
-Models beyond the session's chat model are Reef routes too, when the Reef recipe configures a multimodal provider: POST a JSON body in that provider's own format (OpenRouter's by default) to process.env.REEF_SERVICE_URL + one of the routes below, with Reef's headers above and { "content-type": "application/json" }. Reef adds the provider's key; the extension holds none.
+Models beyond the session's chat model are Aster routes too, when the Aster recipe configures a multimodal provider: POST a JSON body in that provider's own format (OpenRouter's by default) to process.env.ASTER_SERVICE_URL + one of the routes below, with Aster's headers above and { "content-type": "application/json" }. Aster adds the provider's key; the extension holds none.
 
 - /v1/images: generate an image from a prompt.
 - /v1/embeddings: embed text.
 - /v1/audio/speech: text to speech; the response body is the audio bytes.
 - /v1/decisions: a fast structured choice (routing, classification, a risk or completion check) from a decision model such as ~typesafe/jev-latest, where the provider serves one. The body carries a state and typed questions (noul, choice, score); the answer is a value with probabilities, never text.
 
-Name the model in the body. These routes do not stream, and answer 501 when the Reef recipe configures no multimodal provider or its provider serves no such route.
+Name the model in the body. These routes do not stream, and answer 501 when the Aster recipe configures no multimodal provider or its provider serves no such route.
 
-## Rules for an extension in a Reef tree
+## Rules for an extension in an Aster tree
 
 - Return before registering anything when process.env.PI_OFFLINE is set: evaluation runs are hermetic and must see no network calls, prompts or timers.
 - Credentials come from process.env at run time, never from the file: validation refuses a credential shaped literal, and the tree persists every version.

@@ -8,13 +8,13 @@ from typing import Any
 
 import pytest
 
-from reef.artifact.artifact import Artifact
-from reef.core.errors import UpstreamStatusError
-from reef.core.evaluation import PolicyModel
-from reef.core.served_models import ServedArtifact
-from reef.core.snapshot import SnapshotRef
-from reef.evaluation.artifact_endpoint import ArtifactEndpoint
-from reef.inference.interfaces import InferenceArtifact, InferenceHandler, InferenceRuntime
+from aster.artifact.artifact import Artifact
+from aster.core.errors import UpstreamStatusError
+from aster.core.evaluation import PolicyModel
+from aster.core.served_models import ServedArtifact
+from aster.core.snapshot import SnapshotRef
+from aster.evaluation.artifact_endpoint import ArtifactEndpoint
+from aster.inference.interfaces import InferenceArtifact, InferenceHandler, InferenceRuntime
 
 
 class RefusingHandler(InferenceHandler):

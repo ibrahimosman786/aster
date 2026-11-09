@@ -8,16 +8,16 @@ from typing import Any
 
 from recipes.sdpo.processor import SDPOJobData, SDPOSamples
 from recipes.sdpo.report import SDPOReport
-from reef.core.reports import ReportBase
-from reef.recipe.base import WeightTrainingRecipe
-from reef.recipe.errors import RecipeConfigError
-from reef.storage.samples import SAMPLE_KINDS, SampleKind
-from reef.train.pipeline import PipelineSpec
+from aster.core.reports import ReportBase
+from aster.recipe.base import WeightTrainingRecipe
+from aster.recipe.errors import RecipeConfigError
+from aster.storage.samples import SAMPLE_KINDS, SampleKind
+from aster.train.pipeline import PipelineSpec
 
 
 @dataclass(frozen=True, kw_only=True)
 class SDPORecipe(WeightTrainingRecipe):
-    """Self-Distillation Policy Optimization (arXiv:2601.20802) on Reef.
+    """Self-Distillation Policy Optimization (arXiv:2601.20802) on Aster.
 
     The served model is its own teacher: it reads the question with a
     successful sibling's response, or the environment's feedback, and its

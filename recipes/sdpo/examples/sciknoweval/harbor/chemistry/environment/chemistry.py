@@ -1,4 +1,4 @@
-"""The Chemistry task of SDPO's generalization sweep: its split, its prompts, its scorer and the Reef calls.
+"""The Chemistry task of SDPO's generalization sweep: its split, its prompts, its scorer and the Aster calls.
 
 Everything here is the pinned reference's (lasgroup/SDPO at ``7c457fc1b1f6``),
 which the task image clones:
@@ -28,20 +28,20 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
-from reef_client import ReefClient
+from reef_client import AsterClient
 
 #: The reference checkout the container image clones at its pin.
 DATA_DIR = Path(os.environ.get("SDPO_DATA_DIR", "/opt/sdpo-reference/datasets/sciknoweval/chemistry"))
-MODEL = "reef"  # the model name the requests carry; Reef's SGLang serves it
+MODEL = "aster"  # the model name the requests carry; Aster's SGLang serves it
 #: ``user.yaml``: the response window, and the decoding of each phase.
 MAX_RESPONSE_TOKENS = int(os.environ.get("SDPO_MAX_RESPONSE_TOKENS", "8192"))
 TRAIN_TEMPERATURE = 1.0
 EVAL_TEMPERATURE = 0.6
 EVAL_TOP_P = 0.95
 
-SERVICE_URL = os.environ.get("REEF_SERVICE_URL", "http://host.docker.internal:28902").rstrip("/")
-TOKEN = os.environ.get("REEF_TOKEN", "reef-local")
-SCENARIO = os.environ.get("REEF_SCENARIO", "sdpo-chemistry")
+SERVICE_URL = os.environ.get("ASTER_SERVICE_URL", "http://host.docker.internal:28902").rstrip("/")
+TOKEN = os.environ.get("ASTER_TOKEN", "aster-local")
+SCENARIO = os.environ.get("ASTER_SCENARIO", "sdpo-chemistry")
 
 #: The service is gone or rejecting requests; waiting cannot help.
 SERVICE_GONE = -1
@@ -88,11 +88,11 @@ def question_schedule(count: int, epochs: int, per_step: int, seed: int) -> list
     return [order[index * per_step : (index + 1) * per_step] for index in range(steps)]
 
 
-def make_client(timeout_s: float = 3600.0) -> ReefClient:
-    return ReefClient(SERVICE_URL, token=TOKEN, timeout_s=timeout_s)
+def make_client(timeout_s: float = 3600.0) -> AsterClient:
+    return AsterClient(SERVICE_URL, token=TOKEN, timeout_s=timeout_s)
 
 
-def sample(client: ReefClient, row: dict[str, Any]) -> tuple[str, str]:
+def sample(client: AsterClient, row: dict[str, Any]) -> tuple[str, str]:
     """One recorded training sample: its text and the receipt a report grades."""
     response, receipt = client.inference_with_record(
         SCENARIO,
@@ -110,7 +110,7 @@ def sample(client: ReefClient, row: dict[str, Any]) -> tuple[str, str]:
 
 
 def sample_grid(
-    client: ReefClient, rows: Sequence[dict[str, Any]], rollouts: int, *, concurrency: int
+    client: AsterClient, rows: Sequence[dict[str, Any]], rollouts: int, *, concurrency: int
 ) -> list[list[tuple[str, str]]]:
     """Every question of a step sampled ``rollouts`` times, as one pool of ``concurrency`` recorded requests.
 
@@ -121,10 +121,10 @@ def sample_grid(
     return [samples[index * rollouts : (index + 1) * rollouts] for index in range(len(rows))]
 
 
-def evaluation_sample(client: ReefClient, row: dict[str, Any]) -> bool:
+def evaluation_sample(client: AsterClient, row: dict[str, Any]) -> bool:
     """One unreported sample of a question at the evaluation decoding, scored.
 
-    Reef's chat capture serves one choice per request, so avg@n is n of these.
+    Aster's chat capture serves one choice per request, so avg@n is n of these.
     """
     response = client.inference(
         SCENARIO,
@@ -141,7 +141,7 @@ def evaluation_sample(client: ReefClient, row: dict[str, Any]) -> bool:
     return is_correct(response["choices"][0]["message"]["content"], row["answer"])
 
 
-def evaluate(client: ReefClient, rows: Sequence[dict[str, Any]], *, n: int, concurrency: int) -> dict[str, Any]:
+def evaluate(client: AsterClient, rows: Sequence[dict[str, Any]], *, n: int, concurrency: int) -> dict[str, Any]:
     """avg@n over the test split: every question sampled ``n`` times, the fraction correct over all samples.
 
     The samples are never reported, so an evaluation never becomes training
@@ -162,7 +162,7 @@ def evaluate(client: ReefClient, rows: Sequence[dict[str, Any]], *, n: int, conc
 
 def training_step_count() -> int | None:
     """Training steps committed so far; ``None`` while the service is busy, 0 before the scenario exists."""
-    request = urllib.request.Request(f"{SERVICE_URL}/reef/status", headers={"Authorization": f"Bearer {TOKEN}"})
+    request = urllib.request.Request(f"{SERVICE_URL}/aster/status", headers={"Authorization": f"Bearer {TOKEN}"})
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
             payload = json.loads(response.read())
@@ -185,7 +185,7 @@ def wait_for_training(expected: int, timeout_s: float) -> int:
     while True:
         count = training_step_count()
         if count == SERVICE_GONE:
-            raise RuntimeError(f"the Reef service at {SERVICE_URL} is gone or rejects scenario {SCENARIO}")
+            raise RuntimeError(f"the Aster service at {SERVICE_URL} is gone or rejects scenario {SCENARIO}")
         if count is not None and count >= expected:
             return count
         if time.time() > deadline:

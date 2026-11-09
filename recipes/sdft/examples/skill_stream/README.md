@@ -18,13 +18,13 @@ harness/agent.py      the Harbor agent that runs the stage runner in the task co
 harbor/tooluse/       the Tool Use stage
 harbor/science/       the Science Q&A stage
   environment/
-    skills.py         the two datasets with their scorers and the Reef calls
+    skills.py         the two datasets with their scorers and the Aster calls
     stage.py          the stage runner that samples 32 prompts and reports them and waits for the training step
     score.py          scores the served model on both test splits
     judge_server.py   the reef-eval template judge
   tests/grade.py      the verifier that returns the judge's final score
 serve.yaml            the training stack config
-docker-compose.yaml   the stack in the reef image on eight GPUs
+docker-compose.yaml   the stack in the aster image on eight GPUs
 run.sh                checks the setup and runs run.py
 results/              the learning curve of the recorded run
 ```
@@ -58,7 +58,7 @@ The teacher is a frozen copy (EMA=0) of the stage's initial weights
 `run.py` starts each stage from the previous stage's HF export and the first
 stage starts from the base model. The stack uses eight GPUs: four for the
 actor and four for the serving engines. `stage.py` sends each step's 32 prompts
-through Reef and reports each demonstration as the report's
+through Aster and reports each demonstration as the report's
 `teacher_context`. It waits for the training step before it samples again so
 every sample is on policy. The judge scores the served model before the first
 step and every ten steps and after the last step.
@@ -68,7 +68,7 @@ step and every ten steps and after the last step.
 
 The training stack needs the GPU environment described in
 [Evolve your model](../../../../docs/user-guide/evolve-your-model.rst) as the
-`reef` image. On the host:
+`aster` image. On the host:
 
 ```bash
 pip install uv
@@ -84,13 +84,13 @@ cd recipes/sdft/examples/skill_stream
 
 The run reads these environment variables:
 
-- `REEF_IMAGE` is the stack image and defaults to `reef`.
+- `ASTER_IMAGE` is the stack image and defaults to `aster`.
 - `MODEL_DIR` holds the model and defaults to `~/models`.
 - `RUN_DIR` holds the Lab store and each stage's checkpoints and defaults to
   `./work`.
 - `CUDA_VISIBLE_DEVICES` names the stack's eight GPUs and defaults to
   `0,1,2,3,4,5,6,7`.
-- `REEF_PORT` is the stack's host port and defaults to `28902`.
+- `ASTER_PORT` is the stack's host port and defaults to `28902`.
 - `SDFT_STEPS` caps the steps of each stage.
 
 `run.py` takes `--stream` and `--seed`. The stream names the run in the Lab

@@ -1,24 +1,24 @@
 # Docker
 
-The Reef image bundles the full runtime (Slime, SGLang, Ray, Megatron)
+The Aster image bundles the full runtime (Slime, SGLang, Ray, Megatron)
 so that a deployment runs entirely inside one image as plain processes. There
-is no docker-compose layer: `reef serve -c <config>` reads the YAML's
+is no docker-compose layer: `aster serve -c <config>` reads the YAML's
 `services` list and starts each declared process directly, with PID/log files
-under `/tmp/reef-stack`.
+under `/tmp/aster-stack`.
 
 ## Build
 
 ```bash
-docker build -f docker/Dockerfile.reef -t reef .
+docker build -f docker/Dockerfile.aster -t aster .
 ```
 
-The image inherits the GPU training stack and installs Reef's exact runtime
+The image inherits the GPU training stack and installs Aster's exact runtime
 pin from `pyproject.toml`, together with SGLang, Ray, and the training
-dependencies. Having the runtime in the image does not start it: `reef serve`
+dependencies. Having the runtime in the image does not start it: `aster serve`
 starts only the `services` that your config lists and the ones that its
 training backend needs.
 
-Reef's serving engines run the base image's SGLang, so LoRA training
+Aster's serving engines run the base image's SGLang, so LoRA training
 (`--megatron-lora-rank`) works on any weight-training recipe without a
 separate image. The build fails if that SGLang lacks the fix for how Qwen3.5
 vision-language models rotate image tokens (sgl-project/sglang#34446).
@@ -75,25 +75,25 @@ adds only the Erdős evaluator's solver dependencies for generated programs,
 alongside a qualified Slime digest:
 
 ```bash
-docker build -f docker/Dockerfile.reef --target tttd \
+docker build -f docker/Dockerfile.aster --target tttd \
   --build-arg SLIME_IMAGE_TAG='latest@sha256:a97ec147e37bef050337a9b229036eda00b4aa9c4d02b31a0109dc850f8ca342' \
-  -t reef-tttd:qwen3-8b .
+  -t aster-tttd:qwen3-8b .
 ```
 
 ## Demo configs
 
 | Config | Services started | GPU | Changes weights |
 |---|---|---:|---:|
-| `recipes/basic/local-sglang.yaml` | local SGLang + Reef | yes | no |
-| `recipes/basic/external-provider.yaml` | Reef proxying to an HTTP provider | no | no |
-| `recipes/<method>/examples/<example>/serve.yaml` | Ray + inference component + Reef with Slime training | 2+ | yes |
+| `recipes/basic/local-sglang.yaml` | local SGLang + Aster | yes | no |
+| `recipes/basic/external-provider.yaml` | Aster proxying to an HTTP provider | no | no |
+| `recipes/<method>/examples/<example>/serve.yaml` | Ray + inference component + Aster with Slime training | 2+ | yes |
 
 Each config declares its services declaratively (`name`, `command`,
 `ready` probe, `depends_on`). Commands use `${a.b.c}` interpolation against
 the rest of the config, so adding or changing a service is a YAML-only edit.
-The orchestrator launches Reef's HTTP child internally with the same config;
+The orchestrator launches Aster's HTTP child internally with the same config;
 all other services are plain shell commands. See
-[Evolve your model](https://reefinfra.ai/docs/user-guide/evolve-your-model/) for the training
+[Evolve your model](https://asterinfra.ai/docs/user-guide/evolve-your-model/) for the training
 flow and data contract.
 
 ## Run
@@ -101,22 +101,22 @@ flow and data contract.
 Inside the image (or any host with the deps installed):
 
 ```bash
-export REEF_TOKEN=$(openssl rand -hex 16)
+export ASTER_TOKEN=$(openssl rand -hex 16)
 # edit the stack yaml: set model paths / provider creds
-reef serve -c recipes/basic/local-sglang.yaml
+aster serve -c recipes/basic/local-sglang.yaml
 ```
 
-Logs and PIDs land in `/tmp/reef-stack/`. To run just the reef HTTP service
+Logs and PIDs land in `/tmp/aster-stack/`. To run just the aster HTTP service
 against an already-running provider, use a config whose `services` list
-contains only Reef:
+contains only Aster:
 
 ```bash
-reef serve -c recipes/basic/external-provider.yaml
+aster serve -c recipes/basic/external-provider.yaml
 ```
 
 ## Persistence and cleanup
 
-Agent records and exported checkpoints persist under `reef.state_dir`
-(`/var/lib/reef` by default). Stop the processes (`kill` the PIDs in
-`/tmp/reef-stack/`) but keep state; to also delete recorded agent records,
+Agent records and exported checkpoints persist under `aster.state_dir`
+(`/var/lib/aster` by default). Stop the processes (`kill` the PIDs in
+`/tmp/aster-stack/`) but keep state; to also delete recorded agent records,
 remove that directory.

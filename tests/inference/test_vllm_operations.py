@@ -7,13 +7,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from reef.core.weight_layout import WeightFiles
-from reef.execution.executor.ray import RayExecutor
-from reef.execution.executor.uniproc import UniProcExecutor
-from reef.inference.deployment import InferenceConnection
-from reef.inference.vllm.backend import VLLMInferenceBackend
-from reef.inference.vllm.config import VLLMConfig
-from reef.inference.vllm.service import INFERENCE_PROTOCOL, VLLMInferenceService
+from aster.core.weight_layout import WeightFiles
+from aster.execution.executor.ray import RayExecutor
+from aster.execution.executor.uniproc import UniProcExecutor
+from aster.inference.deployment import InferenceConnection
+from aster.inference.vllm.backend import VLLMInferenceBackend
+from aster.inference.vllm.config import VLLMConfig
+from aster.inference.vllm.service import INFERENCE_PROTOCOL, VLLMInferenceService
 
 
 class Receiver:
@@ -83,11 +83,11 @@ def test_initial_version_stamping_keeps_receiver_paused_on_partial_failure(monke
     operations.pause()
     if fail_second:
         with pytest.raises(TimeoutError, match="acknowledgement lost"):
-            operations.initialize_version("reef:initial")
-        assert operations.runtime_load_ids() == ("reef:initial", "default")
+            operations.initialize_version("aster:initial")
+        assert operations.runtime_load_ids() == ("aster:initial", "default")
     else:
-        operations.initialize_version("reef:initial")
-        assert operations.runtime_load_ids() == ("reef:initial", "reef:initial")
+        operations.initialize_version("aster:initial")
+        assert operations.runtime_load_ids() == ("aster:initial", "aster:initial")
     assert receiver.paused
 
 
@@ -122,7 +122,7 @@ def test_adapter_eviction_requires_every_engine_acknowledgement(monkeypatch, las
 
 
 def test_worker_loads_an_adapter_directory_into_every_engine_then_stamps_the_version(monkeypatch):
-    from reef.inference.vllm import worker as worker_module
+    from aster.inference.vllm import worker as worker_module
 
     calls = []
 
@@ -143,12 +143,12 @@ def test_worker_loads_an_adapter_directory_into_every_engine_then_stamps_the_ver
     monkeypatch.setattr(worker_module.ray, "get", lambda refs: list(refs))
     worker = worker_module.VLLMWorker.__new__(worker_module.VLLMWorker)
     worker.group = SimpleNamespace(engines=[engine(), engine()])
-    worker.load_adapter_from_disk("reef-adapter-math.v1", "/ckpt/adapter", "inc:1")
+    worker.load_adapter_from_disk("aster-adapter-math.v1", "/ckpt/adapter", "inc:1")
     assert [name for name, _, _ in calls] == ["load", "load", "version", "version"]
-    assert calls[0][2] == {"lora_name": "reef-adapter-math.v1", "lora_path": "/ckpt/adapter"}
+    assert calls[0][2] == {"lora_name": "aster-adapter-math.v1", "lora_path": "/ckpt/adapter"}
     assert calls[2][1] == ("inc:1",)
     calls.clear()
-    worker.load_adapter_from_disk("reef-adapter-math.v1", "/ckpt/adapter")
+    worker.load_adapter_from_disk("aster-adapter-math.v1", "/ckpt/adapter")
     assert [name for name, _, _ in calls] == ["load", "load"]
     worker.group = SimpleNamespace(engines=[engine({"success": False, "message": "no adapter_config.json"})])
     with pytest.raises(RuntimeError, match="refused adapter"):
@@ -159,7 +159,7 @@ def test_worker_loads_an_adapter_directory_into_every_engine_then_stamps_the_ver
 
 
 def test_worker_reloads_full_weights_into_every_engine_with_the_version(monkeypatch):
-    from reef.inference.vllm import worker as worker_module
+    from aster.inference.vllm import worker as worker_module
 
     calls = []
 
@@ -199,7 +199,7 @@ def test_receiver_loads_each_weight_file_layout_through_its_control_call(files, 
 
 
 def test_worker_pauses_in_the_configured_mode_and_recovers_only_dead_engines(monkeypatch):
-    from reef.inference.vllm import worker as worker_module
+    from aster.inference.vllm import worker as worker_module
 
     events = []
 
@@ -233,7 +233,7 @@ def test_worker_pauses_in_the_configured_mode_and_recovers_only_dead_engines(mon
 
 
 def test_engine_group_probes_ports_from_the_configured_base_per_host(monkeypatch):
-    from reef.inference.vllm import launch as launch_module
+    from aster.inference.vllm import launch as launch_module
 
     probes, inits = [], []
 

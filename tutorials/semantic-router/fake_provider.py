@@ -1,7 +1,7 @@
 """A deterministic CPU stand-in for OpenAI-compatible Chat Completions services.
 
 It runs no model and makes no network calls: every answer is ``"<model> answered."``, so a response shows
-which target Reef selected. It serves ``GET /v1/models`` and ``POST /v1/chat/completions``, as JSON or, with
+which target Aster selected. It serves ``GET /v1/models`` and ``POST /v1/chat/completions``, as JSON or, with
 ``"stream": true``, as SSE ending in ``data: [DONE]``, on ``127.0.0.1`` only. Use it to try routing, not to
 measure anything.
 """

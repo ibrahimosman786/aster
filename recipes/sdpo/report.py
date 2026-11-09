@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from reef.core.reports import ReportValidationError, TeacherContextReport
+from aster.core.reports import ReportValidationError, TeacherContextReport
 
 
 @dataclass(frozen=True, kw_only=True)

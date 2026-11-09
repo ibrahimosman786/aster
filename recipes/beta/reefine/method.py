@@ -16,8 +16,8 @@ from typing import Any
 
 from recipes.beta.reefine.agent import ReefineAgent, answer_with_agent
 from recipes.beta.reefine.answer import EXTENSION_ADAPTER, answer_request, learn_from_failures
-from reef.harness.adapters import get_adapter
-from reef.train.harness_backend import Method, StepContext
+from aster.harness.adapters import get_adapter
+from aster.train.harness_backend import Method, StepContext
 
 
 class ReefineMethod(Method):

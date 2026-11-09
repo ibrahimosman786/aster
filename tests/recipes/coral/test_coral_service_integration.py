@@ -1,11 +1,11 @@
-"""End-to-end: adapter -> real reef service -> receipt -> journal -> report.
+"""End-to-end: adapter -> real aster service -> receipt -> journal -> report.
 
-The reef service is real (``reef.service.app.create_app`` with a stub
-inference backend, exactly as reef's own service tests build it); the
+The aster service is real (``aster.service.app.create_app`` with a stub
+inference backend, exactly as aster's own service tests build it); the
 middleware forwards to it over real HTTP. What LiteLLM would contribute in
 production — an opaque proxy hop — is the pass-through the shim reproduces.
 
-Requires the reef package importable (run from a reef checkout); skipped
+Requires the aster package importable (run from an aster checkout); skipped
 otherwise so the adapter's own suite stays standalone.
 """
 
@@ -16,21 +16,21 @@ import json
 
 import pytest
 
-reef_service = pytest.importorskip("reef.service.app", reason="requires a reef checkout")
+aster_service = pytest.importorskip("aster.service.app", reason="requires an aster checkout")
 
 from aiohttp.test_utils import TestClient, TestServer
 from tests.support.inference import wait_for_inference
 
 from recipes.beta.coral.journal import CallJournal
-from recipes.beta.coral.middleware import ReefGatewayMiddleware
+from recipes.beta.coral.middleware import AsterGatewayMiddleware
 from recipes.beta.coral.reporter import AttemptReport
-from reef.artifact import InMemoryRepositoryBackend
-from reef.dispatcher import Dispatcher
-from reef.inference.http import InferenceProxyRuntime
-from reef.inference.interfaces import InferenceHandler
-from reef.recipe import Recipe
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.sqlite import SQLiteScenarioStorage
+from aster.artifact import InMemoryRepositoryBackend
+from aster.dispatcher import Dispatcher
+from aster.inference.http import InferenceProxyRuntime
+from aster.inference.interfaces import InferenceHandler
+from aster.recipe import Recipe
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.sqlite import SQLiteScenarioStorage
 
 
 class _EchoBackend(InferenceHandler):
@@ -40,7 +40,7 @@ class _EchoBackend(InferenceHandler):
 
 
 class _HttpForwarder:
-    """ASGI app that forwards to the reef test client — the LiteLLM stand-in."""
+    """ASGI app that forwards to the aster test client — the LiteLLM stand-in."""
 
     def __init__(self, client: TestClient) -> None:
         self.client = client
@@ -95,10 +95,10 @@ async def _post_through(mw, scope, body: bytes):
 
 
 @pytest.mark.unit
-def test_full_loop_against_real_reef_service(tmp_path):
+def test_full_loop_against_real_aster_service(tmp_path):
     # The runtime's engine has an HTTP address, so the scenario has a served model; the stub answers for it.
     dispatcher = Dispatcher(
-        Recipe(runtime=InferenceProxyRuntime(base_url="http://engine.test", model_path="reef")),
+        Recipe(runtime=InferenceProxyRuntime(base_url="http://engine.test", model_path="aster")),
         InMemoryRepositoryBackend.factory(directory=tmp_path / "repository"),
         scenario_storage=SQLiteScenarioStorage(),
         coordination=memory_coordination(),
@@ -107,19 +107,19 @@ def test_full_loop_against_real_reef_service(tmp_path):
     dispatcher.get_or_create_scenario("coral-demo")
 
     async def run():
-        reef_client = TestClient(TestServer(reef_service.create_app(dispatcher, inference_handler=_EchoBackend())))
+        reef_client = TestClient(TestServer(aster_service.create_app(dispatcher, inference_handler=_EchoBackend())))
         await reef_client.start_server()
         try:
             await wait_for_inference(reef_client, "coral-demo")
             journal = CallJournal(tmp_path / "calls.jsonl")
-            mw = ReefGatewayMiddleware(
+            mw = AsterGatewayMiddleware(
                 _HttpForwarder(reef_client),
                 scenario="coral-demo",
                 journal=journal,
                 extra_tags={"coral-run": "run-1"},
             )
 
-            # inference through the adapter: reef must accept (scenario header
+            # inference through the adapter: aster must accept (scenario header
             # stamped by us, not by CORAL) and hand back a receipt
             status, payload = await _post_through(
                 mw, _coral_scope(), json.dumps({"messages": [{"role": "user", "content": "hi"}]}).encode()
@@ -128,7 +128,7 @@ def test_full_loop_against_real_reef_service(tmp_path):
             assert json.loads(payload)["choices"][0]["message"]["content"] == "a proposed config"
 
             (record,) = journal.records()
-            assert record.agent_record_id, "reef receipt must be captured"
+            assert record.agent_record_id, "aster receipt must be captured"
             assert record.agent_id == "agent-1"
 
             # grader finalizes later: report with exact references
@@ -144,14 +144,14 @@ def test_full_loop_against_real_reef_service(tmp_path):
             assert report.references == (record.agent_record_id,)
 
             first = await reef_client.post(
-                "/reef/report", json=report.payload(), headers={"x-reef-scenario": "coral-demo"}
+                "/aster/report", json=report.payload(), headers={"x-aster-scenario": "coral-demo"}
             )
             assert first.status == 200
             echoed = (await first.json())["agent_record_id"]
 
             # duplicate grader run: identical resend dedups, no double count
             retry = await reef_client.post(
-                "/reef/report", json=report.payload(), headers={"x-reef-scenario": "coral-demo"}
+                "/aster/report", json=report.payload(), headers={"x-aster-scenario": "coral-demo"}
             )
             assert retry.status == 200
             assert (await retry.json())["agent_record_id"] == echoed
@@ -160,7 +160,7 @@ def test_full_loop_against_real_reef_service(tmp_path):
             conflicting = dict(report.payload())
             conflicting["score"] = 0.1
             conflict = await reef_client.post(
-                "/reef/report", json=conflicting, headers={"x-reef-scenario": "coral-demo"}
+                "/aster/report", json=conflicting, headers={"x-aster-scenario": "coral-demo"}
             )
             assert conflict.status == 409
         finally:

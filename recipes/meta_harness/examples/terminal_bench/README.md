@@ -5,10 +5,10 @@ Terminal-Bench 2 suite. See [Results](#results) for the comparison and
 [RESULTS.md](../../RESULTS.md) for the evaluation configuration and scope.
 The seed is vanilla Terminus 2, represented by a no-op `Agent(Terminus2)`
 module at `seed/extensions/agent.py`. The proposer rewrites that module,
-the search retains every valid candidate, and Reef selects only strict
+the search retains every valid candidate, and Aster selects only strict
 improvements over the best recorded mean score.
 
-The example uses the Meta-Harness method, Reef's harness evolution recipe, and
+The example uses the Meta-Harness method, Aster's harness evolution recipe, and
 the campaign's own [terminus adapter](#the-terminus-adapter).
 [Deviations](#deviations) documents the differences between the runnable setup
 and the comparison.
@@ -31,33 +31,33 @@ baseline plus four full-history iterations with the following settings:
 
 Scores count passing trials per measurement:
 
-| Measurement | Reef | Upstream |
+| Measurement | Aster | Upstream |
 | --- | ---: | ---: |
 | Baseline | 20/60 | 24/60 |
 | Best selected score | 23/60 | 24/60 |
 
 The baseline harness is vanilla Terminus 2 in both arms, measured independently.
-Reef selects iteration 1; upstream retains its baseline. The
+Aster selects iteration 1; upstream retains its baseline. The
 [full iteration table](../../RESULTS.md) records each candidate's score and
 selection decision.
 
-Replaying the same completed score histories through Reef's selector and
+Replaying the same completed score histories through Aster's selector and
 upstream's `update_frontier` produced identical choices on all eight candidate
-decisions, including Reef's tie. This checks the selection rule given the same
+decisions, including Aster's tie. This checks the selection rule given the same
 observations; independent proposals and scores can differ.
 
 Remeasuring the selected harnesses with two fresh repeats on the same tasks
-gave **22/60 (36.67%) for Reef's iteration 1** and **21/60 (35.00%) for
+gave **22/60 (36.67%) for Aster's iteration 1** and **21/60 (35.00%) for
 upstream's baseline**. These measurements did not feed back into search and
 are not a held-out task evaluation. One infrastructure loss per arm was
-replaced; Reef includes a terminal-loss zero under the shared scoring policy.
-The [selected Reef harness](../../results/reef_harness.py) and
+replaced; Aster includes a terminal-loss zero under the shared scoring policy.
+The [selected Aster harness](../../results/aster_harness.py) and
 [full report](../../RESULTS.md) retain the implementation and scoring details.
 
 ## Setup and run
 
 Live runs need Linux, Python 3.12+, Git LFS, bubblewrap, an E2B key, and model
-endpoints. Keep Reef, its virtual environment and base Python interpreter, and
+endpoints. Keep Aster, its virtual environment and base Python interpreter, and
 the task checkout under `/usr` or a writable `/opt` prefix so the sandbox can
 read them. From the repository root:
 
@@ -77,19 +77,19 @@ pip install -e .
 
 The dry run checks the pinned revision and clean task directories, renders the
 seed, and prints the run size. It makes no model calls and works on macOS
-without E2B. `--tasks-root` defaults to `REEF_TERMINAL_BENCH_DIR`, then
+without E2B. `--tasks-root` defaults to `ASTER_TERMINAL_BENCH_DIR`, then
 `/opt/terminal-bench-2`.
 
 Use Chat Completions for Terminus and Responses for the proposer. Base URLs
 must omit `/v1`:
 
 ```bash
-export REEF_UPSTREAM_URL=https://your-model-endpoint.example
-export REEF_UPSTREAM_API_KEY=...
-export REEF_MODEL=openai/gpt-5.6-luna
-export REEF_PROPOSER_URL=https://your-model-endpoint.example
-export REEF_PROPOSER_API_KEY=...
-export REEF_PROPOSER_MODEL=gpt-5.6-sol
+export ASTER_UPSTREAM_URL=https://your-model-endpoint.example
+export ASTER_UPSTREAM_API_KEY=...
+export ASTER_MODEL=openai/gpt-5.6-luna
+export ASTER_PROPOSER_URL=https://your-model-endpoint.example
+export ASTER_PROPOSER_API_KEY=...
+export ASTER_PROPOSER_MODEL=gpt-5.6-sol
 export E2B_API_KEY=...
 
 # Small live wiring check: one task, one repeat, one step.
@@ -106,7 +106,7 @@ Replace model names as needed, retaining the target's `openai/` provider prefix.
 The proposer URL and key default to the target's; the target URL defaults to
 `https://api.openai.com`. Unauthenticated endpoints can omit keys.
 
-`REEF_META_HARNESS_WORKERS` defaults to 4; lower it for endpoint or E2B limits.
+`ASTER_META_HARNESS_WORKERS` defaults to 4; lower it for endpoint or E2B limits.
 Runs time out after 9,000 seconds, including setup and verification.
 Model keys stay in temporary run configs, not published harnesses.
 Sandbox `egress_hosts` enables networking, not hostname filtering; see the
@@ -114,19 +114,19 @@ Sandbox `egress_hosts` enables networking, not hostname filtering; see the
 
 ## Implementation
 
-`run.sh` starts `run.py`, which embeds the configured recipe, a Reef dispatcher,
+`run.sh` starts `run.py`, which embeds the configured recipe, an Aster dispatcher,
 SQLite storage, and Git LFS artifacts without an HTTP listener. Terminus calls
 the model endpoint directly.
 
 `terminal_bench.yaml` trains in `manual` mode, so a training request starts
-each step, as `POST /reef/train` does in a deployment. For each step,
+each step, as `POST /aster/train` does in a deployment. For each step,
 `run.py` queues one request with the dispatcher's `accept_request`, the
 call behind that route, and commits the step's job. The method proposes a
-candidate from the search history. Reef evaluates it on the selected suite
+candidate from the search history. Aster evaluates it on the selected suite
 against the incumbent's cached scores, adds it to the history, and commits
 the step with the serving state.
 
-Runs and evaluations use Reef's executor, timeout, residue policy, and
+Runs and evaluations use Aster's executor, timeout, residue policy, and
 finite-score checks. Failed evaluation runs score zero; run launch
 failures stop the run. Infrastructure failures are not automatically replaced.
 
@@ -139,19 +139,19 @@ in place of the failed one costs extra.
 
 ## The terminus adapter
 
-`reef_terminus/` is this campaign's adapter for Harbor's Terminus 2. Reef does
+`aster_terminus/` is this campaign's adapter for Harbor's Terminus 2. Aster does
 not bundle it. `pip install -e .` in this directory registers it as
-`terminus` on the `reef.harness_adapters` entry point group, and installs the
-`reef-terminus` runner that its runs launch. A deployment then names it
+`terminus` on the `aster.harness_adapters` entry point group, and installs the
+`aster-terminus` runner that its runs launch. A deployment then names it
 with `evolution.adapter: terminus`, as `terminal_bench.yaml` does. The runner
-writes one trial file per run, and `reef_terminus.trajectory.read_trials`,
+writes one trial file per run, and `aster_terminus.trajectory.read_trials`,
 the adapter's `sessions` reader, reads it back.
 
-Terminus 2 is a Harbor agent class, not a CLI. `reef-terminus` reads the
-tree from `REEF_TERMINUS_DIR`, configures Harbor's `terminus-2` agent
+Terminus 2 is a Harbor agent class, not a CLI. `aster-terminus` reads the
+tree from `ASTER_TERMINUS_DIR`, configures Harbor's `terminus-2` agent
 through `reef-eval`, and runs the one Harbor task (a directory or a
 registry id) that `--task` names. It writes the verifier reward and the
-ATIF trajectory under `REEF_TERMINUS_SESSION_DIR`.
+ATIF trajectory under `ASTER_TERMINUS_SESSION_DIR`.
 
 - `config` supplies constructor arguments; unknown keys are refused.
   `rules` supplies an `extra_instruction_paths` entry. `skill` and
@@ -171,10 +171,10 @@ ATIF trajectory under `REEF_TERMINUS_SESSION_DIR`.
   `model`, and `fallbacks`); and `model` or `models` in
   `llm_call_kwargs.extra_body`.
 
-To run a published tree yourself, save the `files` of `GET /reef/harness`
+To run a published tree yourself, save the `files` of `GET /aster/harness`
 under a tree root. Evaluation runs call the upstream directly, but your
-own run through Reef needs the scenario header, or Reef answers HTTP 400.
-Write `terminus/config.json` with the service's `REEF_TOKEN` (any text
+own run through Aster needs the scenario header, or Aster answers HTTP 400.
+Write `terminus/config.json` with the service's `ASTER_TOKEN` (any text
 when the service has no token), then run one task:
 
 ``json
@@ -182,19 +182,19 @@ when the service has no token), then run one task:
   "model_name": "<served model>",
   "api_base": "http://127.0.0.1:8901/v1",
   "llm_kwargs": {
-    "api_key": "<REEF_TOKEN>",
+    "api_key": "<ASTER_TOKEN>",
     "custom_llm_provider": "litellm_proxy",
-    "extra_headers": {"x-reef-scenario": "<scenario>"}
+    "extra_headers": {"x-aster-scenario": "<scenario>"}
   }
 }
 ``
 
 ``bash
-TREE_ROOT="$HOME/reef-harness/terminus"
-REEF_TERMINUS_DIR="$TREE_ROOT" \
-  REEF_TERMINUS_SESSION_DIR="$TREE_ROOT/terminus/sessions" \
-  REEF_TERMINUS_TRIALS_DIR="$HOME/reef-trials" \
-  reef-terminus --task /path/to/harbor/task
+TREE_ROOT="$HOME/aster-harness/terminus"
+ASTER_TERMINUS_DIR="$TREE_ROOT" \
+  ASTER_TERMINUS_SESSION_DIR="$TREE_ROOT/terminus/sessions" \
+  ASTER_TERMINUS_TRIALS_DIR="$HOME/aster-trials" \
+  aster-terminus --task /path/to/harbor/task
 ``
 
 The trial record under `$TREE_ROOT/terminus/sessions` holds the rewards
@@ -207,7 +207,7 @@ neither reward nor verifier output is reported as a possible mount problem.
 Tasks run the Harbor task in local Docker by default. The run keeps
 the service's `DOCKER_HOST`, `DOCKER_CONTEXT`, and `DOCKER_CONFIG`
 (default `~/.docker`), because `HOME` points into the run. On macOS
-the run root is under `~/.reef/runs`. Elsewhere it is in the temp
+the run root is under `~/.aster/runs`. Elsewhere it is in the temp
 directory; if Docker's VM does not share it, set `TMPDIR` for the service.
 
 To run tasks in a remote Harbor environment, use the sandbox executor and
@@ -218,19 +218,19 @@ evolution:
   executor: sandbox
   sandbox:
     egress_hosts: [api.e2b.dev]
-    env_from: [REEF_TERMINUS_ENVIRONMENT, E2B_API_KEY]
+    env_from: [ASTER_TERMINUS_ENVIRONMENT, E2B_API_KEY]
 ``
 
-Start the service with `REEF_TERMINUS_ENVIRONMENT=e2b` and
+Start the service with `ASTER_TERMINUS_ENVIRONMENT=e2b` and
 `E2B_API_KEY`. For Modal, allow `api.modal.com`, pass
 `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`, and set
-`REEF_TERMINUS_ENVIRONMENT=modal`. The runtime needs Linux, bubblewrap,
+`ASTER_TERMINUS_ENVIRONMENT=modal`. The runtime needs Linux, bubblewrap,
 Python 3.12+, and Harbor with the environment's extra (`harbor[e2b]`, or
 the `modal` package). The interpreter and local task directories must be
 visible inside the sandbox, for example under `/opt`. `egress_hosts`
 does not yet enforce a hostname firewall.
 
-Reef refuses before launch: local Docker under the sandbox executor, a
+Aster refuses before launch: local Docker under the sandbox executor, a
 remote environment without `egress_hosts` or its credentials in
 `env_from`, and an `extension` file under any executor other than
 `sandbox`. Such a tree still renders; the refusal depends on how the
@@ -238,12 +238,12 @@ run runs, not on what the tree holds.
 
 ## Resume and output
 
-Repeat the same command to resume `work/<campaign-id>/` (or under `REEF_WORK`).
+Repeat the same command to resume `work/<campaign-id>/` (or under `ASTER_WORK`).
 Tasks, seed, models, and search settings determine the id; the step count
 does not, so a larger `--iterations` continues the same search. Run only one
 driver per directory.
 
-Committed Reef state is authoritative. Each request has the ID of its step,
+Committed Aster state is authoritative. Each request has the ID of its step,
 so a restart finds the request of an unfinished step instead of queueing a
 second one, and finishes the job that a previous process started. Failed
 commits cannot advance search or its summary.
@@ -251,7 +251,7 @@ commits cannot advance search or its summary.
 - `harness/`: the search history (every candidate tree, its runs and their
   records, and each step's decision) and one record per step, which holds the
   proposer's prompt and reply in `calls.json`.
-- `reef-data/`: SQLite records and the scenario's commits. Each commit holds
+- `aster-data/`: SQLite records and the scenario's commits. Each commit holds
   the method state: the replies that proposed no candidate.
 - `artifacts.git`, `artifact-work/`, `artifact-cache/`: published harnesses and
   their snapshot chain.

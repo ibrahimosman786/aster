@@ -1,6 +1,6 @@
 """Test-only adapters that wrap a plain function as a Method or a TaskScorer.
 
-Reef takes harness evolution plugins as classes only. Tests keep their short
+Aster takes harness evolution plugins as classes only. Tests keep their short
 functions through these adapters. A method function takes the step's
 ``Workspace`` and ``Services`` and returns a ``TreePatch`` (which the adapter
 applies to the workspace's tree) or ``None`` (the tree stays as the function
@@ -10,8 +10,8 @@ left it). It says what the step did with ``workspace.write_output``. A scorer fu
 
 import inspect
 
-from reef.evaluation.harness import TaskScorer
-from reef.train.harness_backend import Method
+from aster.evaluation.harness import TaskScorer
+from aster.train.harness_backend import Method
 
 
 def _accepts(fn, name):

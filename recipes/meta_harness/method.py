@@ -1,7 +1,7 @@
 """Meta-Harness: full-history search over complete harness trees, scored on fixed evaluation tasks.
 
 A training request starts each step: the deployment trains in ``manual`` mode,
-and each ``POST /reef/train`` runs one step, its text an instruction the
+and each ``POST /aster/train`` runs one step, its text an instruction the
 proposer reads. The step gives one proposer model the search so far, read from
 the scenario's history: the seed and every tree the method proposed, each with
 its files, its parent, what the proposer said about it, its outcome and its
@@ -29,16 +29,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Self
 
-from reef.core.config import config_option
-from reef.core.evaluation import mean_score
-from reef.core.plugins import PluginSettings
-from reef.core.prompts import untrusted_text
-from reef.evaluation.harness import CandidateRecord, History, RunRecord
-from reef.harness.adapters import get_adapter
-from reef.harness.adapters.parts import TreeLayout
-from reef.harness.tree import HarnessTree
-from reef.harness.tree.checks import redact_secret_shaped
-from reef.train.harness_backend import Method, Services, StepContext, Workspace
+from aster.core.config import config_option
+from aster.core.evaluation import mean_score
+from aster.core.plugins import PluginSettings
+from aster.core.prompts import untrusted_text
+from aster.evaluation.harness import CandidateRecord, History, RunRecord
+from aster.harness.adapters import get_adapter
+from aster.harness.adapters.parts import TreeLayout
+from aster.harness.tree import HarnessTree
+from aster.harness.tree.checks import redact_secret_shaped
+from aster.train.harness_backend import Method, Services, StepContext, Workspace
 
 #: ``full_history`` branches from any candidate; ``incumbent_only``, the greedy control, from the served one.
 MODES = ("full_history", "incumbent_only")

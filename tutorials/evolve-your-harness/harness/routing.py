@@ -2,8 +2,8 @@
 
 import json
 
-from reef.evaluation.harness import TaskScorer
-from reef.harness.tasks.trajectory import final_assistant_text
+from aster.evaluation.harness import TaskScorer
+from aster.harness.tasks.trajectory import final_assistant_text
 
 
 def task(region: str, tier: str, urgent: bool) -> str:

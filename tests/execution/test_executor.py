@@ -11,9 +11,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from reef.execution.executor import Executor, ExecutorConfig, ExecutorFuture, WorkerSpec, resolve
-from reef.execution.executor.ray import RayExecutor
-from reef.execution.executor.uniproc import ConcurrentExecutorFuture, UniProcExecutor
+from aster.execution.executor import Executor, ExecutorConfig, ExecutorFuture, WorkerSpec, resolve
+from aster.execution.executor.ray import RayExecutor
+from aster.execution.executor.uniproc import ConcurrentExecutorFuture, UniProcExecutor
 
 pytestmark = pytest.mark.unit
 
@@ -178,8 +178,8 @@ class FakeRay:
 @pytest.fixture
 def fake_ray(monkeypatch):
     ray = FakeRay()
-    monkeypatch.setattr("reef.execution.executor.ray._require_ray", lambda: ray)
-    monkeypatch.setattr("reef.execution.executor.ray_runtime._require_ray", lambda: ray)
+    monkeypatch.setattr("aster.execution.executor.ray._require_ray", lambda: ray)
+    monkeypatch.setattr("aster.execution.executor.ray_runtime._require_ray", lambda: ray)
     # This synchronous transport fake has no liveness service. Real monitoring
     # is exercised by the opt-in Ray integration tests.
     monkeypatch.setattr(RayExecutor, "_start_monitor", lambda self: None)
@@ -259,7 +259,7 @@ def guarded_import(name, *args, **kwargs):
         raise AssertionError('local executor imported Ray')
     return original_import(name, *args, **kwargs)
 builtins.__import__ = guarded_import
-from reef.execution.executor import Executor, ExecutorConfig, WorkerSpec
+from aster.execution.executor import Executor, ExecutorConfig, WorkerSpec
 class Worker:
     def value(self):
         return 42
@@ -297,7 +297,7 @@ def test_local_timeout_does_not_retry_or_cancel_worker():
 
 def test_resolve_preserves_values_shapes_and_shares_timeout_deadline(monkeypatch):
     timestamps = iter([5.0, 5.25, 5.75])
-    monkeypatch.setattr("reef.execution.executor.base.monotonic", lambda: next(timestamps))
+    monkeypatch.setattr("aster.execution.executor.base.monotonic", lambda: next(timestamps))
     timeouts = []
 
     class CapturedFuture(ExecutorFuture):
@@ -423,7 +423,7 @@ def test_ray_failure_polling_preserves_total_timeout_budget(fake_ray, monkeypatc
         now[0] += timeout
         raise FakeTimeout
 
-    monkeypatch.setattr("reef.execution.executor.ray.monotonic", lambda: now[0])
+    monkeypatch.setattr("aster.execution.executor.ray.monotonic", lambda: now[0])
     monkeypatch.setattr(fake_ray, "get", get)
     actor = FakeActor(fake_ray, Worker(0))
     executor = RayExecutor.from_workers([actor])
@@ -450,7 +450,7 @@ def test_ray_does_not_confuse_business_timeout_with_get_timeout(fake_ray):
 
 
 def test_ray_rpc_observed_death_records_failure_without_waiting_for_monitor(fake_ray):
-    from reef.execution.executor import ExecutorFailedError
+    from aster.execution.executor import ExecutorFailedError
 
     actor = FakeActor(fake_ray, Worker(0), init_error=FakeActorDeath())
     executor = RayExecutor.from_workers([actor])

@@ -8,7 +8,7 @@ import modal
 HERE = Path(__file__).resolve().parent
 DISCOVER = Path(os.environ.get("GUIDANCE_DISCOVER_ROOT", HERE.parent / "work/trimul/discover")).resolve()
 EVALUATOR = DISCOVER / "examples/gpu_mode/lib/bioml/trimul"
-app = modal.App("reef-guidance-trimul")
+app = modal.App("aster-guidance-trimul")
 image = modal.Image.debian_slim(python_version="3.12").pip_install(
     "torch==2.7.1", "triton==3.3.1", "pyyaml==6.0.2", "numpy==2.2.6"
 )

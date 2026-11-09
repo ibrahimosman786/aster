@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from reef.core.tasks import (
+from aster.core.tasks import (
     TASK_CONFIG_VERSION,
     HarborTask,
     HarborTaskConflict,
@@ -51,7 +51,7 @@ def task(**overrides: object) -> HarborTask:
             "agent": {"timeout_sec": 300},
             "environment": {"cpus": 1, "memory_mb": 512, "storage_mb": 1024, "gpus": 0},
         },
-        "metadata": {"author_name": "Reef", "tags": ["reef", "arithmetic"]},
+        "metadata": {"author_name": "Aster", "tags": ["aster", "arithmetic"]},
         "source_agent_record_ids": ("rec-inference-1", "rec-report-1"),
     }
     fields.update(overrides)
@@ -79,9 +79,9 @@ def test_write_lays_out_the_directory_harbor_loads(tmp_path: Path) -> None:
     assert document["verifier"] == {"timeout_sec": 30.0}
     assert document["agent"] == {"timeout_sec": 300.0}
     assert document["environment"] == {"cpus": 1, "memory_mb": 512, "storage_mb": 1024, "gpus": 0}
-    assert document["metadata"]["author_name"] == "Reef"
-    assert document["metadata"]["tags"] == ["reef", "arithmetic"]
-    assert document["metadata"]["reef"] == {
+    assert document["metadata"]["author_name"] == "Aster"
+    assert document["metadata"]["tags"] == ["aster", "arithmetic"]
+    assert document["metadata"]["aster"] == {
         "digest": task().digest,
         "source_agent_record_ids": ["rec-inference-1", "rec-report-1"],
     }
@@ -141,7 +141,7 @@ def test_a_different_task_under_the_same_name_is_a_conflict(tmp_path: Path) -> N
 def test_a_foreign_directory_under_the_name_is_a_conflict(tmp_path: Path) -> None:
     (tmp_path / "sum-391").mkdir()
     (tmp_path / "sum-391" / "task.toml").write_text('version = "1.0"\n')
-    with pytest.raises(HarborTaskConflict, match="not a task reef wrote"):
+    with pytest.raises(HarborTaskConflict, match="not a task aster wrote"):
         write_harbor_task(task(), tmp_path)
 
 
@@ -153,7 +153,7 @@ def test_an_unreadable_top_level_file_is_a_conflict_not_a_crash(tmp_path: Path) 
 
 
 def test_a_failed_write_leaves_nothing_behind(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import reef.core.tasks.harbor as module
+    import aster.core.tasks.harbor as module
 
     def explode(*args: object, **kwargs: object) -> None:
         raise OSError("disk full")
@@ -168,7 +168,7 @@ def test_a_failed_write_leaves_nothing_behind(tmp_path: Path, monkeypatch: pytes
 def test_a_rename_that_fails_for_its_own_reason_is_not_reported_as_a_conflict(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import reef.core.tasks.harbor as module
+    import aster.core.tasks.harbor as module
 
     def refuse(*args: object, **kwargs: object) -> None:
         raise PermissionError("read-only volume")
@@ -181,7 +181,7 @@ def test_a_rename_that_fails_for_its_own_reason_is_not_reported_as_a_conflict(
 
 
 def test_a_writer_that_lost_the_race_accepts_the_same_task(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import reef.core.tasks.harbor as module
+    import aster.core.tasks.harbor as module
 
     real_rename = module.os.rename
 
@@ -237,7 +237,7 @@ def test_an_edited_task_toml_table_is_refused(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("extra", ["README.md", "tests/helper.sh", "trajectory.json", "environment/notes.txt"])
-def test_a_file_reef_did_not_write_is_refused(tmp_path: Path, extra: str) -> None:
+def test_a_file_aster_did_not_write_is_refused(tmp_path: Path, extra: str) -> None:
     root = write_harbor_task(task(), tmp_path)
     (root / extra).parent.mkdir(parents=True, exist_ok=True)
     (root / extra).write_text("x")
@@ -248,24 +248,24 @@ def test_a_file_reef_did_not_write_is_refused(tmp_path: Path, extra: str) -> Non
 @pytest.mark.parametrize(
     "table", ['[solution]\nenv = { LEAK = "1" }\n', '[[steps]]\nname = "hand"\n', 'artifacts = ["/etc/passwd"]\n']
 )
-def test_a_task_toml_table_reef_did_not_write_is_refused(tmp_path: Path, table: str) -> None:
+def test_a_task_toml_table_aster_did_not_write_is_refused(tmp_path: Path, table: str) -> None:
     root = write_harbor_task(task(), tmp_path)
     text = (root / "task.toml").read_text()
     (root / "task.toml").write_text(table + text if table.startswith("artifacts") else text + "\n" + table)
-    with pytest.raises(HarborTaskError, match="tables reef did not write"):
+    with pytest.raises(HarborTaskError, match="tables aster did not write"):
         read_harbor_task(root)
 
 
-def test_a_directory_without_the_reef_table_is_refused(tmp_path: Path) -> None:
+def test_a_directory_without_the_aster_table_is_refused(tmp_path: Path) -> None:
     root = write_harbor_task(task(), tmp_path)
-    (root / "task.toml").write_text('version = "1.0"\n[metadata]\nauthor_name = "Reef"\n')
-    with pytest.raises(HarborTaskError, match=r"no \[metadata\.reef\] table"):
+    (root / "task.toml").write_text('version = "1.0"\n[metadata]\nauthor_name = "Aster"\n')
+    with pytest.raises(HarborTaskError, match=r"no \[metadata\.aster\] table"):
         read_harbor_task(root)
 
 
 def test_a_toml_date_in_metadata_is_refused_not_crashed(tmp_path: Path) -> None:
     root = write_harbor_task(task(), tmp_path)
-    text = (root / "task.toml").read_text().replace('author_name = "Reef"', "author_name = 2026-01-01")
+    text = (root / "task.toml").read_text().replace('author_name = "Aster"', "author_name = 2026-01-01")
     (root / "task.toml").write_text(text)
     with pytest.raises(HarborTaskError, match="strings, numbers, booleans"):
         read_harbor_task(root)
@@ -325,7 +325,7 @@ def test_digest_ignores_mapping_order_and_type() -> None:
         ({"environment": {"Dockerfile": b"bytes"}}, "must be text"),
         ({"environment": {"Dockerfile": "FROM x\n", "note.txt": "\udfff"}}, "not valid Unicode"),
         ({"solution": {"dir/../solve.sh": "x"}}, "stay inside"),
-        ({"config": {"steps": {}}}, "not one reef writes"),
+        ({"config": {"steps": {}}}, "not one aster writes"),
         ({"config": {"agent": {"workdir": "/x"}}}, "not a key Harbor reads"),
         ({"config": {"agent": {"timeout_sec": 0}}}, "positive number"),
         ({"config": {"agent": {"timeout_sec": True}}}, "positive number"),
@@ -338,7 +338,7 @@ def test_digest_ignores_mapping_order_and_type() -> None:
         ({"config": {"environment": {"allowed_hosts": "a.example", "network_mode": "allowlist"}}}, "list of host"),
         ({"config": {"verifier": {"env": {"K": 1}}}}, "variable names to strings"),
         ({"config": {"environment": {"docker_image": ""}}}, "non-empty string"),
-        ({"metadata": {"reef": {}}}, "written by reef"),
+        ({"metadata": {"aster": {}}}, "written by aster"),
         ({"metadata": {"when": object()}}, "strings, numbers, booleans"),
         ({"metadata": {"when": datetime.date(2026, 1, 1)}}, "strings, numbers, booleans"),
         ({"source_agent_record_ids": ("a", "a")}, "distinct"),
@@ -408,8 +408,8 @@ def test_the_allowlist_form_round_trips(tmp_path: Path) -> None:
 # ----------------------------------------------------------------------------------------------- the consumer
 
 
-def test_harbor_itself_loads_what_reef_wrote(tmp_path: Path) -> None:
-    """The directory is read by Harbor's own task model, not only by reef's reader."""
+def test_harbor_itself_loads_what_aster_wrote(tmp_path: Path) -> None:
+    """The directory is read by Harbor's own task model, not only by aster's reader."""
     config_module = pytest.importorskip("harbor.models.task.config")
     paths_module = pytest.importorskip("harbor.models.task.paths")
     spec = task(
@@ -425,7 +425,7 @@ def test_harbor_itself_loads_what_reef_wrote(tmp_path: Path) -> None:
     assert config.verifier.timeout_sec == 30.0
     assert config.agent.timeout_sec == 300.0
     assert config.environment.allowed_hosts == ["*.pythonhosted.org", "2001:db8::/32"]
-    assert config.metadata["reef"]["digest"] == spec.digest
+    assert config.metadata["aster"]["digest"] == spec.digest
     paths = paths_module.TaskPaths(root)
     assert paths.instruction_path.is_file()
     assert paths.config_path.is_file()
@@ -448,14 +448,14 @@ def test_a_root_file_name_at_depth_is_still_an_extra_entry(tmp_path: Path, extra
     root = write_harbor_task(task(), tmp_path)
     (root / extra).parent.mkdir(parents=True)
     (root / extra).write_text("x")
-    with pytest.raises(HarborTaskError, match="entries reef did not write"):
+    with pytest.raises(HarborTaskError, match="entries aster did not write"):
         read_harbor_task(root)
 
 
 def test_a_plain_file_named_solution_is_refused(tmp_path: Path) -> None:
     root = write_harbor_task(task(), tmp_path)
     (root / "solution").write_text("x")
-    with pytest.raises(HarborTaskError, match="entries reef did not write"):
+    with pytest.raises(HarborTaskError, match="entries aster did not write"):
         read_harbor_task(root)
 
 
@@ -478,7 +478,7 @@ def test_entries_that_are_not_regular_files_are_refused(tmp_path: Path) -> None:
 def test_an_empty_foreign_directory_is_refused(tmp_path: Path) -> None:
     root = write_harbor_task(task(), tmp_path)
     (root / "tests" / "empty").mkdir()
-    with pytest.raises(HarborTaskError, match="entries reef did not write: tests/empty"):
+    with pytest.raises(HarborTaskError, match="entries aster did not write: tests/empty"):
         read_harbor_task(root)
 
 
@@ -489,7 +489,7 @@ def test_an_unreadable_directory_is_an_error_not_a_crash(tmp_path: Path) -> None
     try:
         with pytest.raises(HarborTaskError, match="cannot be read"):
             read_harbor_task(root)
-        with pytest.raises(HarborTaskConflict, match=r"cannot be read|not a task reef wrote"):
+        with pytest.raises(HarborTaskConflict, match=r"cannot be read|not a task aster wrote"):
             write_harbor_task(task(), tmp_path)
     finally:
         (root / "tests").chmod(0o755)
@@ -533,7 +533,7 @@ def test_a_name_longer_than_a_filesystem_allows_is_refused(name: str) -> None:
 
 
 def test_staging_lives_under_a_hidden_directory_that_never_looks_like_a_task(tmp_path: Path) -> None:
-    import reef.core.tasks.harbor as module
+    import aster.core.tasks.harbor as module
 
     leftover = tmp_path / module.STAGING_DIRECTORY / "sum-391.deadbeef"
     leftover.mkdir(parents=True)
@@ -548,7 +548,7 @@ def test_staging_lives_under_a_hidden_directory_that_never_looks_like_a_task(tmp
 def test_the_staging_directory_stays_so_writers_never_pull_it_from_under_each_other(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import reef.core.tasks.harbor as module
+    import aster.core.tasks.harbor as module
 
     write_harbor_task(task(), tmp_path)
     assert (tmp_path / module.STAGING_DIRECTORY).is_dir()
@@ -602,9 +602,9 @@ def test_a_dangling_symlink_at_the_target_is_a_conflict(tmp_path: Path) -> None:
         write_harbor_task(task(), tmp_path)
 
 
-def test_extra_keys_under_the_reef_table_are_refused(tmp_path: Path) -> None:
+def test_extra_keys_under_the_aster_table_are_refused(tmp_path: Path) -> None:
     root = write_harbor_task(task(), tmp_path)
-    text = (root / "task.toml").read_text().replace("[metadata.reef]", '[metadata.reef]\nsigned = "yes"')
+    text = (root / "task.toml").read_text().replace("[metadata.aster]", '[metadata.aster]\nsigned = "yes"')
     (root / "task.toml").write_text(text)
     with pytest.raises(HarborTaskError, match="must hold exactly"):
         read_harbor_task(root)
@@ -667,7 +667,7 @@ def test_the_same_directory_spelled_the_same_way_twice_is_fine() -> None:
 
 
 def test_a_volume_that_merges_names_is_reported_as_such(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import reef.core.tasks.harbor as module
+    import aster.core.tasks.harbor as module
 
     real_read = module.read_all_entries
 

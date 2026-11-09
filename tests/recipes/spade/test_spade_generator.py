@@ -12,22 +12,22 @@ from tests.support.samples import open_sample_store
 from tests.support.task_service_stubs import StandInGenerator, task_for
 
 from recipes.beta.spade import SpadeTaskGenerator
-from reef.core import AgentRecord, RequestType
-from reef.core.plugins import PluginConfigError
-from reef.core.tasks import read_harbor_task, write_harbor_task
-from reef.pipeline_context import PipelineContext
-from reef.recipe.generated_tasks import GeneratedTaskSamples, GeneratedTaskSettings
-from reef.recipe.generated_tasks.generator import (
+from aster.core import AgentRecord, RequestType
+from aster.core.plugins import PluginConfigError
+from aster.core.tasks import read_harbor_task, write_harbor_task
+from aster.pipeline_context import PipelineContext
+from aster.recipe.generated_tasks import GeneratedTaskSamples, GeneratedTaskSettings
+from aster.recipe.generated_tasks.generator import (
     FailedTask,
     GeneratedTaskResult,
     HeldOutTask,
     RejectedTask,
     RolledOutTask,
 )
-from reef.recipe.generated_tasks.processor import GenerationJob
-from reef.recipe.generated_tasks.results import TaskRolloutResult
-from reef.record2sample.generator import GeneratorError, TaskNameConflict
-from reef.record2sample.generator.inputs import TaskGenerationRequest
+from aster.recipe.generated_tasks.processor import GenerationJob
+from aster.recipe.generated_tasks.results import TaskRolloutResult
+from aster.record2sample.generator import GeneratorError, TaskNameConflict
+from aster.record2sample.generator.inputs import TaskGenerationRequest
 
 DESCRIPTION = "shell tasks with hidden state under /var and /etc"
 REQUEST = TaskGenerationRequest((), DESCRIPTION)
@@ -345,7 +345,7 @@ class FailingSecondReport(StandInGenerator):
     async def report_proposal(self, record_id, **fields) -> str:
         self.report_calls += 1
         if self.report_calls == 2:
-            raise GeneratorError("the report did not reach Reef")
+            raise GeneratorError("the report did not reach Aster")
         return await super().report_proposal(record_id, **fields)
 
 

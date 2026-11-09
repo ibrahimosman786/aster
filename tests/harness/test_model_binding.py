@@ -1,4 +1,4 @@
-"""The model bindings reef hands to methods and runs: one value per
+"""The model bindings aster hands to methods and runs: one value per
 endpoint, translated per API dialect, with the named set a method may call."""
 
 from __future__ import annotations
@@ -14,12 +14,12 @@ from urllib.request import Request
 import pytest
 from tests.support.harness_steps import evolution_config
 
-from reef.harness.adapters import get_adapter
-from reef.harness.tasks.model_binding import NO_KEY_PLACEHOLDER, ModelBinding, ModelBindings
-from reef.harness.tree import HarnessTree, render_tree
-from reef.inference.http import InferenceProxyRuntime
-from reef.recipe import RecipeConfigError
-from reef.recipe.harness import HarnessEvolutionRecipe
+from aster.harness.adapters import get_adapter
+from aster.harness.tasks.model_binding import NO_KEY_PLACEHOLDER, ModelBinding, ModelBindings
+from aster.harness.tree import HarnessTree, render_tree
+from aster.inference.http import InferenceProxyRuntime
+from aster.recipe import RecipeConfigError
+from aster.recipe.harness import HarnessEvolutionRecipe
 
 
 class _Response(io.BytesIO):
@@ -162,7 +162,7 @@ def test_complete_reports_the_tokens_the_endpoint_counted_in_every_dialect(monke
     """``usage`` rides the response object and ``last_usage`` keeps it for a
     wrapper of ``chat``, normalised to input/output tokens; a stream folds its
     usage in from the chunk or event that carried it."""
-    from reef.inference.provider_protocol import usage_of
+    from aster.inference.provider_protocol import usage_of
 
     binding = ModelBinding("http://up", "m")
     assert binding.last_usage() is None
@@ -204,7 +204,7 @@ def test_complete_reports_the_tokens_the_endpoint_counted_in_every_dialect(monke
 
 
 def test_the_budgeted_binding_records_each_calls_usage_for_the_step(monkeypatch) -> None:
-    from reef.train.harness_backend.calls import BudgetedBinding, StepCalls
+    from aster.train.harness_backend.calls import BudgetedBinding, StepCalls
 
     record: list[dict[str, Any]] = []
     budgeted = BudgetedBinding(ModelBinding("http://up", "m"), StepCalls(0, record))
@@ -222,8 +222,8 @@ def test_the_budgeted_binding_records_each_calls_usage_for_the_step(monkeypatch)
 
 
 def test_chat_record_keeps_provider_reasoning_separate_from_reply(monkeypatch) -> None:
-    from reef.harness.tree.checks import RECORD_TEXT_CAP
-    from reef.train.harness_backend.calls import BudgetedBinding, StepCalls
+    from aster.harness.tree.checks import RECORD_TEXT_CAP
+    from aster.train.harness_backend.calls import BudgetedBinding, StepCalls
 
     response = {
         "id": "response-1",
@@ -337,7 +337,7 @@ def test_responses_stream_keeps_reasoning_output_items(monkeypatch) -> None:
 
 
 def test_record_does_not_reuse_a_previous_response_when_custom_chat_returns_text(monkeypatch) -> None:
-    from reef.train.harness_backend.calls import BudgetedBinding, StepCalls
+    from aster.train.harness_backend.calls import BudgetedBinding, StepCalls
 
     class CustomChat(ModelBinding):
         def chat(self, messages, **params):
@@ -353,7 +353,7 @@ def test_record_does_not_reuse_a_previous_response_when_custom_chat_returns_text
 
 
 def test_failed_request_clears_the_previous_response(monkeypatch) -> None:
-    from reef.harness.tasks.model_binding import ModelBindingError
+    from aster.harness.tasks.model_binding import ModelBindingError
 
     binding = ModelBinding("http://up", "m")
     _capture(monkeypatch, {"choices": [{"message": {"role": "assistant", "content": "answer", "reasoning": "old"}}]})
@@ -365,8 +365,8 @@ def test_failed_request_clears_the_previous_response(monkeypatch) -> None:
 
 
 def test_a_failed_call_retains_reasoning_when_the_provider_returns_no_final_text(monkeypatch) -> None:
-    from reef.harness.tasks.model_binding import ModelBindingError
-    from reef.train.harness_backend.calls import BudgetedBinding, StepCalls
+    from aster.harness.tasks.model_binding import ModelBindingError
+    from aster.train.harness_backend.calls import BudgetedBinding, StepCalls
 
     record: list[dict[str, Any]] = []
     response = {
@@ -387,7 +387,7 @@ def test_a_failed_call_retains_reasoning_when_the_provider_returns_no_final_text
 
 
 def test_reasoning_fragments_do_not_merge_unidentified_blocks_or_stringify_null_signatures() -> None:
-    from reef.inference.provider_protocol import merge_reasoning_details
+    from aster.inference.provider_protocol import merge_reasoning_details
 
     details: list[Any] = []
     merge_reasoning_details(details, [{"type": "reasoning.text", "index": 0, "text": "step", "signature": None}])
@@ -445,11 +445,11 @@ def test_config_overlays_repeat_the_model_entries_for_every_client_model() -> No
     and still the default; a template with no such list is unchanged."""
     binding = ModelBinding("http://up", "served", api_key="k")
     pi = dict(binding.config_overlays(get_adapter("pi"), models=("other/big", "served", "other/small")))
-    assert [m["id"] for m in pi["models"]["providers"]["reef"]["models"]] == ["served", "other/big", "other/small"]
-    assert pi["agent"]["defaultModel"] == "reef/served"
+    assert [m["id"] for m in pi["models"]["providers"]["aster"]["models"]] == ["served", "other/big", "other/small"]
+    assert pi["agent"]["defaultModel"] == "aster/served"
     ((target, data),) = binding.config_overlays(get_adapter("opencode"), models=("other/big",))
     assert target == "agent"
-    assert list(data["provider"]["reef"]["models"]) == ["served", "other/big"] and data["model"] == "reef/served"
+    assert list(data["provider"]["aster"]["models"]) == ["served", "other/big"] and data["model"] == "aster/served"
     assert binding.config_overlays(get_adapter("opencode")) == binding.config_overlays(
         get_adapter("opencode"), models=("served",)
     )
@@ -474,14 +474,14 @@ def test_run_templates_follow_the_dialect() -> None:
     openai = bound_files(ModelBinding("http://up", "m", api_key="k"), "pi")
     responses = bound_files(ModelBinding("http://up", "m", api_key="k", api="responses"), "pi")
     anthropic = bound_files(ModelBinding("http://up", "m", api_key="k", api="anthropic"), "pi")
-    assert json.loads(openai["pi-agent/models.json"])["providers"]["reef"]["api"] == "openai-completions"
-    assert json.loads(openai["pi-agent/models.json"])["providers"]["reef"]["baseUrl"] == "http://up/v1"
-    assert json.loads(responses["pi-agent/models.json"])["providers"]["reef"]["api"] == "openai-responses"
-    assert json.loads(responses["pi-agent/models.json"])["providers"]["reef"]["baseUrl"] == "http://up/v1"
-    assert json.loads(anthropic["pi-agent/models.json"])["providers"]["reef"]["api"] == "anthropic-messages"
-    assert json.loads(anthropic["pi-agent/models.json"])["providers"]["reef"]["baseUrl"] == "http://up"
+    assert json.loads(openai["pi-agent/models.json"])["providers"]["aster"]["api"] == "openai-completions"
+    assert json.loads(openai["pi-agent/models.json"])["providers"]["aster"]["baseUrl"] == "http://up/v1"
+    assert json.loads(responses["pi-agent/models.json"])["providers"]["aster"]["api"] == "openai-responses"
+    assert json.loads(responses["pi-agent/models.json"])["providers"]["aster"]["baseUrl"] == "http://up/v1"
+    assert json.loads(anthropic["pi-agent/models.json"])["providers"]["aster"]["api"] == "anthropic-messages"
+    assert json.loads(anthropic["pi-agent/models.json"])["providers"]["aster"]["baseUrl"] == "http://up"
     for files in (openai, responses, anthropic):
-        assert json.loads(files["pi-agent/settings.json"])["defaultModel"] == "reef/m"
+        assert json.loads(files["pi-agent/settings.json"])["defaultModel"] == "aster/m"
 
 
 def test_an_endpoint_without_a_key_still_renders_a_key_the_agent_accepts() -> None:
@@ -492,12 +492,12 @@ def test_an_endpoint_without_a_key_still_renders_a_key_the_agent_accepts() -> No
     so both sides of the evaluation scored 0 and no candidate could ever publish.
     """
     files = bound_files(ModelBinding("http://127.0.0.1:11434", "m"), "pi")
-    assert json.loads(files["pi-agent/models.json"])["providers"]["reef"]["apiKey"] == NO_KEY_PLACEHOLDER
+    assert json.loads(files["pi-agent/models.json"])["providers"]["aster"]["apiKey"] == NO_KEY_PLACEHOLDER
 
 
 def test_a_real_key_is_rendered_verbatim_over_the_placeholder() -> None:
     files = bound_files(ModelBinding("http://up", "m", api_key="sk-real"), "pi")
-    assert json.loads(files["pi-agent/models.json"])["providers"]["reef"]["apiKey"] == "sk-real"
+    assert json.loads(files["pi-agent/models.json"])["providers"]["aster"]["apiKey"] == "sk-real"
 
 
 def test_the_dialect_rides_the_proxy_runtime_into_the_binding() -> None:
@@ -569,17 +569,17 @@ def models_overlay(binding: ModelBinding) -> dict:
 @pytest.mark.unit
 def test_a_pi_tree_carries_the_bindings_reply_budget_as_a_number() -> None:
     """pi falls back to 16384 tokens for a model its config does not size, which a reasoning model spends on its
-    reasoning alone; Reef writes the binding's budget instead, and JSON needs it to stay a number."""
+    reasoning alone; Aster writes the binding's budget instead, and JSON needs it to stay a number."""
     binding = ModelBinding(base_url="http://127.0.0.1:8901", model="anthropic/claude-sonnet-5", api_key="tok")
     models = models_overlay(binding)
-    assert models["providers"]["reef"]["models"][0] == {
+    assert models["providers"]["aster"]["models"][0] == {
         "id": "anthropic/claude-sonnet-5",
         "maxTokens": 32000,
     }
     assert binding.max_output_tokens == 32000
 
     smaller = models_overlay(replace(binding, max_output_tokens=8000))
-    assert smaller["providers"]["reef"]["models"][0]["maxTokens"] == 8000
+    assert smaller["providers"]["aster"]["models"][0]["maxTokens"] == 8000
 
     for bad in (0, -1, True):
         with pytest.raises(ValueError, match="max_output_tokens"):
@@ -590,8 +590,8 @@ def test_a_pi_tree_carries_the_bindings_reply_budget_as_a_number() -> None:
 def test_provider_metadata_is_selected_by_exact_model_and_cached(
     monkeypatch: pytest.MonkeyPatch, parameters: list[str], reasoning: bool
 ) -> None:
-    from reef.core.model_metadata import ModelMetadata
-    from reef.harness.tasks.model_binding import provider_model_metadata
+    from aster.core.model_metadata import ModelMetadata
+    from aster.harness.tasks.model_binding import provider_model_metadata
 
     provider_model_metadata.cache_clear()
     reply = {
@@ -611,16 +611,16 @@ def test_provider_metadata_is_selected_by_exact_model_and_cached(
     assert binding.metadata == ModelMetadata(640_000, reasoning)
     assert ModelBinding("http://up", "served", api_key="test-key").with_metadata().metadata == binding.metadata
     assert calls == [("http://up/v1/models", "Bearer test-key", 5.0)]
-    # Routing through Reef must preserve the provider's resolved metadata.
-    assert replace(binding, base_url="http://reef/evaluation", api_key="reef-key").metadata == binding.metadata
+    # Routing through Aster must preserve the provider's resolved metadata.
+    assert replace(binding, base_url="http://aster/evaluation", api_key="aster-key").metadata == binding.metadata
     provider_model_metadata.cache_clear()
 
 
 def test_metadata_missing_or_unavailable_keeps_fallback_and_explicit_config_wins(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from reef.core.model_metadata import ModelMetadata
-    from reef.harness.tasks.model_binding import provider_model_metadata
+    from aster.core.model_metadata import ModelMetadata
+    from aster.harness.tasks.model_binding import provider_model_metadata
 
     provider_model_metadata.cache_clear()
 
@@ -653,8 +653,8 @@ def test_metadata_missing_or_unavailable_keeps_fallback_and_explicit_config_wins
 
 
 def test_truncated_metadata_response_keeps_fallback_and_allows_retry(caplog: pytest.LogCaptureFixture) -> None:
-    from reef.core.model_metadata import ModelMetadata
-    from reef.harness.tasks.model_binding import provider_model_metadata
+    from aster.core.model_metadata import ModelMetadata
+    from aster.harness.tasks.model_binding import provider_model_metadata
 
     complete_body = json.dumps(
         {"data": [{"id": "served", "context_length": 640_000, "supported_parameters": []}]}
@@ -697,8 +697,8 @@ def test_truncated_metadata_response_keeps_fallback_and_allows_retry(caplog: pyt
 
 
 def test_budgeted_binding_keeps_model_metadata() -> None:
-    from reef.core.model_metadata import ModelMetadata
-    from reef.train.harness_backend.calls import BudgetedBinding, StepCalls
+    from aster.core.model_metadata import ModelMetadata
+    from aster.train.harness_backend.calls import BudgetedBinding, StepCalls
 
     binding = ModelBinding("http://up", "served", api="responses", metadata=ModelMetadata(640_000, True))
     budgeted = BudgetedBinding(binding, StepCalls(0, []))

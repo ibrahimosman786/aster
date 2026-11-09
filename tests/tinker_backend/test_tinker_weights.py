@@ -1,4 +1,4 @@
-"""The weight files of a Tinker artifact for Reef's engines: the adapter at its sampler path, downloaded once."""
+"""The weight files of a Tinker artifact for Aster's engines: the adapter at its sampler path, downloaded once."""
 
 from __future__ import annotations
 
@@ -13,12 +13,12 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 
-from reef.core.errors import ReefError
-from reef.core.plugins import PluginConfigError
-from reef.inference.serving import ArtifactWeightFiles
-from reef.tinker.checkpoint import TinkerArtifact
-from reef.tinker.weights import TinkerSamplerWeights
-from reef.train.tinker_backend.checkpoint import TinkerCheckpoint
+from aster.core.errors import AsterError
+from aster.core.plugins import PluginConfigError
+from aster.inference.serving import ArtifactWeightFiles
+from aster.tinker.checkpoint import TinkerArtifact
+from aster.tinker.weights import TinkerSamplerWeights
+from aster.train.tinker_backend.checkpoint import TinkerCheckpoint
 
 MODEL = "Qwen/Qwen3-8B"
 CHECKPOINT = TinkerCheckpoint(MODEL, 32, "tinker://run/weights/4", "tinker://run/sampler_weights/4")
@@ -75,7 +75,7 @@ class SDK:
 def sdk(tmp_path, monkeypatch) -> SDK:
     value = SDK(tmp_path)
     value.archives[CHECKPOINT.sampler_path] = {"adapter_config.json": b"{}", "adapter_model.safetensors": b"tinker"}
-    monkeypatch.setattr("reef.tinker.weights.tinker_sdk", lambda: value)
+    monkeypatch.setattr("aster.tinker.weights.tinker_sdk", lambda: value)
 
     def build_lora_adapter(*, base_model, adapter_path, output_path):
         value.conversions.append((base_model, (Path(adapter_path) / "adapter_model.safetensors").read_bytes()))
@@ -112,15 +112,15 @@ def test_the_adapter_at_the_sampler_path_is_downloaded_converted_and_then_cached
 @pytest.mark.unit
 def test_a_release_the_weights_cannot_give_is_refused(tmp_path, sdk, monkeypatch):
     weights = TinkerSamplerWeights(tmp_path / "cache", api_key="key")
-    with pytest.raises(ReefError, match="serves as an adapter, not as full weights"):
+    with pytest.raises(AsterError, match="serves as an adapter, not as full weights"):
         weights.weight_files(release(tmp_path), "full")
-    with pytest.raises(ReefError, match=r"held by https://spindle\.example, not by hosted Tinker"):
+    with pytest.raises(AsterError, match=r"held by https://spindle\.example, not by hosted Tinker"):
         weights.weight_files(release(tmp_path, replace(CHECKPOINT, service="https://spindle.example")), "adapter")
     missing = TinkerCheckpoint(MODEL, 32, "tinker://run/weights/5", "tinker://run/sampler_weights/5")
-    with pytest.raises(ReefError, match="gives no download of tinker://run/sampler_weights/5"):
+    with pytest.raises(AsterError, match="gives no download of tinker://run/sampler_weights/5"):
         weights.weight_files(release(tmp_path, missing), "adapter")
     assert sdk.closed == ["errored"]
-    with pytest.raises(ReefError, match="holds no Tinker checkpoint manifest"):
+    with pytest.raises(AsterError, match="holds no Tinker checkpoint manifest"):
         weights.weight_files(tmp_path / "empty", "adapter")
     monkeypatch.delenv("TINKER_API_KEY", raising=False)
     with pytest.raises(PluginConfigError, match="TINKER_API_KEY"):
@@ -129,7 +129,7 @@ def test_a_release_the_weights_cannot_give_is_refused(tmp_path, sdk, monkeypatch
 
 @pytest.mark.unit
 def test_a_release_without_an_adapter_gives_no_adapter_files(tmp_path):
-    with pytest.raises(ReefError, match="holds no PEFT adapter in adapter/"):
+    with pytest.raises(AsterError, match="holds no PEFT adapter in adapter/"):
         ArtifactWeightFiles().weight_files(tmp_path, "adapter")
     assert ArtifactWeightFiles().weight_files(tmp_path, "full").path == tmp_path
 

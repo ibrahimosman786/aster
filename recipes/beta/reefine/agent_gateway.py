@@ -1,6 +1,6 @@
 """The loopback gateway Reefine's agent and its trial runs reach models through.
 
-Reefine's gateway is the agent gateway (:mod:`reef.harness.gateway`), which
+Reefine's gateway is the agent gateway (:mod:`aster.harness.gateway`), which
 relays the model routes to the served model on the step's budget and serves
 the agent's tools, with what a candidate harness reaches in its trials too:
 
@@ -10,7 +10,7 @@ the agent's tools, with what a candidate harness reaches in its trials too:
 
 The agent and every candidate harness it tries hold its one URL and nothing
 else, so a candidate's own extensions reach the gateway as they would reach
-Reef, with no credential of their own.
+Aster, with no credential of their own.
 """
 
 from __future__ import annotations
@@ -25,8 +25,8 @@ from http.server import BaseHTTPRequestHandler
 from typing import Any
 
 from recipes.beta.reefine.multimodal import MULTIMODAL_ROUTES, MultimodalProvider
-from reef.harness.gateway import AgentGateway, AgentTool, ModelCalls, refuse, relay
-from reef.harness.tasks.model_binding import ModelBinding
+from aster.harness.gateway import AgentGateway, AgentTool, ModelCalls, refuse, relay
+from aster.harness.tasks.model_binding import ModelBinding
 
 #: How much of a provider's refusal a trial reports back to the agent.
 MAX_ERROR_CHARS = 600
@@ -80,13 +80,13 @@ class ReefineGateway(AgentGateway):
     def relay_models(self, client: BaseHTTPRequestHandler, modality: str) -> None:
         """The provider's models of one output modality, so the agent picks a real one without holding the key."""
         if self.provider is None:
-            refuse(client, 501, "the Reef deployment has no multimodal provider")
+            refuse(client, 501, "the Aster deployment has no multimodal provider")
             return
         relay_models_request(client, self.provider.models_url(modality), self.provider.api_key)
 
     def relay_provider_call(self, client: BaseHTTPRequestHandler, route: str, payload: dict[str, Any]) -> None:
         if self.provider is None:
-            refuse(client, 501, f"{route} needs a multimodal provider key on the Reef deployment")
+            refuse(client, 501, f"{route} needs a multimodal provider key on the Aster deployment")
             return
         upstream_path = self.provider.upstream_path(route)
         if upstream_path is None:

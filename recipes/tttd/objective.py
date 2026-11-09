@@ -6,10 +6,10 @@ import math
 from collections.abc import Mapping
 from typing import Any
 
-from reef.core.trajectories import trajectory_reward
-from reef.train.algos.helpers import next_steps
-from reef.train.algos.signals import TrainingSignal
-from reef.train.types import JobData, trajectory_groups
+from aster.core.trajectories import trajectory_reward
+from aster.train.algos.helpers import next_steps
+from aster.train.algos.signals import TrainingSignal
+from aster.train.types import JobData, trajectory_groups
 
 
 def adaptive_entropic_advantages(rewards: list[float]) -> tuple[tuple[float, ...], float]:

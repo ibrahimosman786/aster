@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from reef.core.tasks import TaskSplit, TaskSplitError, manifest_task_paths, read_split_manifest, write_split_manifest
-from reef.core.tasks.split import TaskSplitConflict, extend_split_by_source
+from aster.core.tasks import TaskSplit, TaskSplitError, manifest_task_paths, read_split_manifest, write_split_manifest
+from aster.core.tasks.split import TaskSplitConflict, extend_split_by_source
 
 SPLIT = TaskSplit(train=("t1", "t2", "t6"), eval=("t3", "t4", "t5"), seed=11, eval_fraction=0.5)
 
@@ -172,11 +172,11 @@ def test_a_manifest_version_that_is_not_the_integer_is_refused(tmp_path: Path, v
         read_split_manifest(tmp_path / "split.json")
 
 
-def test_a_manifest_with_keys_reef_did_not_write_is_refused(tmp_path: Path) -> None:
+def test_a_manifest_with_keys_aster_did_not_write_is_refused(tmp_path: Path) -> None:
     (tmp_path / "split.json").write_text(
         '{"version": 1, "seed": 0, "eval_fraction": 0.5, "train": [], "eval": [], "holdout": ["a"]}'
     )
-    with pytest.raises(TaskSplitError, match="keys reef did not write: holdout"):
+    with pytest.raises(TaskSplitError, match="keys aster did not write: holdout"):
         read_split_manifest(tmp_path / "split.json")
 
 
@@ -213,7 +213,7 @@ def test_a_manifest_keeps_its_mode_and_its_symlink_when_replaced(tmp_path: Path)
 
 
 def written_tasks(root: Path, names: tuple[str, ...]) -> None:
-    from reef.core.tasks import HarborTask, write_harbor_task
+    from aster.core.tasks import HarborTask, write_harbor_task
 
     for name in names:
         write_harbor_task(

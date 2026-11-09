@@ -1,6 +1,6 @@
 """Chat request construction and response parsing for the guidance policy.
 
-Guidance-TTT samples the trainable policy through Reef's OpenAI-compatible
+Guidance-TTT samples the trainable policy through Aster's OpenAI-compatible
 chat route. Prompt rendering and exact token/log-prob capture belong to the
 configured inference backend; the harness supplies chat semantics only.
 """
@@ -30,9 +30,9 @@ def guidance_chat_request(
     messages: Sequence[Mapping[str, Any]],
     max_new_tokens: int,
 ) -> dict[str, Any]:
-    """Describe one guidance sample through Reef's chat route.
+    """Describe one guidance sample through Aster's chat route.
 
-    The request never names an adapter: Reef routes it to
+    The request never names an adapter: Aster routes it to
     whatever the deployment serves, so no caller can sample the frozen base by
     forgetting to name it.
     """

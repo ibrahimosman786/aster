@@ -13,6 +13,6 @@
   "search_value": 2.6359830849177777,
   "task": "circle_packing_26",
   "wandb_group": "tttd-qwen3-8b-2gpu/tttd-qwen3-8b-2gpu-formal-8x64-v3-packing26",
-  "wandb_project": "reef",
+  "wandb_project": "aster",
   "weight_version": "9adb4d0b5f98494ab511c890ff8bfe92:21"
 }

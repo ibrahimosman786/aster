@@ -1,8 +1,8 @@
 """Durable step orchestration for Guidance-TTT runs.
 
-One search step is one Reef training job. The controller runs a step only
+One search step is one Aster training job. The controller runs a step only
 after the previous job has ended: it samples ``G x R`` guidance rollouts,
-waits on Reef's HTTP status until the job that trains them ends, checks that
+waits on Aster's HTTP status until the job that trains them ends, checks that
 the LoRA optimizer really consumed the reserved batch, and only then pairs the
 post-step archive with that committed step.
 
@@ -30,11 +30,11 @@ RESUME_FORMAT_VERSION = 1
 
 
 class GuidanceRunStateError(RuntimeError):
-    """The Guidance archive and Reef's durable training state do not align."""
+    """The Guidance archive and Aster's durable training state do not align."""
 
 
 class GuidanceTrainingTimeoutError(RuntimeError):
-    """Reef did not commit a Guidance-TTT training step before its deadline."""
+    """Aster did not commit a Guidance-TTT training step before its deadline."""
 
 
 @dataclass(frozen=True)
@@ -67,7 +67,7 @@ class SearchHarness(ABC):
 
 
 class TrainingProgress(ABC):
-    """Reef's training of one scenario, seen from the harness."""
+    """Aster's training of one scenario, seen from the harness."""
 
     @abstractmethod
     def position(self) -> TrainingPosition:
@@ -80,9 +80,9 @@ class TrainingProgress(ABC):
 
 @dataclass(frozen=True)
 class TrainingPosition:
-    """A scenario's training as ``GET /reef/status`` reports it.
+    """A scenario's training as ``GET /aster/status`` reports it.
 
-    ``scenario_step`` is Reef's committed scenario step and ``finished_jobs``
+    ``scenario_step`` is Aster's committed scenario step and ``finished_jobs``
     the number of training jobs that ended, both non-negative ints.
     ``running_job_id`` is the running job's ID, a non-empty string, or ``None``
     while no job runs. A scenario that the status does not list yet has not
@@ -97,18 +97,18 @@ class TrainingPosition:
     def __post_init__(self) -> None:
         for name, value in (("scenario_step", self.scenario_step), ("finished_jobs", self.finished_jobs)):
             if not isinstance(value, int) or isinstance(value, bool) or value < 0:
-                raise RuntimeError(f"Reef returned an invalid {name}: {value!r}")
+                raise RuntimeError(f"Aster returned an invalid {name}: {value!r}")
         if self.running_job_id is not None and (not isinstance(self.running_job_id, str) or not self.running_job_id):
-            raise RuntimeError(f"Reef returned an invalid running training job: {self.running_job_id!r}")
+            raise RuntimeError(f"Aster returned an invalid running training job: {self.running_job_id!r}")
 
     @classmethod
     def from_status(cls, status: Mapping[str, Any]) -> TrainingPosition:
         """Read one scenario's status block; a block without job fields is not a job-loop trainer."""
         if "training_job" not in status or "finished_jobs" not in status:
-            raise RuntimeError(f"Reef reports no training job state for the scenario: {status!r}")
+            raise RuntimeError(f"Aster reports no training job state for the scenario: {status!r}")
         job = status["training_job"]
         if job is not None and not isinstance(job, Mapping):
-            raise RuntimeError(f"Reef returned an invalid training job: {job!r}")
+            raise RuntimeError(f"Aster returned an invalid training job: {job!r}")
         return cls(
             scenario_step=status.get("scenario_step"),
             finished_jobs=status["finished_jobs"],
@@ -122,7 +122,7 @@ class TrainingJobOutcome:
 
     ``job_id`` is the job's non-empty ID. ``rollout_id`` is the Slime rollout
     the job saved, a non-negative int. ``checkpoint_metrics`` are the metrics
-    Reef committed for the checkpoint: Slime's training metrics (for example
+    Aster committed for the checkpoint: Slime's training metrics (for example
     ``train/grad_norm``) and the evaluation and selection result.
     ``position`` is the scenario's training after the job, with no job
     running. ``served_artifact_id`` is the ID of the artifact that serves the
@@ -138,7 +138,7 @@ class TrainingJobOutcome:
 
     def __post_init__(self) -> None:
         if not isinstance(self.job_id, str) or not self.job_id:
-            raise RuntimeError(f"Reef returned an invalid training job ID: {self.job_id!r}")
+            raise RuntimeError(f"Aster returned an invalid training job ID: {self.job_id!r}")
         if not isinstance(self.rollout_id, int) or isinstance(self.rollout_id, bool) or self.rollout_id < 0:
             raise RuntimeError(f"training job {self.job_id} reported an invalid rollout ID: {self.rollout_id!r}")
         if self.position.running_job_id is not None:
@@ -146,10 +146,10 @@ class TrainingJobOutcome:
 
 
 class StatusTrainingProgress(TrainingProgress):
-    """Read a scenario's training through Reef's HTTP API.
+    """Read a scenario's training through Aster's HTTP API.
 
-    ``GET /reef/status`` reports the scenario step, the running job and the
-    number of finished jobs. ``GET /reef/scenarios/<scenario>/commits`` holds
+    ``GET /aster/status`` reports the scenario step, the running job and the
+    number of finished jobs. ``GET /aster/scenarios/<scenario>/commits`` holds
     each job's committed checkpoint metrics and its end. No Ray connection is
     needed.
     """
@@ -188,18 +188,18 @@ class StatusTrainingProgress(TrainingProgress):
         )
 
     def scenario_status(self) -> dict[str, Any] | None:
-        return scenario_status(self.get_json("/reef/status"), self.scenario)
+        return scenario_status(self.get_json("/aster/status"), self.scenario)
 
     def commits_after(self, scenario_step: int) -> list[dict[str, Any]]:
         """Every commit of the scenario after ``scenario_step``, in step order."""
-        path = f"/reef/scenarios/{urllib.parse.quote(self.scenario, safe='')}/commits"
+        path = f"/aster/scenarios/{urllib.parse.quote(self.scenario, safe='')}/commits"
         commits: list[dict[str, Any]] = []
         after_step: int | None = scenario_step
         while after_step is not None:
             page = self.get_json(f"{path}?{urllib.parse.urlencode({'after_step': after_step, 'limit': 100})}")
             entries = page.get("commits")
             if not isinstance(entries, list) or not all(isinstance(entry, Mapping) for entry in entries):
-                raise RuntimeError(f"Reef returned invalid commits: {page!r}")
+                raise RuntimeError(f"Aster returned invalid commits: {page!r}")
             commits.extend(dict(entry) for entry in entries)
             after_step = page.get("next_after_step")
         return commits
@@ -211,7 +211,7 @@ class StatusTrainingProgress(TrainingProgress):
         with urllib.request.urlopen(request, timeout=self.request_timeout_s) as response:
             body = json.loads(response.read())
         if not isinstance(body, Mapping):
-            raise RuntimeError(f"Reef returned a non-object for {path}: {body!r}")
+            raise RuntimeError(f"Aster returned a non-object for {path}: {body!r}")
         return body
 
 
@@ -244,7 +244,7 @@ def wait_for_training_step(
                 )
             position = TrainingPosition.from_status(last_status)
             if position.finished_jobs > expected_jobs:
-                raise RuntimeError(f"Reef finished {position.finished_jobs} training jobs, expected {expected_jobs}")
+                raise RuntimeError(f"Aster finished {position.finished_jobs} training jobs, expected {expected_jobs}")
             if (
                 position.running_job_id is None
                 and position.finished_jobs == expected_jobs
@@ -259,7 +259,7 @@ def wait_for_training_step(
         if poll_interval_s:
             time.sleep(poll_interval_s)
     raise GuidanceTrainingTimeoutError(
-        f"training rollout {expected_rollout_id} did not complete after {timeout_s:g}s: reef={last_status}"
+        f"training rollout {expected_rollout_id} did not complete after {timeout_s:g}s: aster={last_status}"
     )
 
 
@@ -281,7 +281,7 @@ def finished_job_outcome(
         raise RuntimeError(f"expected one training job to end, found {[job for job, _ in ended]!r}")
     job, end_metrics = ended[0]
     if job["event"] == "failed":
-        raise RuntimeError(f"Reef training job {job.get('job_id')} failed: {job.get('error')}")
+        raise RuntimeError(f"Aster training job {job.get('job_id')} failed: {job.get('error')}")
     checkpoints = [
         metrics
         for event, metrics in events
@@ -308,19 +308,19 @@ def scenario_status(body: Mapping[str, Any], scenario: str) -> dict[str, Any] | 
     training_error = body.get("error")
     if training_error is not None:
         if not isinstance(training_error, str) or not training_error:
-            raise RuntimeError(f"Reef returned an invalid training error: {body!r}")
-        raise RuntimeError(f"Reef training failed: {training_error}")
+            raise RuntimeError(f"Aster returned an invalid training error: {body!r}")
+        raise RuntimeError(f"Aster training failed: {training_error}")
     preload_errors = body.get("preload_errors")
     if isinstance(preload_errors, Mapping) and scenario in preload_errors:
-        raise RuntimeError(f"Reef could not restore scenario {scenario!r}: {preload_errors[scenario]}")
+        raise RuntimeError(f"Aster could not restore scenario {scenario!r}: {preload_errors[scenario]}")
     scenarios = body.get("scenarios")
     if not isinstance(scenarios, Mapping):
-        raise RuntimeError(f"Reef returned no scenario statuses: {body!r}")
+        raise RuntimeError(f"Aster returned no scenario statuses: {body!r}")
     status = scenarios.get(scenario)
     if status is None:
         return None
     if not isinstance(status, Mapping):
-        raise RuntimeError(f"Reef returned an invalid status for {scenario!r}: {status!r}")
+        raise RuntimeError(f"Aster returned an invalid status for {scenario!r}: {status!r}")
     return dict(status)
 
 
@@ -329,7 +329,7 @@ def failed_training_step(status: Mapping[str, Any], step: int) -> dict[str, Any]
     processor = status.get("processor")
     failed_steps = processor.get("failed_steps") if isinstance(processor, Mapping) else None
     if not isinstance(failed_steps, list):
-        raise RuntimeError(f"Reef returned invalid processor status: {status!r}")
+        raise RuntimeError(f"Aster returned invalid processor status: {status!r}")
     for failure in failed_steps:
         if (
             not isinstance(failure, Mapping)
@@ -337,7 +337,7 @@ def failed_training_step(status: Mapping[str, Any], step: int) -> dict[str, Any]
             or not failure["reason"]
             or not isinstance(failure.get("artifact_ids"), list)
         ):
-            raise RuntimeError(f"Reef returned invalid processor status: {status!r}")
+            raise RuntimeError(f"Aster returned invalid processor status: {status!r}")
         if failure.get("step") == step:
             return dict(failure)
     return None
@@ -392,7 +392,7 @@ def require_step_success(
 
 
 class GuidanceRunStateStore:
-    """Pair the post-step Guidance archive with Reef's committed step.
+    """Pair the post-step Guidance archive with Aster's committed step.
 
     ``library.json`` is the working archive the harness mutates during a step.
     It is copied to ``committed-library.json`` only after the matching training
@@ -449,7 +449,7 @@ class GuidanceRunStateStore:
 
 @dataclass
 class GuidanceRunController:
-    """Run Guidance-TTT steps against one durable Reef training scenario."""
+    """Run Guidance-TTT steps against one durable Aster training scenario."""
 
     harness: SearchHarness
     library: Any
@@ -474,11 +474,11 @@ class GuidanceRunController:
         position = self.progress.position()
         if position.running_job_id is not None:
             raise GuidanceRunStateError(
-                f"Reef is still running training job {position.running_job_id}; resume after it ends"
+                f"Aster is still running training job {position.running_job_id}; resume after it ends"
             )
         if position.finished_jobs != start_step:
             raise GuidanceRunStateError(
-                f"Reef finished {position.finished_jobs} training jobs, but the Guidance archive starts at {start_step}"
+                f"Aster finished {position.finished_jobs} training jobs, but the Guidance archive starts at {start_step}"
             )
 
         step_summaries = [dict(summary) for summary in (saved or {}).get("step_summaries", [])]

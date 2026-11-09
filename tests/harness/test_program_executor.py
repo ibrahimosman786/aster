@@ -10,10 +10,10 @@ from pathlib import Path
 
 import pytest
 
-import reef
-from reef.core.errors import ReefError
-from reef.execution.sandbox.config import build_executor
-from reef.execution.sandbox.process import (
+import aster
+from aster.core.errors import AsterError
+from aster.execution.sandbox.config import build_executor
+from aster.execution.sandbox.process import (
     LocalExecutor,
     ProgramLaunchError,
     ProgramTimeout,
@@ -52,7 +52,7 @@ def test_local_executor_does_not_forward_parent_stdin(tmp_path: Path) -> None:
             [
                 "import sys",
                 "from pathlib import Path",
-                "from reef.execution.sandbox.process import LocalExecutor",
+                "from aster.execution.sandbox.process import LocalExecutor",
                 f"root = Path({str(root)!r})",
                 f"outcome = LocalExecutor().launch([sys.executable, {str(reader)!r}], ",
                 "    root=root, workspace=root / 'workspace', env={}, timeout=10.0)",
@@ -60,9 +60,9 @@ def test_local_executor_does_not_forward_parent_stdin(tmp_path: Path) -> None:
             ]
         ),
     )
-    # The driver runs from tmp_path, so it needs reef on its own path: the
+    # The driver runs from tmp_path, so it needs aster on its own path: the
     # test job type-checks and tests the source tree without installing it.
-    env = {**os.environ, "PYTHONPATH": str(Path(reef.__file__).resolve().parents[1])}
+    env = {**os.environ, "PYTHONPATH": str(Path(aster.__file__).resolve().parents[1])}
     result = subprocess.run(
         [sys.executable, str(driver)],
         input="INJECTED_STDIN_MARKER",
@@ -75,21 +75,21 @@ def test_local_executor_does_not_forward_parent_stdin(tmp_path: Path) -> None:
 
 
 def test_local_executor_finds_a_runner_beside_the_interpreter_after_path(tmp_path: Path, monkeypatch) -> None:
-    """reef serve started from a venv off PATH still launches a runner Reef ships; a name PATH finds keeps its binary."""
+    """aster serve started from a venv off PATH still launches a runner Aster ships; a name PATH finds keeps its binary."""
     root = tmp_path / "root"
     (root / "workspace").mkdir(parents=True)
     scripts = tmp_path / "venv" / "bin"
     scripts.mkdir(parents=True)
-    _script(scripts, "print('beside the interpreter')", "reef-runner")
+    _script(scripts, "print('beside the interpreter')", "aster-runner")
     monkeypatch.setattr(sys, "executable", str(scripts / "python"))
     monkeypatch.setenv("PATH", os.pathsep.join(["/usr/bin", "/bin"]))
-    outcome = LocalExecutor().launch(["reef-runner"], root=root, workspace=root / "workspace", env={}, timeout=10.0)
+    outcome = LocalExecutor().launch(["aster-runner"], root=root, workspace=root / "workspace", env={}, timeout=10.0)
     assert (outcome.exit_code, outcome.stdout.strip()) == (0, "beside the interpreter")
     first = tmp_path / "first"
     first.mkdir()
-    _script(first, "print('on PATH')", "reef-runner")
+    _script(first, "print('on PATH')", "aster-runner")
     monkeypatch.setenv("PATH", os.pathsep.join([str(first), "/usr/bin", "/bin"]))
-    outcome = LocalExecutor().launch(["reef-runner"], root=root, workspace=root / "workspace", env={}, timeout=10.0)
+    outcome = LocalExecutor().launch(["aster-runner"], root=root, workspace=root / "workspace", env={}, timeout=10.0)
     assert outcome.stdout.strip() == "on PATH"
 
 
@@ -118,15 +118,15 @@ def test_build_executor_defaults_to_local() -> None:
 
 
 def test_build_executor_rejects_an_unknown_kind() -> None:
-    with pytest.raises(ReefError, match="unknown run executor"):
+    with pytest.raises(AsterError, match="unknown run executor"):
         build_executor({"executor": "vm"})
 
 
 def test_sandbox_preflight_fails_fast_without_bubblewrap(monkeypatch) -> None:
-    monkeypatch.setattr("reef.execution.sandbox.process.shutil.which", lambda name: None)
+    monkeypatch.setattr("aster.execution.sandbox.process.shutil.which", lambda name: None)
     with pytest.raises(SandboxUnavailable, match="bubblewrap"):
         SandboxExecutor().preflight()
-    with pytest.raises(ReefError, match="bubblewrap"):
+    with pytest.raises(AsterError, match="bubblewrap"):
         build_executor({"executor": "sandbox"})
 
 
@@ -138,12 +138,12 @@ def _probe_result(monkeypatch, returncode: int, stderr: str = "") -> list[list[s
         seen.append(list(argv))
         return subprocess.CompletedProcess(argv, returncode, "", stderr)
 
-    monkeypatch.setattr("reef.execution.sandbox.process.subprocess.run", run)
+    monkeypatch.setattr("aster.execution.sandbox.process.subprocess.run", run)
     return seen
 
 
 def test_sandbox_preflight_proves_the_host_can_nest_a_jail(monkeypatch) -> None:
-    monkeypatch.setattr("reef.execution.sandbox.process.shutil.which", lambda name: "/usr/bin/bwrap")
+    monkeypatch.setattr("aster.execution.sandbox.process.shutil.which", lambda name: "/usr/bin/bwrap")
     seen = _probe_result(monkeypatch, 1, "bwrap: No permissions to create a new namespace\n")
     with pytest.raises(SandboxUnavailable, match=r"cannot nest a bubblewrap jail.*No permissions"):
         SandboxExecutor().preflight()
@@ -164,14 +164,14 @@ def test_sandbox_preflight_proves_the_host_can_nest_a_jail(monkeypatch) -> None:
     def refuse(argv, **kwargs):
         raise OSError("boom")
 
-    monkeypatch.setattr("reef.execution.sandbox.process.subprocess.run", refuse)
+    monkeypatch.setattr("aster.execution.sandbox.process.subprocess.run", refuse)
     with pytest.raises(SandboxUnavailable, match="cannot nest a bubblewrap jail on this host: boom"):
         SandboxExecutor().preflight()
 
 
 def test_sandbox_argv_isolates_the_filesystem_env_and_network(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr("reef.execution.sandbox.process.shutil.which", lambda name: "/usr/bin/bwrap")
-    monkeypatch.setattr("reef.execution.sandbox.process.os.environ", {"PATH": "/usr/bin"})
+    monkeypatch.setattr("aster.execution.sandbox.process.shutil.which", lambda name: "/usr/bin/bwrap")
+    monkeypatch.setattr("aster.execution.sandbox.process.os.environ", {"PATH": "/usr/bin"})
     root = tmp_path / "root"
     workspace = root / "workspace"
     workspace.mkdir(parents=True)
@@ -192,14 +192,14 @@ def test_sandbox_argv_isolates_the_filesystem_env_and_network(monkeypatch, tmp_p
     joined = " ".join(argv)
     assert "A b" in joined
     # The native loop reads this and holds each tool call to its declared capabilities.
-    assert "--setenv REEF_NATIVE_ENFORCE bwrap" in joined
+    assert "--setenv ASTER_NATIVE_ENFORCE bwrap" in joined
 
 
 def test_sandbox_opens_the_workspace_and_runtime_state_but_rebinds_inputs_read_only(
     monkeypatch, tmp_path: Path
 ) -> None:
     """A read-only input stays read-only inside a writable directory, the workspace too, as a remote jail keeps it."""
-    monkeypatch.setattr("reef.execution.sandbox.process.shutil.which", lambda name: "/usr/bin/bwrap")
+    monkeypatch.setattr("aster.execution.sandbox.process.shutil.which", lambda name: "/usr/bin/bwrap")
     root = tmp_path / "root"
     workspace = root / "workspace"
     material = workspace / "material"
@@ -229,7 +229,7 @@ def test_sandbox_opens_the_workspace_and_runtime_state_but_rebinds_inputs_read_o
 
 
 def test_sandbox_shares_the_network_when_egress_is_allowlisted(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr("reef.execution.sandbox.process.shutil.which", lambda name: "/usr/bin/bwrap")
+    monkeypatch.setattr("aster.execution.sandbox.process.shutil.which", lambda name: "/usr/bin/bwrap")
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     sandbox = SandboxExecutor(egress_hosts=("127.0.0.1:8000",))
@@ -238,7 +238,7 @@ def test_sandbox_shares_the_network_when_egress_is_allowlisted(monkeypatch, tmp_
 
 
 def test_build_executor_reads_sandbox_limits(monkeypatch) -> None:
-    monkeypatch.setattr("reef.execution.sandbox.process.shutil.which", lambda name: "/usr/bin/bwrap")
+    monkeypatch.setattr("aster.execution.sandbox.process.shutil.which", lambda name: "/usr/bin/bwrap")
     _probe_result(monkeypatch, 0)
     executor = build_executor(
         {
@@ -252,7 +252,7 @@ def test_build_executor_reads_sandbox_limits(monkeypatch) -> None:
 
 
 def test_sandbox_explicit_environment_and_isolation_marker(monkeypatch, tmp_path: Path) -> None:
-    from reef.execution.sandbox.process import ISOLATION_ENV
+    from aster.execution.sandbox.process import ISOLATION_ENV
 
     monkeypatch.setattr(SandboxExecutor, "preflight", lambda self: None)
     executor = build_executor(
@@ -268,11 +268,11 @@ def test_sandbox_explicit_environment_and_isolation_marker(monkeypatch, tmp_path
     assert env[ISOLATION_ENV] == "bwrap"
     assert "UNRELATED_SECRET" not in env
     assert "deliberately-forwarded" not in repr(executor)
-    with pytest.raises(ReefError, match="requires environment variable 'REMOTE_KEY'"):
+    with pytest.raises(AsterError, match="requires environment variable 'REMOTE_KEY'"):
         build_executor({"executor": "sandbox", "sandbox": {"env_from": ["REMOTE_KEY"]}}, environ={})
 
 
 @pytest.mark.parametrize("names", ["REMOTE_KEY", [None], [""]])
 def test_sandbox_refuses_invalid_env_from(names) -> None:
-    with pytest.raises(ReefError, match="env_from must be a list"):
+    with pytest.raises(AsterError, match="env_from must be a list"):
         build_executor({"executor": "sandbox", "sandbox": {"env_from": names}})

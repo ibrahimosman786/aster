@@ -15,23 +15,23 @@ from tests.support.samples import open_sample_store
 from tests.support.samples_service import make_samples
 from tests.support.task_service_stubs import task_for
 
-from reef.artifact import Artifact, DefaultStart
-from reef.core import AgentRecord, RequestType
-from reef.core.errors import CommitPending, TrainingStartRefused
-from reef.core.job_data import JobOutcome
-from reef.core.tasks import write_harbor_task
-from reef.core.training_request import TrainingRequest
-from reef.core.weight_layout import ArtifactFormat
-from reef.pipeline_context import PipelineContext
-from reef.sample2job import Sample2Job
-from reef.storage.data import NewItem
-from reef.storage.job_data import read_job_data
-from reef.storage.record_items import ItemRecordStore
-from reef.train.component import JobStatus, SavedCheckpoint, ScenarioRoot, TrainingComponent, TrainingJob
-from reef.train.jobs import JobLoop, JobLoopState, RunningJob
-from reef.train.pipeline import TrainingPipeline
-from reef.train.trainer import Trainer
-from reef.train.types import JobData
+from aster.artifact import Artifact, DefaultStart
+from aster.core import AgentRecord, RequestType
+from aster.core.errors import CommitPending, TrainingStartRefused
+from aster.core.job_data import JobOutcome
+from aster.core.tasks import write_harbor_task
+from aster.core.training_request import TrainingRequest
+from aster.core.weight_layout import ArtifactFormat
+from aster.pipeline_context import PipelineContext
+from aster.sample2job import Sample2Job
+from aster.storage.data import NewItem
+from aster.storage.job_data import read_job_data
+from aster.storage.record_items import ItemRecordStore
+from aster.train.component import JobStatus, SavedCheckpoint, ScenarioRoot, TrainingComponent, TrainingJob
+from aster.train.jobs import JobLoop, JobLoopState, RunningJob
+from aster.train.pipeline import TrainingPipeline
+from aster.train.trainer import Trainer
+from aster.train.types import JobData
 
 
 class FakeComponent(TrainingComponent):

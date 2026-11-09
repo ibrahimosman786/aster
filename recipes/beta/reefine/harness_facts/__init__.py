@@ -23,8 +23,8 @@ from pathlib import Path
 
 import yaml
 
-from reef.harness.adapters import available_adapters
-from reef.harness.adapters.descriptor import DescriptorError
+from aster.harness.adapters import available_adapters
+from aster.harness.adapters.descriptor import DescriptorError
 
 
 @dataclass(frozen=True)
@@ -96,7 +96,7 @@ def load_harness_facts(path: Path) -> HarnessFacts:
 
 @cache
 def harness_facts(adapter: str) -> HarnessFacts | None:
-    """The facts for an ``adapter`` Reef can load (bundled or registered) from ``<adapter>.yaml`` beside this module;
+    """The facts for an ``adapter`` Aster can load (bundled or registered) from ``<adapter>.yaml`` beside this module;
     ``None`` where it has none."""
     path = Path(__file__).with_name(f"{adapter}.yaml")
     if adapter not in available_adapters() or not path.is_file():

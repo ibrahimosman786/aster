@@ -42,7 +42,7 @@ Fetch the pinned source and build its evaluator container:
 
 ```bash
 python prepare.py lasso_path
-docker build -f judges/lasso.Dockerfile -t reef-guidance-lasso judges
+docker build -f judges/lasso.Dockerfile -t aster-guidance-lasso judges
 python judges/lasso_server.py --host 0.0.0.0 --port 8082
 ```
 
@@ -56,7 +56,7 @@ Hardware and thread settings affect timing. These defaults do not guarantee
 that a new run reproduces the paper's absolute timing.
 
 SimpleTES is AGPL-3.0 licensed. Preparation downloads its source and license
-into the ignored `work/` directory. Reef does not vendor its solver or evaluator.
+into the ignored `work/` directory. Aster does not vendor its solver or evaluator.
 
 ## AHC058
 
@@ -89,7 +89,7 @@ python prepare.py trimul
 python -m pip install 'modal>=1.0,<2'
 modal setup
 modal deploy judges/trimul_modal.py
-python judges/trimul_server.py --modal-app reef-guidance-trimul --port 8082
+python judges/trimul_server.py --modal-app aster-guidance-trimul --port 8082
 ```
 
 The Modal function uses one H100, Torch 2.7.1, and Triton 3.3.1. It loads

@@ -23,7 +23,7 @@ TP-aware full-vocab log-softmax at the requested ids — no top-N window, no
 synthetic floor — computed from logits divided by ``rollout_temperature``,
 the same scale ``get_log_probs_and_entropy`` puts ``ell_cur``/``ell_old`` on.
 The packing schedule and the sharded gathers are the Slime backend's
-distillation base (``reef.train.slime_backend.distill``), shared with the
+distillation base (``aster.train.slime_backend.distill``), shared with the
 distilling recipes.
 
 The forward itself is slime's own ``forward_only`` (the compute_log_prob
@@ -44,8 +44,8 @@ from megatron.core import mpu
 from slime.backends.megatron_utils.data import DataIterator
 from slime.backends.megatron_utils.model import forward_only
 
-from reef.train.slime_backend.distill.teacher import pack_forward_schedule
-from reef.train.slime_backend.vocab_parallel import gather_log_probs_at_ids, native_topk_ids
+from aster.train.slime_backend.distill.teacher import pack_forward_schedule
+from aster.train.slime_backend.vocab_parallel import gather_log_probs_at_ids, native_topk_ids
 
 logger = logging.getLogger(__name__)
 

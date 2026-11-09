@@ -2,7 +2,7 @@
 
 Nothing here calls a model or launches Pi: the scorer and the feedback hook run
 on synthetic run results, and the driver's record lookup and
-report run against a real embedded Reef service with a stubbed inference
+report run against a real embedded Aster service with a stubbed inference
 backend, exactly as the campaign driver's suite does.
 """
 
@@ -23,12 +23,12 @@ from tests.support.harness_steps import TreeArtifacts
 from tests.support.records import memory_records
 from tests.support.serving import wait_for_serving
 
-from reef.core.evaluation import PolicyHarness, RolloutRequest
-from reef.harness import TaskResult
-from reef.harness.adapters import get_adapter
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tree import HarnessTree
-from reef.train.backend import ComponentArtifacts
+from aster.core.evaluation import PolicyHarness, RolloutRequest
+from aster.harness import TaskResult
+from aster.harness.adapters import get_adapter
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tree import HarnessTree
+from aster.train.backend import ComponentArtifacts
 
 
 def run_requests(evaluator, *pairings):
@@ -55,9 +55,9 @@ def purge_example_modules() -> None:
 def load(monkeypatch, tmp_path):
     """Import an example module fresh, and leave no trace for the next suite.
 
-    The driver writes the seed it builds under ``REEF_WORK``, so the work directory is the test's own.
+    The driver writes the seed it builds under ``ASTER_WORK``, so the work directory is the test's own.
     """
-    monkeypatch.setenv("REEF_WORK", str(tmp_path / "work"))
+    monkeypatch.setenv("ASTER_WORK", str(tmp_path / "work"))
     monkeypatch.syspath_prepend(str(EXAMPLE_DIR))
     purge_example_modules()
     yield importlib.import_module
@@ -142,7 +142,7 @@ def test_default_driver_pool_uses_a_stable_answer_snapshot(load, monkeypatch, tm
     assert config["execution"]["evolution"]["backend"] == "auto"
     config["execution"]["evolution"]["workers"] = 1
     monkeypatch.setattr(driver, "load_config", lambda path: config)
-    monkeypatch.setattr("reef.evaluation.harness.runner.run_task", lambda *args, **kwargs: pi_run("### 17"))
+    monkeypatch.setattr("aster.evaluation.harness.runner.run_task", lambda *args, **kwargs: pi_run("### 17"))
     _, recipe = driver.load_recipe(["problem"], api_key="dummy", trainset_size=45)
     records = memory_records("test")
     trainer = recipe.build("test", records, artifacts=artifacts_of(recipe), root=seed_root(recipe))
@@ -166,15 +166,15 @@ def test_default_driver_pool_uses_a_stable_answer_snapshot(load, monkeypatch, tm
         "mp",
         pytest.param(
             "ray",
-            marks=pytest.mark.skipif(os.environ.get("REEF_TEST_RAY") != "1", reason="opt-in real Ray integration"),
+            marks=pytest.mark.skipif(os.environ.get("ASTER_TEST_RAY") != "1", reason="opt-in real Ray integration"),
         ),
     ],
 )
 def test_driver_evaluates_with_isolated_workers(load, monkeypatch, tmp_path, executor):
 
-    monkeypatch.setenv("REEF_GEPA_EXECUTOR", executor)
-    monkeypatch.setenv("REEF_GEPA_WORKERS", "1" if executor == "uni" else "2")
-    monkeypatch.setenv("REEF_WORK", str(tmp_path))
+    monkeypatch.setenv("ASTER_GEPA_EXECUTOR", executor)
+    monkeypatch.setenv("ASTER_GEPA_WORKERS", "1" if executor == "uni" else "2")
+    monkeypatch.setenv("ASTER_WORK", str(tmp_path))
     monkeypatch.setenv("RAY_ADDRESS", "local")
     if executor == "ray":
         pytest.importorskip("ray")
@@ -190,7 +190,7 @@ def test_driver_evaluates_with_isolated_workers(load, monkeypatch, tmp_path, exe
         "print('### 17')\n"
     )
     binary.chmod(0o755)
-    monkeypatch.setenv("REEF_PI_BINARY", str(binary))
+    monkeypatch.setenv("ASTER_PI_BINARY", str(binary))
     _, recipe = driver.load_recipe(["problem"], api_key="dummy", trainset_size=45)
     # Validation workers use the runtime's upstream, not the loopback service
     # used by the driver's minibatch and held-out passes.
@@ -212,14 +212,14 @@ def test_driver_evaluates_with_isolated_workers(load, monkeypatch, tmp_path, exe
 
 def test_driver_binds_the_example_hooks_to_one_snapshot_and_keeps_other_hooks(load, monkeypatch):
     from recipes.gepa import ScoreFeedback
-    from reef.evaluation.harness import VerifierRewardScorer
+    from aster.evaluation.harness import VerifierRewardScorer
 
     driver = load("run")
     _, recipe = driver.load_recipe(["problem"], api_key="dummy", trainset_size=45)
     assert isinstance(recipe.scorer, driver.aime.AIMEScorer) and recipe.method.feedback is recipe.scorer
     config = driver.load_config(EXAMPLE_DIR / "gepa.yaml")
     evolution = config["recipe"]["config"]["evolution"]
-    evolution["evaluation"]["scorer"] = "reef.evaluation.harness:VerifierRewardScorer"
+    evolution["evaluation"]["scorer"] = "aster.evaluation.harness:VerifierRewardScorer"
     evolution["method"]["config"]["feedback"] = "recipes.gepa:ScoreFeedback"
     monkeypatch.setattr(driver, "load_config", lambda path: config)
     _, recipe = driver.load_recipe(["problem"], api_key="dummy", trainset_size=45)
@@ -228,7 +228,7 @@ def test_driver_binds_the_example_hooks_to_one_snapshot_and_keeps_other_hooks(lo
 
 @pytest.mark.parametrize("already_initialized", [False, True])
 def test_worker_runtime_owns_only_its_own_ray_session(load, monkeypatch, already_initialized):
-    monkeypatch.setenv("REEF_GEPA_EXECUTOR", "ray")
+    monkeypatch.setenv("ASTER_GEPA_EXECUTOR", "ray")
     driver = load("run")
     _, recipe = driver.load_recipe(["problem"], api_key="dummy", trainset_size=45)
     calls = []
@@ -248,7 +248,7 @@ def test_worker_runtime_owns_only_its_own_ray_session(load, monkeypatch, already
 
 
 def test_local_worker_runtime_does_not_require_ray(load, monkeypatch):
-    monkeypatch.setenv("REEF_GEPA_EXECUTOR", "auto")
+    monkeypatch.setenv("ASTER_GEPA_EXECUTOR", "auto")
     driver = load("run")
     _, recipe = driver.load_recipe(["problem"], api_key="dummy", trainset_size=45)
     monkeypatch.setitem(sys.modules, "ray", None)
@@ -316,10 +316,10 @@ def test_the_seed_tree_carries_the_quickstart_envelope():
     ]
     seed = HarnessTree.read(EXAMPLE_DIR / evolution["seed"])
 
-    assert sorted(seed.files) == ["config/primary.json", "extensions/reef-quickstart-system.ts", "rules.md"]
+    assert sorted(seed.files) == ["config/primary.json", "extensions/aster-quickstart-system.ts", "rules.md"]
     assert seed.files["rules.md"].startswith("You are a helpful assistant.")
     assert json.loads(seed.files["config/primary.json"]) == {"defaultTools": []}
-    extension = seed.files["extensions/reef-quickstart-system.ts"]
+    extension = seed.files["extensions/aster-quickstart-system.ts"]
     assert 'pi.on("before_agent_start"' in extension
     assert 'pi.on("before_provider_request"' in extension
     # The extension reads the rules file instead of embedding its text, so the
@@ -336,15 +336,15 @@ def test_run_files_render_the_served_tree_with_the_transient_binding(load):
     assert merged["plugin/rules.md"] == "rules\n"
     # The served tree's own settings stay in the package; the endpoint goes to pi's own directory.
     assert json.loads(merged["plugin/settings.json"])["defaultTools"] == []
-    assert json.loads(merged["pi-agent/settings.json"])["defaultModel"] == "reef/task-model"
-    assert json.loads(merged["pi-agent/models.json"])["providers"]["reef"]["baseUrl"] == "http://service.test/v1"
+    assert json.loads(merged["pi-agent/settings.json"])["defaultModel"] == "aster/task-model"
+    assert json.loads(merged["pi-agent/models.json"])["providers"]["aster"]["baseUrl"] == "http://service.test/v1"
 
 
 # The driver against the embedded service ----------------------------------
 
 
 def stub_backend():
-    from reef.inference.interfaces import InferenceHandler
+    from aster.inference.interfaces import InferenceHandler
 
     class StubModel(InferenceHandler):
         async def inference(self, artifact, path, payload):
@@ -359,9 +359,9 @@ def test_driver_reports_each_problem_against_its_recorded_request(load, monkeypa
     is recorded against the served composition, the driver finds it by problem
     text, and the report references it. Two of the three reports leave the
     batch open, so no training step runs and no Pi binary is needed."""
-    from reef_client import ReefClient
+    from reef_client import AsterClient
 
-    monkeypatch.setenv("REEF_MODEL", "task-model")
+    monkeypatch.setenv("ASTER_MODEL", "task-model")
     driver = load("run")
     problems = ["Find n such that ...", "Let ABC be a triangle ..."]
     recipe_name, recipe = driver.load_recipe(problems, api_key="dummy", trainset_size=45)
@@ -377,7 +377,7 @@ def test_driver_reports_each_problem_against_its_recorded_request(load, monkeypa
     )
     service.start()
     try:
-        client = ReefClient(service.base_url, timeout_s=60.0)
+        client = AsterClient(service.base_url, timeout_s=60.0)
         manifest = driver.pull_tree(client, service, tmp_path / "served")
         # The served source tree is the seed: no rendered file, and so no provider endpoint.
         assert manifest["files"] == dict(recipe.seed.files)
@@ -393,7 +393,7 @@ def test_driver_reports_each_problem_against_its_recorded_request(load, monkeypa
         references = []
         wait_for_serving(service.dispatcher, service.scenario)
         for problem in problems:
-            # What a Pi run does: an OpenAI-compatible call with no reef
+            # What a Pi run does: an OpenAI-compatible call with no aster
             # headers, which the service stamps with this run's scenario.
             request = urllib.request.Request(
                 f"{service.base_url}/v1/chat/completions",

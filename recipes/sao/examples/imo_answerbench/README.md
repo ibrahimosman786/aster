@@ -1,4 +1,4 @@
-# SAO on Reef
+# SAO on Aster
 
 This example implements the harness side of
 [Single-Rollout Asynchronous Optimization](https://arxiv.org/abs/2607.07508).
@@ -8,7 +8,7 @@ step without waiting for siblings, and the next request is served by the
 updated weights. The method itself is the `sao`
 recipe package (`recipes/sao/`). This directory holds the loop around it: three
 IMOAnswerBench problems as Harbor tasks, a Harbor agent that runs six scored
-rollouts per problem through Reef, and `run.py`, which runs the tasks in order.
+rollouts per problem through Aster, and `run.py`, which runs the tasks in order.
 
 The [`sao` recipe page](../../../../docs/user-guide/recipes/sao.rst) documents
 the recipe's configuration and runtime metrics, and
@@ -28,16 +28,16 @@ harbor/               three IMOAnswerBench problems as Harbor tasks, run in orde
     tests/
       test.sh             runs the verifier
       grade.py            extracts \boxed{}, checks it against the gold answer
-harness/              agent harness (imports reef_client, not reef)
+harness/              agent harness (imports reef_client, not aster)
   __init__.py           lazily exports HarborAgent
   agent.py              HarborAgent: six scored rollouts per problem, one report each
   grader.py             \boxed{} extraction and the strict equivalence rule, shared with stream.py and evaluate.py
   report.py             posts Harbor's verifier reward against the trial's receipts
-serve.yaml            smoke stack config (batch 1): Reef + Ray + Slime/Megatron + SGLang, critic on the actor GPU
+serve.yaml            smoke stack config (batch 1): Aster + Ray + Slime/Megatron + SGLang, critic on the actor GPU
 serve-30b.yaml        Qwen3-30B-A3B-Thinking-2507 on two 8-GPU nodes (one trains, one serves), fed by stream.py
 serve-30b-multi.yaml  the same model with data-parallel training nodes and separate serving engines, batch 128
 run.py                the loop, written out: solve, verify, report, task by task
-run.sh                starts the Reef training stack, then runs run.py or SAO_DRIVER
+run.sh                starts the Aster training stack, then runs run.py or SAO_DRIVER
 stream.py             the paper-shaped streaming driver: one rollout per prompt, many prompts in flight
 export_problems.py    writes the problems JSONL that stream.py and evaluate.py read
 evaluate.py           held-out evaluation of a served model with the training grader
@@ -67,19 +67,19 @@ The last completion is written to `/workspace/answer.txt`, where the Harbor
 verifier (`harbor/imo-*/tests/grade.py`) scores it independently and records
 the trial's reward.
 
-## The changes needed for Reef
+## The changes needed for Aster
 
 The rollout loop in `HarborAgent.run` contains the two integration points:
 
 ```python
-response, agent_record_id = await asyncio.to_thread(self._ask_reef, instruction)
+response, agent_record_id = await asyncio.to_thread(self._ask_aster, instruction)
 completion = response["choices"][0]["message"]["content"]
 predicted = extract_answer(completion)
 score = 1.0 if answers_equal(gold, predicted) else 0.0
 self._client.report(SCENARIO, {"score": score, "references": [agent_record_id]}, recipe=RECIPE)
 ```
 
-1. Send inference through a scenario-scoped Reef endpoint
+1. Send inference through a scenario-scoped Aster endpoint
    (`inference_with_record`) and keep the returned `agent_record_id` as the
    generation receipt.
 2. After the local grader computes the reward, report it against that exact
@@ -99,9 +99,9 @@ The runtime flow is:
 
 ```text
 reef-eval starts one Harbor trial for the next problem
-  -> the agent sends one OpenAI-compatible chat request through Reef
+  -> the agent sends one OpenAI-compatible chat request through Aster
   -> the SGLang backend renders the prompt once and calls /generate
-  -> Reef records the provider exchange and the artifact that answered, without tokens
+  -> Aster records the provider exchange and the artifact that answered, without tokens
   -> the agent extracts \boxed{} and scores it against the gold answer
   -> the agent reports the score against that rollout's receipt
   -> SAOSamples accepts the report and emits one ATIF TrajectorySample
@@ -110,7 +110,7 @@ reef-eval starts one Harbor trial for the next problem
   -> the critic computes values; skip-observation GAE builds the advantages
   -> Slime runs policy_loss with SAO's per-token DIS primitive, after two critic steps
   -> Megatron performs one optimizer step and saves a checkpoint
-  -> Reef loads the checkpoint into SGLang as weight files
+  -> Aster loads the checkpoint into SGLang as weight files
   -> the next rollout is served by the updated weights
 ```
 
@@ -139,18 +139,18 @@ hf download Qwen/Qwen2.5-1.5B-Instruct --local-dir ~/models/Qwen2.5-1.5B-Instruc
 
 `run.py` also needs `docker`: Harbor runs each task's verifier in its own
 container. The `docker run` line in Evolve your model does not provide that,
-so when the stack itself runs inside the reef image, extend it:
+so when the stack itself runs inside the aster image, extend it:
 
 ```bash
 docker run --gpus all --network host --ipc host --shm-size 32g -it \
   -v ~/models:/root/models \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$REPO":"$REPO" -w "$REPO" \
-  reef bash
+  aster bash
 # inside: apt-get update && apt-get install -y docker.io
 ```
 
-Mount the repo at its host path (`-v "$REPO":"$REPO"`, not `/workspace/Reef`):
+Mount the repo at its host path (`-v "$REPO":"$REPO"`, not `/workspace/Aster`):
 Harbor's sibling containers bind-mount trial directories by path, and those
 paths must mean the same thing to the host docker daemon.
 
@@ -160,22 +160,22 @@ paths must mean the same thing to the host docker daemon.
 ./run.sh
 ```
 
-The launcher waits for Reef's health endpoint and stops waiting if Reef
+The launcher waits for Aster's health endpoint and stops waiting if Aster
 exits. Configure training startup with `training.ready-timeout` and HTTP startup
-with `reef.ready-timeout` in `serve.yaml`; startup errors are in `work/reef.log`. Exiting or interrupting
-the script also stops its Reef process.
+with `aster.ready-timeout` in `serve.yaml`; startup errors are in `work/aster.log`. Exiting or interrupting
+the script also stops its Aster process.
 
-`run.sh` starts `reef serve -c serve.yaml` with its state under `./work`,
+`run.sh` starts `aster serve -c serve.yaml` with its state under `./work`,
 waits for `/healthz`, and runs `run.py`. `serve.yaml` describes a two-GPU
 stack: one GPU for the Megatron actor and the critic, which shares the
 actor's GPU, and one GPU for the SGLang serving engine, which serves
-`Qwen2.5-1.5B-Instruct`. On the first start Reef
+`Qwen2.5-1.5B-Instruct`. On the first start Aster
 loads the Hugging Face weights directly and writes the Megatron checkpoint
 that later starts load. Ray, Slime, Megatron, and SGLang take minutes to come
-up; `work/reef.log` has the service log if startup fails.
+up; `work/aster.log` has the service log if startup fails.
 
-The config omits `services`. Slime trains inside Reef's HTTP service, and
-`reef serve` starts a local inference component for the SGLang engine on the
+The config omits `services`. Slime trains inside Aster's HTTP service, and
+`aster serve` starts a local inference component for the SGLang engine on the
 same Ray cluster. No manual wiring is needed. Serving records no tokens or
 log-probabilities: the training component renders each rollout with the
 model's chat template, and the actor computes the old-policy log-probabilities
@@ -183,12 +183,12 @@ that SAO needs with the weights of the job's start.
 `training.options` still holds the model and algorithm settings. CLI overrides
 use the same paths, for example `--training.options.lr 0.000002`.
 
-Reef starts and stops the shared Ray runtime automatically; no `ray start`
+Aster starts and stops the shared Ray runtime automatically; no `ray start`
 or fixed Ray port is needed. `run.sh` defaults the local cluster's GPU pool to
 `CUDA_VISIBLE_DEVICES=0,1`; override it at launch to choose different GPUs.
 To use an existing cluster, set `RAY_ADDRESS`; that cluster's node configuration
-controls GPU visibility, and Reef leaves it running on exit. Training and
-serving never share a GPU: Reef reserves the actor's GPUs, and the inference
+controls GPU visibility, and Aster leaves it running on exit. Training and
+serving never share a GPU: Aster reserves the actor's GPUs, and the inference
 component takes the engine's GPUs.
 
 `run.py` is the loop, written out. For each task in order, reef-eval's `Lab.run`
@@ -207,8 +207,8 @@ Each scored rollout publishes one `training` entry to the scenario's version
 chain:
 
 ```bash
-curl -s -H "Authorization: Bearer reef-local" \
-    http://127.0.0.1:8900/reef/scenarios/sao-smoke/artifacts
+curl -s -H "Authorization: Bearer aster-local" \
+    http://127.0.0.1:8900/aster/scenarios/sao-smoke/artifacts
 ```
 
 The runtime reports `pg_clipfrac` (the fraction of tokens the DIS mask
@@ -243,7 +243,7 @@ The integration reproduces:
   zero-initialized value head before any policy update);
 - value targets from Monte-Carlo returns (λ = 1) and policy advantages from
   the length-adaptive λ with α = 1.5, built by skip-observation GAE in the
-  training backend, so the Reef payload carries no advantages;
+  training backend, so the Aster payload carries no advantages;
 - the DIS per-token loss with the reasoning-domain mask bounds 0.3 and 5.0.
   The ratio is computed against the old-policy log-probabilities that the
   actor computes with the weights of the job's start, not against the
@@ -298,7 +298,7 @@ Ray cluster (`RAY_ADDRESS`): `SAO_TRAIN_NODES` 8-GPU nodes host the actor,
 tensor parallel 8 per node and data parallel across nodes with the critic on
 the actor GPUs, and `SAO_ROLLOUT_GPUS` GPUs on other nodes host the engines,
 tensor parallel 4 each. The runs kept `SAO_CKPT_DIR` on shared storage with
-the retention cap set in the stack file, so Reef's service reads the exports
+the retention cap set in the stack file, so Aster's service reads the exports
 that the training nodes write. `SAO_PROGRESS_FILE`
 paces the driver on the trainer: write the number of completed optimizer
 steps into it from a host that sees `SAO_CKPT_DIR`, for example the highest
@@ -460,7 +460,7 @@ GPT-OSS-120B-generated tool-integrated-reasoning traces were tried: v1 with
 NuminaMath-CoT) for 2 epochs. On the full 400-problem benchmark, strict
 grader, without Python:
 
-| Model | Reef base | SFT v1 (TIR only, 3.5k) | SFT v2 (mixed, 30k) | Paper SFT (with / without Python) |
+| Model | Aster base | SFT v1 (TIR only, 3.5k) | SFT v2 (mixed, 30k) | Paper SFT (with / without Python) |
 | --- | ---: | ---: | ---: | ---: |
 | Mean over 4 runs | `44.69` | 9.75 | 5.44 | 53.3 / 42.0 |
 

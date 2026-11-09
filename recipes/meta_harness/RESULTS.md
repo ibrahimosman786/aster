@@ -9,7 +9,7 @@ full-history iterations. Each measurement covers the same 30 tasks with two
 repeats: 60 trials. A candidate replaces the current choice only when its mean
 score is strictly higher; a tie keeps the current choice.
 
-| Step | Reef score | Reef selection | Upstream score | Upstream selection |
+| Step | Aster score | Aster selection | Upstream score | Upstream selection |
 | --- | ---: | --- | ---: | --- |
 | Baseline | 20/60 | Start with baseline | 24/60 | Start with baseline |
 | Iteration 1 | 23/60 | Select iteration 1 | 22/60 | Keep baseline |
@@ -18,21 +18,21 @@ score is strictly higher; a tie keeps the current choice.
 | Iteration 4 | 23/60 | Tie: keep iteration 1 | 21/60 | Keep baseline |
 
 **Both selectors made identical decisions when replaying the same completed
-score histories.** All 600 recorded scores were replayed through Reef's
+score histories.** All 600 recorded scores were replayed through Aster's
 selector and upstream's own `update_frontier`. All eight candidate decisions
-agreed, including Reef's tie. This verifies the overall selection rule given
+agreed, including Aster's tie. This verifies the overall selection rule given
 identical observations; independent proposals and scores can differ.
 
-The [selected Reef harness](results/reef_harness.py) preserves the iteration 1
+The [selected Aster harness](results/aster_harness.py) preserves the iteration 1
 code and completion prompt; only its class docstring wording has been simplified.
 The measurements below used the original file, whose SHA-256 was
 `abe8e8b703bd31baaf9ec063fd44596c890f6faebc8804867c98989241d04b89`.
 
 Evaluating the chosen harnesses again, with two fresh repeats on the same tasks,
-gave **22/60 (36.67%) for Reef's iteration 1** and **21/60 (35.00%) for upstream's
+gave **22/60 (36.67%) for Aster's iteration 1** and **21/60 (35.00%) for upstream's
 baseline**. These results did not feed back into search and are not a held-out
 task evaluation. Two infrastructure losses were replaced, one per arm; no
-admissible outcome was repeated. Reef includes one terminal-loss zero under
+admissible outcome was repeated. Aster includes one terminal-loss zero under
 the shared scoring policy, with its raw invalid/null verifier reward retained
 in the internal run records.
 
@@ -46,7 +46,7 @@ in the internal run records.
 This is a method reproduction on 30 tasks, with shared API, sandbox, and verifier
 adaptations. It is not the paper's full benchmark or an unmodified upstream
 performance reference. The local campaign measured the baseline once and only
-new candidates thereafter. The method now does the same: Reef's paired
+new candidates thereafter. The method now does the same: Aster's paired
 evaluation reads the incumbent's scores from its cache. The campaign scripts,
 raw histories, and audit records remain internal.
 

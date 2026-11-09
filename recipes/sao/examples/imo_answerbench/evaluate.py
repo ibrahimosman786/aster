@@ -39,7 +39,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--indices", required=True, help="comma-separated problem_idx values to evaluate")
     parser.add_argument("--runs", type=int, default=8)
     parser.add_argument("--url", required=True, help="OpenAI-compatible /v1/chat/completions URL")
-    parser.add_argument("--model", default="reef")
+    parser.add_argument("--model", default="aster")
     parser.add_argument("--label", required=True, help="arm name written into every row")
     parser.add_argument("--out", required=True)
     parser.add_argument("--max-tokens", type=int, default=61440)

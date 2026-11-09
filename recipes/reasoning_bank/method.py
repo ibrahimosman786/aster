@@ -23,13 +23,13 @@ from typing import Any, Self
 
 import yaml
 
-from reef.core.config import config_option
-from reef.core.plugins import PluginSettings
-from reef.core.prompts import untrusted_text
-from reef.core.trajectories import atif_messages
-from reef.harness.tree import HarnessTree
-from reef.harness.tree.checks import directive_shaped, secret_shaped
-from reef.train.harness_backend import Method, StepContext, Trace
+from aster.core.config import config_option
+from aster.core.plugins import PluginSettings
+from aster.core.prompts import untrusted_text
+from aster.core.trajectories import atif_messages
+from aster.harness.tree import HarnessTree
+from aster.harness.tree.checks import directive_shaped, secret_shaped
+from aster.train.harness_backend import Method, StepContext, Trace
 
 PROMPTS = Path(__file__).parent / "prompts"
 #: The judge's prompt; ``$trace`` is the run.

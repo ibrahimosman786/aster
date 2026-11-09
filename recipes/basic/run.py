@@ -3,11 +3,11 @@
 One rollout:
 
     solve  — reef-eval runs the harbor/ task under our agent; the agent asks
-             Reef for the answer (Reef records the exchange, returns a
+             Aster for the answer (Aster records the exchange, returns a
              receipt)
     verify — Harbor's isolated verifier scores the attempt
     learn  — the agent reports the verifier score against the receipt;
-             Reef trains on it and serves the next version
+             Aster trains on it and serves the next version
 
 ``Lab.run`` is reef-eval's one primitive: task in, trusted scored row out.
 """

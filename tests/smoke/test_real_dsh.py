@@ -4,7 +4,7 @@ environment assumption about the real DeepSeek Harness lives here: a pinned
 dsh runs one run against a stdlib OpenAI-compatible stub and must read
 our rendered patch layer, reach the stub with the rules text and the bound
 key, write a session our reader parses, and leave no unexplained residue.
-Skipped unless REEF_REAL_DSH_BINARY points at an installed dsh
+Skipped unless ASTER_REAL_DSH_BINARY points at an installed dsh
 (.github/workflows/harness-smoke.yml provides one)."""
 
 from __future__ import annotations
@@ -17,17 +17,17 @@ from typing import Any
 
 import pytest
 
-from reef.harness.adapters import get_adapter
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tasks.run import run_task
-from reef.harness.tree import HarnessTree, render_tree
+from aster.harness.adapters import get_adapter
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tasks.run import run_task
+from aster.harness.tree import HarnessTree, render_tree
 
-REAL_DSH = os.environ.get("REEF_REAL_DSH_BINARY", "")
+REAL_DSH = os.environ.get("ASTER_REAL_DSH_BINARY", "")
 
-pytestmark = pytest.mark.skipif(not REAL_DSH, reason="REEF_REAL_DSH_BINARY does not name a real dsh binary")
+pytestmark = pytest.mark.skipif(not REAL_DSH, reason="ASTER_REAL_DSH_BINARY does not name a real dsh binary")
 
 MODEL = "smoke-model"
-RULES_SENTENCE = "The reef smoke marker phrase is TIDEPOOL-STONE-41."
+RULES_SENTENCE = "The aster smoke marker phrase is TIDEPOOL-STONE-41."
 
 
 class StubOpenAI(ThreadingHTTPServer):
@@ -119,7 +119,7 @@ def test_real_dsh_runs_a_command_that_the_model_cannot_list() -> None:
     # invocation key and a name or description that is not a string, reads Yes and 1:30 as strings where YAML 1.1
     # does not, reads a value tagged ! as a string, and allows \r\n after a fence.
     headers = {
-        "marker": "---\nname: marker\ndescription: Reply with the reef marker\n---\n",
+        "marker": "---\nname: marker\ndescription: Reply with the aster marker\n---\n",
         "legacy": "---\nname: legacy\ndescription: Legacy keys\nuserInvocable: true\nmodelInvocable: false\n---\n",
         "yes": "---\nname: yes\ndescription: Yes\n---\n",
         "clock": "---\nname: clock\ndescription: 1:30\n---\n",

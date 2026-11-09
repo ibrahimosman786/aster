@@ -11,7 +11,7 @@ group barrier, ``group_size`` in ``pipeline.record2sample.config``.
 
 Deployment reference: ``recipes.beta.coral.recipe:CoralRecipe``. Run from
 the repository checkout, which also provides the ``tttd`` registrations this
-recipe reuses; ``reef serve`` finds it beside the example config.
+recipe reuses; ``aster serve`` finds it beside the example config.
 """
 
 from __future__ import annotations
@@ -24,9 +24,9 @@ from typing import Any
 # cookbook; importing them is what registers both names this recipe binds.
 import recipes.tttd  # noqa: F401  (registration side effect)
 from recipes.beta.coral.processor import CoralJobData, CoralSamples
-from reef.recipe.base import WeightTrainingRecipe
-from reef.storage.samples import SAMPLE_KINDS, SampleKind
-from reef.train.pipeline import PipelineSpec
+from aster.recipe.base import WeightTrainingRecipe
+from aster.storage.samples import SAMPLE_KINDS, SampleKind
+from aster.train.pipeline import PipelineSpec
 
 
 @dataclass(frozen=True, kw_only=True)

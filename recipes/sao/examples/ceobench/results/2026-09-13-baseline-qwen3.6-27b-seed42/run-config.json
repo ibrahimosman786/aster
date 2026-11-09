@@ -1,6 +1,6 @@
 {
   "run_id": "ef85ced8",
-  "model": "reef",
+  "model": "aster",
   "provider": "openai",
   "reasoning_effort": "none",
   "anthropic_fallback_model": null,

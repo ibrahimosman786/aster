@@ -17,7 +17,7 @@ exclude: |
       tttd/examples/tttd/harbor/circle_packing_[^/]+/environment/score\.py
       |tttd/examples/tttd/results/.*/best_solution\.py
       |tttd/examples/guidance_ttt/solutions/(lasso_qwen3_8b|trimul_qwen3_14b)\.py$
-      |meta_harness/results/reef_harness\.py$
+      |meta_harness/results/aster_harness\.py$
     )
     |tests/harness/data/harness_goldens/
   )
@@ -31,7 +31,7 @@ repos:
         language: system
         pass_filenames: false
       - id: python-statement-policy
-        name: Ban assert and del in Reef source
+        name: Ban assert and del in Aster source
         entry: python .github/scripts/check_python_statements.py
         language: system
         pass_filenames: false

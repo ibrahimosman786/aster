@@ -1,12 +1,12 @@
 # SPADE on Tinker: the served model writes tasks as the Designer and trains on them as the Reasoning Agent.
 # The built-in generated-task recipe hands the tasks to Tinker, which rolls them out and trains; SPADE is the task generator.
-# Supply TINKER_API_KEY through the shell, never here; REEF_SPADE_STATE_DIR is where this deployment keeps its state.
-# The generator service runs under the same interpreter as Reef.
-reef:
+# Supply TINKER_API_KEY through the shell, never here; ASTER_SPADE_STATE_DIR is where this deployment keeps its state.
+# The generator service runs under the same interpreter as Aster.
+aster:
   host: 127.0.0.1
   port: 8900
-  token: ${REEF_TOKEN}
-  run-dir: ${REEF_SPADE_STATE_DIR}/stack
+  token: ${ASTER_TOKEN}
+  run-dir: ${ASTER_SPADE_STATE_DIR}/stack
   # The Tinker runtime downloads tokenizer files and saves the initial checkpoint before /healthz answers.
   ready-timeout: 600
 inference:
@@ -15,7 +15,7 @@ inference:
   timeout-s: 1800
 # The generator service: writes and checks the Designer's tasks and plays their hint arms, on the host that has Docker and harbor.
 generator:
-  tasks-root: ${REEF_SPADE_STATE_DIR}/tasks
+  tasks-root: ${ASTER_SPADE_STATE_DIR}/tasks
   # The agent of the generator service's own rollouts, thinking off.
   agent:
     name: terminus-2
@@ -28,7 +28,7 @@ generator:
           chat_template_kwargs:
             enable_thinking: false
 recipe:
-  implementation: reef.recipe.generated_tasks:GeneratedTaskRecipe
+  implementation: aster.recipe.generated_tasks:GeneratedTaskRecipe
   config:
     job_parameters:
       # The method that trains the rollouts. Replace this reference with a TinkerObjective that you provide.
@@ -70,7 +70,7 @@ pipeline:
           count: 8
           hint_plays: 2
           skills: [inspection, repair]
-          state_dir: ${REEF_SPADE_STATE_DIR}/generations
+          state_dir: ${ASTER_SPADE_STATE_DIR}/generations
   # One task job holds up to buffer_size saved tasks; Tinker rolls them out and trains on their task groups.
   sample2job:
     config:
@@ -80,13 +80,13 @@ training:
   ready-timeout: 1800
   timeout-s: 1800
   options:
-    state-dir: ${REEF_SPADE_STATE_DIR}/tinker
+    state-dir: ${ASTER_SPADE_STATE_DIR}/tinker
     # Rollouts in one optimizer step: two complete task groups of rollouts_per_task rollouts.
     batch-size: 8
     lora-rank: 32
     learning-rate: 0.00004
 storage:
-  artifact-repository: ${REEF_SPADE_STATE_DIR}/artifacts.git
-  artifact-work-dir: ${REEF_SPADE_STATE_DIR}/artifact-work
-  artifact-cache-dir: ${REEF_SPADE_STATE_DIR}/artifact-cache
-  agent-record-dir: ${REEF_SPADE_STATE_DIR}/agent-record
+  artifact-repository: ${ASTER_SPADE_STATE_DIR}/artifacts.git
+  artifact-work-dir: ${ASTER_SPADE_STATE_DIR}/artifact-work
+  artifact-cache-dir: ${ASTER_SPADE_STATE_DIR}/artifact-cache
+  agent-record-dir: ${ASTER_SPADE_STATE_DIR}/agent-record

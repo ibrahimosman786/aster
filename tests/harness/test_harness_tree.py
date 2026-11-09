@@ -10,10 +10,10 @@ from pathlib import Path
 
 import pytest
 
-from reef.harness.adapters import BUILTIN_ADAPTERS, get_adapter
-from reef.harness.adapters.parts import Format, Part, TreeLayout, TreeLayoutError, layout_from_evolve
-from reef.harness.tree import HarnessTree, TreePatch, ValidationResult, validate_patch, validate_tree
-from reef.harness.tree.tree import normalized_path
+from aster.harness.adapters import BUILTIN_ADAPTERS, get_adapter
+from aster.harness.adapters.parts import Format, Part, TreeLayout, TreeLayoutError, layout_from_evolve
+from aster.harness.tree import HarnessTree, TreePatch, ValidationResult, validate_patch, validate_tree
+from aster.harness.tree.tree import normalized_path
 
 PI = get_adapter("pi")
 NATIVE = get_adapter("native")
@@ -282,7 +282,7 @@ def test_a_tree_holds_at_most_one_native_loop() -> None:
 
 
 def test_a_tree_whose_files_pass_must_still_render() -> None:
-    # pi's models target refuses a provider other than Reef's: the file passes its own checks, the render does not.
+    # pi's models target refuses a provider other than Aster's: the file passes its own checks, the render does not.
     found = problems({"config/models.json": json.dumps({"providers": {"other": {}}})})
     assert len(found) == 1 and "fails the check on providers" in found[0]
 

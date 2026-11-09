@@ -1,4 +1,4 @@
-"""Measure a Reef policy update using the owner's events and model-free probes of the inference route."""
+"""Measure an Aster policy update using the owner's events and model-free probes of the inference route."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from pathlib import Path
 
 import aiohttp
 
-from reef.service.deploy.routing.registry import DeploymentRegistry
+from aster.service.deploy.routing.registry import DeploymentRegistry
 
 PROBE_INTERVAL_SECONDS = 0.025
 CHAT = "/v1/chat/completions"
@@ -23,7 +23,7 @@ CHAT = "/v1/chat/completions"
 def owner_events(deployment_id: str, pid: int) -> Path:
     """Find this generation and confirm Linux reports that the supplied PID holds its registry lock."""
     if pid <= 1:
-        raise ValueError("expected the PID of this tutorial's reef serve process")
+        raise ValueError("expected the PID of this tutorial's aster serve process")
     registry = DeploymentRegistry(deployment_id)
     owner = registry.read_owner()
     if owner is None:
@@ -46,7 +46,7 @@ def send_reload(pidfd: int) -> float:
         signal.pidfd_send_signal(pidfd, signal.SIGHUP)
         return sent
 
-    # On Ubuntu a standalone Reef Python may lack this Linux binding. Give the system Python
+    # On Ubuntu a standalone Aster Python may lack this Linux binding. Give the system Python
     # the same process descriptor. A recycled numeric PID cannot redirect the signal.
     helper = (
         "import signal, sys, time; sent = time.monotonic(); "
@@ -60,7 +60,7 @@ def send_reload(pidfd: int) -> float:
         timeout=10,
     )
     if reply.returncode:
-        raise RuntimeError(f"system Python could not signal the Reef owner: {reply.stderr.strip()}")
+        raise RuntimeError(f"system Python could not signal the Aster owner: {reply.stderr.strip()}")
     return float(reply.stdout)
 
 

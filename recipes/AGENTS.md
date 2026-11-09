@@ -1,6 +1,6 @@
 # How to write a new example
 
-Every example is a self-contained Harbor task + Reef harness that `run.sh`
+Every example is a self-contained Harbor task + Aster harness that `run.sh`
 wires together through [reef-eval](https://github.com/Human-Agent-Society/reef-eval).
 Copy `recipes/basic/` as a starting point; a method's examples live under
 `recipes/<method>/examples/<example>/`; it is the minimal valid structure.
@@ -17,12 +17,12 @@ my_example/
     solution/             optional seed/initial solution files
     tests/
       test.sh             verifier: writes reward to /logs/verifier/reward.txt
-  harness/                agent harness (imports reef_client, not reef)
+  harness/                agent harness (imports reef_client, not aster)
     __init__.py           lazily exports HarborAgent
     agent.py              HarborAgent(BaseAgent) — the agent logic
-    report.py             optional: post a trainable verifier reward to Reef
-  my_example.yaml         Reef config (recipe, inference, training, HTTP settings)
-  run.sh                  starts reef serve, then runs reef-eval with the harness
+    report.py             optional: post a trainable verifier reward to Aster
+  my_example.yaml         Aster config (recipe, inference, training, HTTP settings)
+  run.sh                  starts aster serve, then runs reef-eval with the harness
   pyproject.toml          makes harness/ importable by reef-eval's uvx environment
   README.md               what the example demonstrates and how to run it
 ```
@@ -71,19 +71,19 @@ def __getattr__(name: str):
 ## harness/`agent.py`
 
 Subclass `harbor.agents.base.BaseAgent`. The `run()` method is the agent
-logic: call the model through Reef's `/v1/chat/completions`, write the answer
+logic: call the model through Aster's `/v1/chat/completions`, write the answer
 to the path the instruction names, and stash the inference receipt in
 `context.metadata` so the reporter can link the verifier reward back to it.
 
 Connection settings come from environment variables set by `run.sh`:
 
-- `REEF_SERVICE_URL` (required)
-- `REEF_SCENARIO` (required)
-- `REEF_TOKEN`
-- `REEF_TIMEOUT_S`
+- `ASTER_SERVICE_URL` (required)
+- `ASTER_SCENARIO` (required)
+- `ASTER_TOKEN`
+- `ASTER_TIMEOUT_S`
 
 When the task verifier's reward is feedback consumed by the scenario's recipe,
-a background thread watches for Harbor's `result.json` and posts it to Reef via
+a background thread watches for Harbor's `result.json` and posts it to Aster via
 `harness.report.post_report`. See `basic/harness/agent.py` for the complete
 pattern. Do not add that reporter when the harness already posts its training
 feedback and the final Harbor reward is evaluation-only; Harbor keeps that
@@ -91,7 +91,7 @@ value in the trial result.
 
 ## harness/`report.py` (optional)
 
-Extract the verifier reward from Harbor's trial result and post it to Reef as
+Extract the verifier reward from Harbor's trial result and post it to Aster as
 a report that references the trial's inference receipts. The report id is
 deterministic (`uuid5` of the trial id), so a duplicate post is a no-op.
 
@@ -101,31 +101,31 @@ trial result, not in the training scenario's report contract.
 
 ## `my_example.yaml`
 
-Reef service config. The minimal record-only config (no training stack) is:
+Aster service config. The minimal record-only config (no training stack) is:
 
 ```yaml
-reef:
+aster:
   host: 127.0.0.1
-  port: ${REEF_PORT}
-  token: ${REEF_TOKEN}
+  port: ${ASTER_PORT}
+  token: ${ASTER_TOKEN}
 inference:
-  upstream-url: ${REEF_UPSTREAM_URL:?}
-  upstream-model: ${REEF_UPSTREAM_MODEL:?}
-  upstream-api-key: ${REEF_UPSTREAM_API_KEY}
+  upstream-url: ${ASTER_UPSTREAM_URL:?}
+  upstream-model: ${ASTER_UPSTREAM_MODEL:?}
+  upstream-api-key: ${ASTER_UPSTREAM_API_KEY}
 recipe:
   implementation: recipe
 storage:
-  agent-record-dir: ${REEF_WORK}/agent-record
-  artifact-repository: ${REEF_WORK}/artifacts.git
-  artifact-work-dir: ${REEF_WORK}/artifact-work
-  artifact-cache-dir: ${REEF_WORK}/artifact-cache
+  agent-record-dir: ${ASTER_WORK}/agent-record
+  artifact-repository: ${ASTER_WORK}/artifacts.git
+  artifact-work-dir: ${ASTER_WORK}/artifact-work
+  artifact-cache-dir: ${ASTER_WORK}/artifact-cache
 ```
 
 Training examples put native training flags in `training.options`, engine flags in
 `inference.options`, and inference GPU capacity/parallelism in `inference.num-gpus`
-and `inference.tensor-parallel-size`; Reef assembles their worker topology. Do not add `service` or `services` to Reef YAML. HTTP
-settings belong in `reef`. Deploy method-owned services independently and pass
-their endpoints through recipe fields; Reef coordinates only native inference
+and `inference.tensor-parallel-size`; Aster assembles their worker topology. Do not add `service` or `services` to Aster YAML. HTTP
+settings belong in `aster`. Deploy method-owned services independently and pass
+their endpoints through recipe fields; Aster coordinates only native inference
 and training. See `recipes/openclawrl/examples/openclawrl/docker-compose.yaml`
 for external service startup and GPU isolation. Recipe fields and owned sections go
 under `recipe.config`. Docker Compose and third-party task files retain their
@@ -135,8 +135,8 @@ own schemas.
 
 1. Set environment variables (port, token, scenario, work dir); select the
    deployment recipe in YAML.
-2. Start `reef serve -c <yaml>` in the background; wait for `/healthz`.
-   `reef serve` finds the `recipes/` package beside the YAML and puts it on
+2. Start `aster serve -c <yaml>` in the background; wait for `/healthz`.
+   `aster serve` finds the `recipes/` package beside the YAML and puts it on
    every service's `PYTHONPATH`; the script does not set it.
 3. Run reef-eval with `--with-editable "$PWD"` (installs `harness/`) and
    `--with reef-client` (installs the SDK from PyPI).
@@ -153,10 +153,10 @@ Declares the task metadata, timeouts, and resource limits:
 version = "1.0"
 
 [metadata]
-author_name = "Reef"
+author_name = "Aster"
 difficulty = "easy"
 category = "integration"
-tags = ["reef", "harbor"]
+tags = ["aster", "harbor"]
 
 [verifier]
 timeout_sec = 30.0
@@ -224,4 +224,4 @@ the example directory itself does not).
 Each example must be fully self-contained: no cross-example Python imports.
 If two examples share a pattern (scoring, sandboxing, search), each copies
 its own copy. The only shared dependencies are external: `reef_client`,
-`harbor`, and the `reef` package itself (for `reef serve`).
+`harbor`, and the `aster` package itself (for `aster serve`).

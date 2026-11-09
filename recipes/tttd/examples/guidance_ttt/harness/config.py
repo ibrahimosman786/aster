@@ -99,14 +99,14 @@ class RunConfig:
             backend = replace(backend, max_tokens=int(os.environ["GUIDANCE_EXECUTOR_MAX_TOKENS"]))
         default_timeout = {"polyomino_packing": 340, "lasso_path": 660, "ahc058": 530, "trimul": 1160}[task]
         state_dir = Path(os.environ.get("GUIDANCE_STATE_DIR", EXAMPLE_DIR / "work" / task)).resolve()
-        port = int(stack["reef"]["port"])
+        port = int(stack["aster"]["port"])
         return cls(
             task=task,
             state_dir=state_dir,
             config_path=config_path,
             model=os.environ.get("GUIDANCE_MODEL", "Qwen/Qwen3-8B"),
             service_url=f"http://127.0.0.1:{port}",
-            token=str(stack["reef"]["token"]),
+            token=str(stack["aster"]["token"]),
             judge_url=os.environ.get("GUIDANCE_JUDGE_URL", f"http://127.0.0.1:{8081 if task == TASKS[0] else 8082}"),
             verifier_timeout_s=float(os.environ.get("GUIDANCE_VERIFIER_TIMEOUT", default_timeout)),
             groups=groups,

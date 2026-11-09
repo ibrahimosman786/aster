@@ -17,7 +17,7 @@ The core loop
        participant E as Artifact evaluation
 
        opt Harness recipe: pull the active selection's tree
-         H->>S: GET /reef/harness for scenario
+         H->>S: GET /aster/harness for scenario
          S-->>H: Harness tree and release
          Note over H: Agent runs on that tree
        end

@@ -3,7 +3,7 @@
 :class:`TurnJob` is everything one turn's judgment needs;
 :class:`TurnJudgment` is what the judge answers. The worker that runs
 judgments lives on the shared engine
-(:class:`reef.execution.jobs.BackgroundJobWorker`).
+(:class:`aster.execution.jobs.BackgroundJobWorker`).
 """
 
 from __future__ import annotations
@@ -13,9 +13,9 @@ from dataclasses import dataclass
 from typing import Any
 
 from recipes.openclawrl.sessions import Binding
-from reef.core.records_types import AgentRecord
-from reef.core.trajectories import exchange_messages
-from reef.execution.jobs import SupportsReceipt
+from aster.core.records_types import AgentRecord
+from aster.core.trajectories import exchange_messages
+from aster.execution.jobs import SupportsReceipt
 
 
 @dataclass(frozen=True)
@@ -46,7 +46,7 @@ class TurnJudgment(SupportsReceipt):
 
 
 def _declared_turn_type(payload: Any) -> str | None:
-    """The harness-declared ``x-reef-tag-turn-type``, if any.
+    """The harness-declared ``x-aster-tag-turn-type``, if any.
 
     This is upstream's own split: it stamps ``turn_type`` from the agent's
     trigger, and its extension marks only ``{heartbeat, memory, cron}`` as
@@ -64,7 +64,7 @@ def main_turn_message(payload: Any) -> Any:
 
     Without a declaration, the presence of tool schemas stands in: an agent
     loop ships its toolset, housekeeping calls (titles, compaction summaries)
-    do not. That is reef's heuristic for harnesses that cannot declare, NOT
+    do not. That is aster's heuristic for harnesses that cannot declare, NOT
     upstream's rule — upstream would train a user-triggered call that shipped
     no toolset, and would skip a housekeeping call that shipped one.
     """

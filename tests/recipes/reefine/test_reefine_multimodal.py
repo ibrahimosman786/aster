@@ -1,6 +1,6 @@
 """Reefine's multimodal gateway: its settings, and the agent that reaches it.
 
-Reef's inference service relays no multimodal call; only the agent's trials reach the gateway.
+Aster's inference service relays no multimodal call; only the agent's trials reach the gateway.
 """
 
 from __future__ import annotations
@@ -8,8 +8,8 @@ from __future__ import annotations
 import pytest
 
 from recipes.beta.reefine.multimodal import MultimodalSettings
-from reef.inference.http import InferenceProxyRuntime
-from reef.recipe.errors import RecipeConfigError
+from aster.inference.http import InferenceProxyRuntime
+from aster.recipe.errors import RecipeConfigError
 
 
 @pytest.mark.unit
@@ -28,7 +28,7 @@ def test_multimodal_settings_read_the_preset_address_and_key() -> None:
         MultimodalSettings.from_config({"api_key": "sk-lit", "api_key_env": "MM_KEY"}, {"MM_KEY": "x"}).api_key
         == "sk-lit"
     )
-    # No key of its own (the profile's ${REEF_MULTIMODAL_API_KEY} unset is empty): the upstream's, only when the
+    # No key of its own (the profile's ${ASTER_MULTIMODAL_API_KEY} unset is empty): the upstream's, only when the
     # upstream is the same gateway.
     keyless = MultimodalSettings.from_config({"api_key": ""}, {})
     assert keyless.provider("https://openrouter.ai/api/", "upstream").api_key == "upstream"
@@ -48,7 +48,7 @@ def test_reefine_hands_its_gateway_to_the_agent() -> None:
 
     settings = {
         "evolution": {
-            "evaluation": {"tasks": ["[health] reply reef-ok"]},
+            "evaluation": {"tasks": ["[health] reply aster-ok"]},
             "multimodal": {"preset": "openrouter"},
             "agent": None,
         }

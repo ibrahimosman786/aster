@@ -1,7 +1,7 @@
 """The SPADE task generator: the Environment Designer's generations, with the hint based regret as its signal.
 
 One ``generate`` call is one generation: ``count`` proposals across the configured ``skills``, each a
-Designer call through the generator service (``reef.record2sample.generator``), with the last generation's
+Designer call through the generator service (``aster.record2sample.generator``), with the last generation's
 results in the prompt as SPADE's experience section.
 
 ``validate`` writes the task under the service's tasks root, runs Harbor's oracle and nop agents on it,
@@ -45,10 +45,10 @@ from recipes.beta.spade.generation import (
     skill_tag,
     write_generation_report,
 )
-from reef.core.plugins import PluginConfigError
-from reef.core.tasks import HarborTask
-from reef.harness.harbor.rollouts import rewards_of
-from reef.recipe.generated_tasks.generator import (
+from aster.core.plugins import PluginConfigError
+from aster.core.tasks import HarborTask
+from aster.harness.harbor.rollouts import rewards_of
+from aster.recipe.generated_tasks.generator import (
     FailedTask,
     GeneratedTaskResult,
     HeldOutTask,
@@ -56,7 +56,7 @@ from reef.recipe.generated_tasks.generator import (
     TaskGenerator,
     TaskValidationResult,
 )
-from reef.record2sample.generator.client import (
+from aster.record2sample.generator.client import (
     DuplicateTask,
     Generator,
     GeneratorError,
@@ -65,8 +65,8 @@ from reef.record2sample.generator.client import (
     TaskNameConflict,
     WrittenTask,
 )
-from reef.record2sample.generator.designer import DIFFICULTIES, DesignerRequest
-from reef.record2sample.generator.inputs import TaskGenerationRequest
+from aster.record2sample.generator.designer import DIFFICULTIES, DesignerRequest
+from aster.record2sample.generator.inputs import TaskGenerationRequest
 
 logger = logging.getLogger(__name__)
 

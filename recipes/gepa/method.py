@@ -34,12 +34,12 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Self
 
-from reef.core.config import config_option
-from reef.core.plugins import ConfiguredPlugin, PluginSettings
-from reef.evaluation.harness import History
-from reef.harness.adapters import get_adapter
-from reef.harness.tree import HarnessTree
-from reef.train.harness_backend import Method, Services, StepContext, Trace, Workspace
+from aster.core.config import config_option
+from aster.core.plugins import ConfiguredPlugin, PluginSettings
+from aster.evaluation.harness import History
+from aster.harness.adapters import get_adapter
+from aster.harness.tree import HarnessTree
+from aster.train.harness_backend import Method, Services, StepContext, Trace, Workspace
 
 from .archive import Archive
 from .components import candidate_tree, texts_of

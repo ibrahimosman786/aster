@@ -29,7 +29,7 @@ from tests.recipes.autoenvscaling.autoenvscaling_stubs import (
     generating_config,
     report,
     run_tasks,
-    serving_reef,
+    serving_aster,
     sources_file,
     stand_in_e2b_package,
     write_workspace_task,
@@ -55,19 +55,19 @@ from recipes.beta.autoenvscaling import generator as generator_module
 from recipes.beta.autoenvscaling import workspace_reply
 from recipes.beta.autoenvscaling.author import AgentTools, TaskVariant
 from recipes.beta.autoenvscaling.checks import CheckResult, PassRateBand
-from reef.core import AgentRecord, RequestType
-from reef.core.plugins import PluginConfigError
-from reef.core.tasks import HarborTask, read_harbor_task
-from reef.pipeline_context import PipelineContext
-from reef.recipe.generated_tasks import GeneratedTaskSamples, GeneratedTaskSettings
-from reef.recipe.generated_tasks.generator import FailedTask, HeldOutTask, RejectedTask, RolledOutTask
-from reef.recipe.generated_tasks.processor import GenerationJob
-from reef.recipe.generated_tasks.results import TaskRolloutResult, rollout_results
-from reef.record2sample.generator import DuplicateTask, GeneratorError, WrittenTask
-from reef.record2sample.generator.harbor import ORACLE_TIMEOUT_S
-from reef.record2sample.generator.inputs import TaskGenerationRequest
-from reef.service.deploy.orchestrator import resolve_deployment_config
-from reef.service.deploy.service_config import service_config_from_mapping
+from aster.core import AgentRecord, RequestType
+from aster.core.plugins import PluginConfigError
+from aster.core.tasks import HarborTask, read_harbor_task
+from aster.pipeline_context import PipelineContext
+from aster.recipe.generated_tasks import GeneratedTaskSamples, GeneratedTaskSettings
+from aster.recipe.generated_tasks.generator import FailedTask, HeldOutTask, RejectedTask, RolledOutTask
+from aster.recipe.generated_tasks.processor import GenerationJob
+from aster.recipe.generated_tasks.results import TaskRolloutResult, rollout_results
+from aster.record2sample.generator import DuplicateTask, GeneratorError, WrittenTask
+from aster.record2sample.generator.harbor import ORACLE_TIMEOUT_S
+from aster.record2sample.generator.inputs import TaskGenerationRequest
+from aster.service.deploy.orchestrator import resolve_deployment_config
+from aster.service.deploy.service_config import service_config_from_mapping
 
 
 @pytest.fixture(autouse=True)
@@ -214,7 +214,7 @@ def test_sessions_without_a_task_are_recorded_by_stage_and_an_outage_ends_the_ge
     assert run_tasks(generator) == ()
     asyncio.run(generator.record_results((), generation=0))
     [proposal] = report(tmp_path / "silent")["proposals"]
-    assert proposal["refusal"] == "the Designer made no model call that Reef recorded"
+    assert proposal["refusal"] == "the Designer made no model call that Aster recorded"
     assert proposal["stage"] == "authoring" and proposal["designer_record_id"] == ""
 
 
@@ -506,11 +506,11 @@ def test_the_history_step_leaves_only_the_base_commit_in_the_repository(tmp_path
 
 
 def test_a_prompt_designer_generation_admits_its_reply_and_reports_against_its_call(tmp_path: Path) -> None:
-    reef, calls = serving_reef(fenced(DOCUMENT))
+    aster, calls = serving_aster(fenced(DOCUMENT))
     service = StandInGenerator(tmp_path / "tasks")
     try:
         author = PromptAuthor(
-            reef_url=f"http://127.0.0.1:{reef.server_address[1]}",
+            aster_url=f"http://127.0.0.1:{aster.server_address[1]}",
             token="token",
             scenario="autoenvscaling",
             model="designer",
@@ -520,9 +520,9 @@ def test_a_prompt_designer_generation_admits_its_reply_and_reports_against_its_c
         results = run_tasks(generator, (1.0, 1.0))
         asyncio.run(generator.record_results(results, generation=0))
     finally:
-        reef.shutdown()
-        reef.server_close()
-    assert len(calls) == 1 and calls[0]["headers"]["x-reef-tag-index"] == "0"
+        aster.shutdown()
+        aster.server_close()
+    assert len(calls) == 1 and calls[0]["headers"]["x-aster-tag-index"] == "0"
     assert service.checks == [tmp_path / "tasks" / NAMES[0]], "the prompt Designer checks no candidate"
     task = read_harbor_task(tmp_path / "tasks" / NAMES[0])
     assert task.source_agent_record_ids == ("rec-1", "session-1")
@@ -565,7 +565,7 @@ def test_from_config_builds_the_author_and_keeps_one_state_directory_for_each_sc
         ({"state_dir": ""}, "state_dir and a sources_path"),
         ({"sources_path": "/no/such/sources.json"}, "No such file"),
         ({"author": "human"}, "author must be one of"),
-        ({"agent_reef_url": "${endpoints.designer}"}, "agent_model and agent_reef_url"),
+        ({"agent_aster_url": "${endpoints.designer}"}, "agent_model and agent_aster_url"),
         ({"agent_api": "grpc"}, "api must be one of"),
         ({"author": "prompt", "agent_api": "anthropic"}, "agent_api openai or responses"),
         ({"max_model_calls": 0}, "max_model_calls must be positive"),
@@ -740,11 +740,11 @@ def test_the_example_selects_the_generated_task_recipe_and_builds_the_generator(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     for name, value in {
-        "REEF_TOKEN": "t",
-        "REEF_AUTOENVSCALING_STATE_DIR": str(tmp_path),
-        "REEF_AUTOENVSCALING_SOURCES_PATH": str(sources_file(tmp_path, 2)),
-        "REEF_AUTOENVSCALING_DESIGNER_URL": "http://127.0.0.1:8901",
-        "REEF_AUTOENVSCALING_DESIGNER_TOKEN": "designer-token",
+        "ASTER_TOKEN": "t",
+        "ASTER_AUTOENVSCALING_STATE_DIR": str(tmp_path),
+        "ASTER_AUTOENVSCALING_SOURCES_PATH": str(sources_file(tmp_path, 2)),
+        "ASTER_AUTOENVSCALING_DESIGNER_URL": "http://127.0.0.1:8901",
+        "ASTER_AUTOENVSCALING_DESIGNER_TOKEN": "designer-token",
         "E2B_API_KEY": "e2b-test",
         "TINKER_API_KEY": "tinker-test",
     }.items():
@@ -752,10 +752,10 @@ def test_the_example_selects_the_generated_task_recipe_and_builds_the_generator(
     example = Path(__file__).resolve().parents[3] / "recipes/beta/autoenvscaling/examples/tinker/serve.yaml"
     resolved, _ = resolve_deployment_config(yaml.safe_load(example.read_text()), None, example)
     settings = service_config_from_mapping(resolved)
-    assert settings.recipe == "reef.recipe.generated_tasks:GeneratedTaskRecipe"
+    assert settings.recipe == "aster.recipe.generated_tasks:GeneratedTaskRecipe"
     section = settings.pipeline_settings["record2sample"]["config"]["generator"]
     assert section["module"] == "recipes.beta.autoenvscaling:AutoEnvScalingGenerator"
-    # reef serve publishes the generator's endpoint when it starts the services.
+    # aster serve publishes the generator's endpoint when it starts the services.
     config = {**section["config"], "generator_url": "http://127.0.0.1:8910"}
     generator = AutoEnvScalingGenerator.from_config(config, scenario="autoenvscaling", environ=os.environ)
     assert isinstance(generator.author, AgentAuthor)

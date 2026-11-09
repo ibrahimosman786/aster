@@ -5,9 +5,9 @@ from __future__ import annotations
 import pytest
 from tests.support.runtime_stubs import StubInferenceRuntime
 
-from reef.core.errors import RuntimeConfigError
-from reef.inference.null import NullRuntimeFactory
-from reef.inference.registry import (
+from aster.core.errors import RuntimeConfigError
+from aster.inference.null import NullRuntimeFactory
+from aster.inference.registry import (
     RuntimeFactory,
     RuntimeRegistry,
     register_runtime_kind,
@@ -20,7 +20,7 @@ NOT_A_FACTORY = 7
 
 
 class ProxyFactory(RuntimeFactory):
-    """A factory reef does not bundle: it builds a proxy runtime."""
+    """A factory aster does not bundle: it builds a proxy runtime."""
 
     kind = "test_proxy"
 

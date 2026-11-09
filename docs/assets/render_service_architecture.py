@@ -2,7 +2,7 @@
 """Rebuild the service diagrams: python3 docs/assets/render_service_architecture.py
 
 Writes services-light.svg and services-dark.svg: the seven services of a
-deployment (``reef serve --component NAME``) around the shared store that they
+deployment (``aster serve --component NAME``) around the shared store that they
 read and write, and the queues between them. The drawing is static. It embeds
 IBM Plex Sans and IBM Plex Mono from the font cache of render_architecture.py.
 """
@@ -191,7 +191,7 @@ def render(theme: str, fonts: list[tuple[str, int, bytes]]) -> str:
     elements = [
         (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}" viewBox="0 0 {WIDTH} {HEIGHT}" role="img" '
-            'aria-label="The seven services of a Reef deployment around the shared store. Inference reads '
+            'aria-label="The seven services of an Aster deployment around the shared store. Inference reads '
             "served_models, forwards each request to the engine and appends its record; one inference worker owns "
             "the engines and takes the serving queue. Control, one active instance with standbys, commits and "
             "queues work for the other services, and takes data_sync, harness_sync and training requests. Data, "
@@ -256,7 +256,7 @@ def render(theme: str, fonts: list[tuple[str, int, bytes]]) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--font-cache", type=Path, default=Path.home() / ".cache" / "reef-fonts")
+    parser.add_argument("--font-cache", type=Path, default=Path.home() / ".cache" / "aster-fonts")
     args = parser.parse_args()
     fonts = font_files(args.font_cache)
     for theme in THEMES:

@@ -1,4 +1,4 @@
-"""Reef execution uses Harbor's actual environment and result contracts."""
+"""Aster execution uses Harbor's actual environment and result contracts."""
 
 import asyncio
 import os
@@ -11,9 +11,9 @@ from pathlib import Path
 import pytest
 from harbor.environments.base import BaseEnvironment, ExecResult
 
-from reef.execution.sandbox.e2b import E2BExecutor, E2BSession
-from reef.execution.sandbox.environment import ExecutorEnvironment, run_sync
-from reef.execution.sandbox.process import LocalExecutor, ProcessOutcome, ProgramLaunchError, ProgramTimeout
+from aster.execution.sandbox.e2b import E2BExecutor, E2BSession
+from aster.execution.sandbox.environment import ExecutorEnvironment, run_sync
+from aster.execution.sandbox.process import LocalExecutor, ProcessOutcome, ProgramLaunchError, ProgramTimeout
 
 
 def test_harbor_lifecycle_commands_and_file_transfers(tmp_path: Path) -> None:
@@ -202,8 +202,8 @@ def test_file_transfers_reject_paths_outside_the_root(tmp_path: Path) -> None:
 
 
 def test_program_execution_returns_its_result_only_after_remote_cleanup(tmp_path: Path) -> None:
-    from reef.execution.lifecycle import Execution
-    from reef.execution.sandbox.environment import ProgramExecution
+    from aster.execution.lifecycle import Execution
+    from aster.execution.sandbox.environment import ProgramExecution
 
     executor = RecordingExecutor()
     program = ProgramExecution(ExecutorEnvironment(executor, root=tmp_path, workspace=tmp_path), ["true"])
@@ -219,7 +219,7 @@ def test_program_execution_returns_its_result_only_after_remote_cleanup(tmp_path
 
 
 def test_program_execution_does_not_report_failed_cleanup_as_closed(tmp_path: Path) -> None:
-    from reef.execution.sandbox.environment import ProgramExecution
+    from aster.execution.sandbox.environment import ProgramExecution
 
     executor = RecordingExecutor()
     executor.session.fail_close = True
@@ -231,8 +231,8 @@ def test_program_execution_does_not_report_failed_cleanup_as_closed(tmp_path: Pa
 
 
 def test_program_execution_stop_reaps_a_running_local_program(tmp_path: Path) -> None:
-    from reef.execution.lifecycle import Execution
-    from reef.execution.sandbox.environment import ProgramExecution
+    from aster.execution.lifecycle import Execution
+    from aster.execution.sandbox.environment import ProgramExecution
 
     environment = ExecutorEnvironment(LocalExecutor(), root=tmp_path, workspace=tmp_path)
     program = ProgramExecution(environment, [sys.executable, "-c", "import time; time.sleep(30)"])

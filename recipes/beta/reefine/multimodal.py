@@ -2,10 +2,10 @@
 
 One gateway that serves images, embeddings, speech and decisions behind a
 single key: OpenRouter by default, or an OpenAI-compatible one (OrcaRouter,
-LiteLLM, ...). Reefine reads it from ``evolution.multimodal``, hands Reef a
+LiteLLM, ...). Reefine reads it from ``evolution.multimodal``, hands Aster a
 the gateway to its agent proposer: request bodies pass through unchanged, in the
 gateway's own format, and the preset only decides where each route lands and
-how an agent lists the models. Reef's inference service relays no multimodal
+how an agent lists the models. Aster's inference service relays no multimodal
 call; only served models answer there.
 """
 
@@ -22,7 +22,7 @@ MULTIMODAL_ROUTES: tuple[str, ...] = ("/v1/images", "/v1/embeddings", "/v1/audio
 
 @dataclass(frozen=True)
 class ProviderPreset:
-    """A kind of multimodal gateway: its default address, its path for each Reef route it serves, and where its
+    """A kind of multimodal gateway: its default address, its path for each Aster route it serves, and where its
     models are listed (``{base_url}`` and ``{modality}`` are filled in)."""
 
     name: str
@@ -68,7 +68,7 @@ class MultimodalProvider:
     api_key: str = field(repr=False)
 
     def upstream_path(self, route: str) -> str | None:
-        """The provider's path for one of Reef's multimodal routes, or ``None`` when it serves none."""
+        """The provider's path for one of Aster's multimodal routes, or ``None`` when it serves none."""
         return self.preset.paths.get(route)
 
     def models_url(self, modality: str) -> str:
@@ -89,7 +89,7 @@ class MultimodalSettings:
     @classmethod
     def from_config(cls, section: Any, environ: Mapping[str, str]) -> MultimodalSettings | None:
         """``{preset, url, api_key}``: the preset (``openrouter`` by default), the gateway's address when not the
-        preset's, and its key, as ``inference.upstream_api_key`` takes the chat key (``${REEF_MULTIMODAL_API_KEY}``
+        preset's, and its key, as ``inference.upstream_api_key`` takes the chat key (``${ASTER_MULTIMODAL_API_KEY}``
         in the serve config, or ``--recipe.config.evolution.multimodal.api_key`` on the command line); empty is no key.
         ``api_key_env`` names a variable instead, as for ``evolution.models``. No section is no settings."""
         if section is None:

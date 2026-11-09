@@ -36,7 +36,7 @@ def test_example_startup_and_cleanup(tmp_path: Path, example: str, mode: str) ->
         """import os, signal, sys, time
 from pathlib import Path
 
-mode = os.environ['REEF_TEST_MODE']
+mode = os.environ['ASTER_TEST_MODE']
 if sys.argv[1:] == ['run.py']:
     Path('work/workload-started').touch()
     raise SystemExit(9 if mode == 'workload-error' else 0)
@@ -59,7 +59,7 @@ while True:
         """import os, sys, time
 from pathlib import Path
 
-mode = os.environ['REEF_TEST_MODE']
+mode = os.environ['ASTER_TEST_MODE']
 if mode == 'hanging-probe':
     # A probe without a short --max-time hangs past the test's timeout; a bounded one times out at once.
     timeout = float(sys.argv[sys.argv.index('--max-time') + 1]) if '--max-time' in sys.argv else 120
@@ -67,7 +67,7 @@ if mode == 'hanging-probe':
         time.sleep(timeout)
     raise SystemExit(28)
 if mode == 'stale-ready':
-    # Answer only after Reef has exited, independent of process scheduling.
+    # Answer only after Aster has exited, independent of process scheduling.
     while not Path('work/service.pid').exists():
         time.sleep(0.01)
     pid = int(Path('work/service.pid').read_text())
@@ -88,7 +88,7 @@ raise SystemExit(0 if mode in ('ready', 'workload-error') and Path('work/service
     env = {
         **os.environ,
         "PATH": f"{commands}{os.pathsep}{os.environ['PATH']}",
-        "REEF_TEST_MODE": mode,
+        "ASTER_TEST_MODE": mode,
     }
     process = subprocess.Popen(
         ["bash", str(script)],
@@ -112,9 +112,9 @@ raise SystemExit(0 if mode in ('ready', 'workload-error') and Path('work/service
         assert process.returncode == expected, stderr
         assert (tmp_path / "work/workload-started").exists() == (mode in ("ready", "workload-error"))
         if mode not in ("ready", "workload-error", "signal"):
-            assert "Reef failed to start" in stderr
-            assert str(tmp_path / "work/reef.log") in stderr
-            assert "example startup output" in (tmp_path / "work/reef.log").read_text()
+            assert "Aster failed to start" in stderr
+            assert str(tmp_path / "work/aster.log") in stderr
+            assert "example startup output" in (tmp_path / "work/aster.log").read_text()
         if mode in ("ready", "workload-error", "signal"):
             assert (tmp_path / "work/service-stopped").exists()
         with pytest.raises(ProcessLookupError):

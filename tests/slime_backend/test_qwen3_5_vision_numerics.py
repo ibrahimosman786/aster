@@ -1,6 +1,6 @@
 """Slime's Qwen3.5 vision tower with SGLang's numerics.
 
-``docker/Dockerfile.reef`` copies ``docker/patch/slime_qwen3_5_vision_numerics.py`` into Slime and applies
+``docker/Dockerfile.aster`` copies ``docker/patch/slime_qwen3_5_vision_numerics.py`` into Slime and applies
 ``docker/patch/slime_qwen3_5_vl_vision_numerics.patch``. These tests load the module from ``docker/patch/``.
 The tests that need transformers skip when it is missing or not 5.12 or 5.13. The tests that compare with SGLang
 skip when SGLang is missing. They compare the replaced patch embedding, position embedding and attention with

@@ -8,9 +8,9 @@ description = "Pack polyominoes into the smallest board. A trainable Qwen policy
 
 [metadata]
 category = "autoresearch"
-author_name = "Reef"
+author_name = "Aster"
 difficulty = "hard"
-tags = ["reef", "guidance-ttt", "tttd", "frontiercs", "discovery"]
+tags = ["aster", "guidance-ttt", "tttd", "frontiercs", "discovery"]
 
 [agent]
 # One Harbor trial owns the complete multi-step Guidance-TTT trajectory.

@@ -18,9 +18,9 @@ from tests.recipes.reefine.reefine_support import PLAN_MARKER, TREE, Model, answ
 
 from recipes.beta.reefine import answer as reefine_answer
 from recipes.beta.reefine.harness_facts import harness_facts
-from reef.harness.adapters import get_adapter
-from reef.harness.tasks.model_binding import ModelBinding, ModelBindings
-from reef.harness.tree import HarnessTree
+from aster.harness.adapters import get_adapter
+from aster.harness.tasks.model_binding import ModelBinding, ModelBindings
+from aster.harness.tree import HarnessTree
 
 CHAT = {"commands/chat.md": "# chat\n\nChat mode is on."}
 RULES = {"rules.md": "While chat mode is on, only search the web.\n"}
@@ -45,8 +45,8 @@ def review_prompt(model: Model) -> str:
 @pytest.mark.parametrize(
     ("adapter", "rules_file", "typed"),
     [
-        ("claude", "rules.md", "/reef:<name>"),
-        ("codex", None, "$reef:<name>"),
+        ("claude", "rules.md", "/aster:<name>"),
+        ("codex", None, "$aster:<name>"),
         ("opencode", "AGENTS.md", "/<name>"),
         ("hermes", "SOUL.md", "/<name>"),
         ("dsh", "AGENTS.md", "/<name>"),

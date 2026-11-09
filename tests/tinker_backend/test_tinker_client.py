@@ -5,12 +5,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from reef.core.errors import UpstreamStatusError
-from reef.tinker.sampling import TinkerSDKSampler
-from reef.train.tinker_backend.checkpoint import TinkerCheckpoint
-from reef.train.tinker_backend.client import TinkerSDKClient
-from reef.train.tinker_backend.config import TinkerConfig
-from reef.train.tinker_backend.losses import ImportanceSamplingLoss, TinkerCustomLoss, TokenRow
+from aster.core.errors import UpstreamStatusError
+from aster.tinker.sampling import TinkerSDKSampler
+from aster.train.tinker_backend.checkpoint import TinkerCheckpoint
+from aster.train.tinker_backend.client import TinkerSDKClient
+from aster.train.tinker_backend.config import TinkerConfig
+from aster.train.tinker_backend.losses import ImportanceSamplingLoss, TinkerCustomLoss, TokenRow
 
 
 class Future:
@@ -460,7 +460,7 @@ def test_an_imported_manifest_is_checked_by_its_state_path_alone(client):
 
 
 def test_the_metrics_of_several_optimizer_steps_combine_by_their_suffixes():
-    from reef.train.tinker_backend.client import combined_step_metrics
+    from aster.train.tinker_backend.client import combined_step_metrics
 
     combined = combined_step_metrics(
         [

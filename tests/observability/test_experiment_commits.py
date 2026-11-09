@@ -6,18 +6,18 @@ from pathlib import Path
 
 import pytest
 
-from reef.core.artifact_selection import ArtifactSelection
-from reef.core.snapshot import SnapshotRef
-from reef.observability.base import (
+from aster.core.artifact_selection import ArtifactSelection
+from aster.core.snapshot import SnapshotRef
+from aster.observability.base import (
     ExperimentTracker,
     TrainFromExperimentEvent,
     TrainingExperimentContext,
     TrainingExperimentEvent,
 )
-from reef.observability.commits import CommitExperimentObserver, ExperimentReportQueue
-from reef.storage.commits import CommitRecord
-from reef.storage.observer import ObservedScenarioStore, RecordObserver
-from reef.storage.sqlite import SQLiteScenarioStorage
+from aster.observability.commits import CommitExperimentObserver, ExperimentReportQueue
+from aster.storage.commits import CommitRecord
+from aster.storage.observer import ObservedScenarioStore, RecordObserver
+from aster.storage.sqlite import SQLiteScenarioStorage
 
 
 class RecordingTracker(ExperimentTracker):
@@ -271,7 +271,7 @@ def test_the_report_queue_sends_in_order_on_its_own_thread_and_goes_on_after_a_f
         reports.put(training_event(2))
         reports.flush()
         assert [event.context.step for event in tracker.events] == [1, 2]
-        assert threads == ["reef-experiment-reports"] * 2
+        assert threads == ["aster-experiment-reports"] * 2
     finally:
         reports.close()
 

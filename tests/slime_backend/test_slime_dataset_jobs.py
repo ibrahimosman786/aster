@@ -16,16 +16,16 @@ from tests.slime_backend.test_slime_component import Stack, batch_for
 from tests.support.job_data import job_data_ref
 from tests.support.slime_component import finished
 
-from reef.core.job_data import JobData
-from reef.core.training_request import TrainingRequest
-from reef.storage.durable_files import read_json, write_json
-from reef.train.component import TrainingJob
-from reef.train.slime_backend.dataset import DATASET_FILE, DatasetSettings
-from reef.train.slime_backend.native import DATASET_SOURCE_PATH, SlimeNativeAlgorithm
-from reef.train.slime_backend.rollout_group import SlimeRolloutGroup
+from aster.core.job_data import JobData
+from aster.core.training_request import TrainingRequest
+from aster.storage.durable_files import read_json, write_json
+from aster.train.component import TrainingJob
+from aster.train.slime_backend.dataset import DATASET_FILE, DatasetSettings
+from aster.train.slime_backend.native import DATASET_SOURCE_PATH, SlimeNativeAlgorithm
+from aster.train.slime_backend.rollout_group import SlimeRolloutGroup
 
 OBJECTIVE = "slime_dataset"
-FAMILY = "reef.train.slime_backend.native:SlimeNativeAlgorithm"
+FAMILY = "aster.train.slime_backend.native:SlimeNativeAlgorithm"
 
 
 class DatasetRolloutGroup(SlimeRolloutGroup):
@@ -212,7 +212,7 @@ def test_dataset_jobs_and_the_slime_family_go_together(tmp_path, dataset_args) -
 
 @pytest.mark.unit
 def test_the_dataset_stage_makes_a_requests_job_with_its_parameters() -> None:
-    from reef.recipe.dataset import DatasetJobData
+    from aster.recipe.dataset import DatasetJobData
 
     stage = DatasetJobData.__new__(DatasetJobData)
     stage.context = SimpleNamespace(job_parameters={"trajectory": {"objective": OBJECTIVE, "save_interval": 4}})
@@ -224,7 +224,7 @@ def test_the_dataset_stage_makes_a_requests_job_with_its_parameters() -> None:
 
 @pytest.mark.unit
 def test_the_dataset_stage_has_the_job_size_a_weight_trainer_requires() -> None:
-    from reef.recipe.dataset import DatasetJobData
+    from aster.recipe.dataset import DatasetJobData
 
     # The stage sets its own job size, so its config needs none.
     stage = DatasetJobData(SimpleNamespace(scenario="s"))
@@ -234,7 +234,7 @@ def test_the_dataset_stage_has_the_job_size_a_weight_trainer_requires() -> None:
 @pytest.mark.unit
 def test_the_data_source_loads_the_recorded_job_and_skips_its_trained_rollouts(tmp_path, monkeypatch) -> None:
     pytest.importorskip("slime.data.data_source", reason="requires Slime's optional dataset dependencies")
-    from reef.train.slime_backend import dataset_source
+    from aster.train.slime_backend import dataset_source
 
     monkeypatch.setattr(dataset_source, "load_tokenizer", lambda *args, **kwargs: None)
     monkeypatch.setattr(dataset_source, "load_processor", lambda *args, **kwargs: None)
@@ -261,7 +261,7 @@ def test_the_data_source_loads_the_recorded_job_and_skips_its_trained_rollouts(t
         dump_details=None,
     )
     write_json(root / DATASET_FILE, {"job_id": "job-0", "path": str(prompts), "skip_rollouts": 2, "token": "a"})
-    source = dataset_source.ReefDatasetSource(args)
+    source = dataset_source.AsterDatasetSource(args)
     assert len(source) == 6
     # Two rollouts of two prompts were trained: the next prompts are q4 and q5, each in a group of two.
     groups = source.get_samples(2)

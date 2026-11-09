@@ -19,7 +19,7 @@ async def wait_for_inference(
     async with asyncio.timeout(10):
         while True:
             response = await client.get(
-                f"/reef/scenarios/{quote(scenario, safe='')}/inference/status", headers=headers
+                f"/aster/scenarios/{quote(scenario, safe='')}/inference/status", headers=headers
             )
             assert response.status == 200, await response.text()
             status = await response.json()

@@ -8,12 +8,12 @@ import os
 import pytest
 
 from recipes.beta.reefine.agent import launch_pi
-from reef.execution.sandbox.config import build_executor
-from reef.execution.sandbox.e2b import E2BExecutor
-from reef.harness.adapters import get_adapter
-from reef.harness.tasks.vendor_install import AdapterProgram
+from aster.execution.sandbox.config import build_executor
+from aster.execution.sandbox.e2b import E2BExecutor
+from aster.harness.adapters import get_adapter
+from aster.harness.tasks.vendor_install import AdapterProgram
 
-pytestmark = pytest.mark.skipif(os.environ.get("REEF_TEST_E2B") != "1", reason="opt-in paid E2B/OpenRouter test")
+pytestmark = pytest.mark.skipif(os.environ.get("ASTER_TEST_E2B") != "1", reason="opt-in paid E2B/OpenRouter test")
 
 
 def test_reefine_scripted_trial_uses_node_in_the_shared_session(tmp_path):

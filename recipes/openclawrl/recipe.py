@@ -7,14 +7,14 @@ from dataclasses import dataclass
 from typing import Any
 
 from recipes.openclawrl.processor import OpenClawRLJobData, OpenClawRLSamples
-from reef.recipe.base import WeightTrainingRecipe
-from reef.storage.samples import SAMPLE_KINDS, SampleKind
-from reef.train.pipeline import PipelineSpec
+from aster.recipe.base import WeightTrainingRecipe
+from aster.storage.samples import SAMPLE_KINDS, SampleKind
+from aster.train.pipeline import PipelineSpec
 
 
 @dataclass(frozen=True, kw_only=True)
 class OpenClawRLRecipe(WeightTrainingRecipe):
-    """Reproduces upstream OpenClaw-RL's binary-RL configuration on reef.
+    """Reproduces upstream OpenClaw-RL's binary-RL configuration on aster.
 
     The whole method runs server-side. ``OpenClawRLSamples`` correlates
     main-turn records into sessions: it prefers a harness-supplied session tag

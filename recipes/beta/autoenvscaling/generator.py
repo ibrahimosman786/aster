@@ -74,13 +74,13 @@ from recipes.beta.autoenvscaling.checks import (
 )
 from recipes.beta.autoenvscaling.claude_author import CLAUDE_HARNESS, TOKEN_PREFIX, ClaudeCodeAuthor, overrides_run
 from recipes.beta.autoenvscaling.sources import SessionSource, load_sources
-from reef.core.plugins import PluginConfigError
-from reef.core.tasks import HarborTask, HarborTaskError, write_harbor_task
-from reef.core.tasks.harbor import TASK_NAME_PATTERN
-from reef.execution.sandbox.config import remote_executor
-from reef.execution.sandbox.process import SandboxUnavailable
-from reef.execution.sandbox.remote import RemoteExecutor
-from reef.recipe.generated_tasks.generator import (
+from aster.core.plugins import PluginConfigError
+from aster.core.tasks import HarborTask, HarborTaskError, write_harbor_task
+from aster.core.tasks.harbor import TASK_NAME_PATTERN
+from aster.execution.sandbox.config import remote_executor
+from aster.execution.sandbox.process import SandboxUnavailable
+from aster.execution.sandbox.remote import RemoteExecutor
+from aster.recipe.generated_tasks.generator import (
     FailedTask,
     GeneratedTaskResult,
     HeldOutTask,
@@ -88,21 +88,21 @@ from reef.recipe.generated_tasks.generator import (
     TaskGenerator,
     TaskValidationResult,
 )
-from reef.record2sample.generator.client import (
+from aster.record2sample.generator.client import (
     DuplicateTask,
     Generator,
     GeneratorError,
     HttpGenerator,
     TaskNameConflict,
 )
-from reef.record2sample.generator.designer import parse_harbor_reply
-from reef.record2sample.generator.harbor import (
+from aster.record2sample.generator.designer import parse_harbor_reply
+from aster.record2sample.generator.harbor import (
     GeneratedHarborTask,
     OracleResult,
     dockerfile_logical_lines,
     harbor_task,
 )
-from reef.record2sample.generator.inputs import TaskGenerationRequest
+from aster.record2sample.generator.inputs import TaskGenerationRequest
 
 logger = logging.getLogger(__name__)
 
@@ -121,8 +121,8 @@ DEFAULT_MAX_CHECKS = 6
 DEFAULT_MAX_MODEL_CALLS = 250
 DEFAULT_AGENT_TIMEOUT_SECONDS = 2700.0
 DEFAULT_AGENT_API = "openai"
-DEFAULT_AGENT_TOKEN_ENV = "REEF_TOKEN"
-# The cloud sandbox the agent runs in: a provider of reef.execution.sandbox.config.REMOTE_EXECUTORS.
+DEFAULT_AGENT_TOKEN_ENV = "ASTER_TOKEN"
+# The cloud sandbox the agent runs in: a provider of aster.execution.sandbox.config.REMOTE_EXECUTORS.
 DEFAULT_AGENT_SANDBOX = "e2b"
 # The Designer: the coding agent, or the generator service's one-reply prompt Designer on the same sessions.
 AUTHORS = ("agent", "prompt")
@@ -161,7 +161,7 @@ ERROR_CHARS = 3000
 TASK_NAME_SUFFIX = "autoenvscaling"
 # The last step of every task's Dockerfile, added at admission, so no later commit (the change the task asks for)
 # reaches the solver. It runs as root: it trusts the checkout whoever owns it, and gives .git back to its owner.
-HISTORY_STEP = """# Reef: the repository keeps its history up to the checked-out commit only.
+HISTORY_STEP = """# Aster: the repository keeps its history up to the checked-out commit only.
 RUN set -e; cd {path}; if [ -d .git ]; then \\
     export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0='*'; \\
     commit=$(git rev-parse HEAD); branch=$(git symbolic-ref -q HEAD || true); \\
@@ -202,7 +202,7 @@ CONFIG_KEYS = frozenset(
         "max_checks",
         "agent_model",
         "agent_api",
-        "agent_reef_url",
+        "agent_aster_url",
         "agent_token_env",
         "agent_timeout_seconds",
         "agent_sandbox",
@@ -231,7 +231,7 @@ def admitted_task(reply: str, *, generation: int, index: int, record_id: str, ch
 
     The reply goes through the generator service's parser and authoring checks, the rules a prompt Designer's
     reply is held to; a task they refuse raises ``ValueError`` (a
-    :class:`~reef.record2sample.generator.designer.DesignerReplyError` from the parser). The Dockerfile gets
+    :class:`~aster.record2sample.generator.designer.DesignerReplyError` from the parser). The Dockerfile gets
     :data:`HISTORY_STEP` for the repository at ``checkout_path`` as its last step. The step runs as root; a final
     stage that switched to another user switches back after it.
     """
@@ -405,7 +405,7 @@ class SessionProposal:
     Purpose: generate saves proposals; record_results updates them for the generation report.
     ``task_name`` is a Harbor name or None, set once the author's task was admitted.
     ``stage`` says where a session that became no task inside the band stopped (``STAGE_*``); it is empty for a task inside the band. ``designer_record_id`` is
-    the author's last recorded call, the one that wrote the task, or empty for an author that Reef records no call
+    the author's last recorded call, the one that wrote the task, or empty for an author that Aster records no call
     of (Claude Code; its task names the transcript instead). A variant has ``position`` -1, the name of the
     task it varies in ``parent_task`` and ``harder`` or ``simpler`` in ``direction``; both are empty otherwise.
     """
@@ -579,7 +579,7 @@ def task_author(
 
     The agent is pi, or Claude Code with ``author_harness: claude-code`` (:func:`claude_code_author`). It runs in
     the cloud sandbox ``agent_sandbox`` names (``e2b`` by default, or ``modal``), with that provider's options from
-    ``agent_sandbox_options``. Credentials come from ``environ``: the Reef token from the variable
+    ``agent_sandbox_options``. Credentials come from ``environ``: the Aster token from the variable
     ``agent_token_env`` names, and the sandbox provider's own (``E2B_API_KEY``, or Modal's token).
     """
     kind = config.get("author", DEFAULT_AUTHOR)
@@ -593,15 +593,15 @@ def task_author(
     if harness == CLAUDE_HARNESS and kind == "prompt":
         raise ValueError(f"author_harness: {CLAUDE_HARNESS} needs author: agent")
     model = str(config.get("agent_model", "") or "")
-    reef_url = str(config.get("agent_reef_url", "") or "")
-    if not model or not reef_url or "${" in reef_url:
-        raise ValueError("the author needs agent_model and agent_reef_url: the Designer's model and the Reef it calls")
+    aster_url = str(config.get("agent_aster_url", "") or "")
+    if not model or not aster_url or "${" in aster_url:
+        raise ValueError("the author needs agent_model and agent_aster_url: the Designer's model and the Aster it calls")
     api = str(config.get("agent_api", DEFAULT_AGENT_API))
     token = environ.get(str(config.get("agent_token_env", DEFAULT_AGENT_TOKEN_ENV))) or None
     has_behaviour_rule = bool(config.get("behaviour_rule", True))
     if kind == "prompt":
         return PromptAuthor(
-            reef_url=reef_url,
+            aster_url=aster_url,
             token=token,
             scenario=scenario,
             model=model,
@@ -622,7 +622,7 @@ def task_author(
         return claude_code_author(
             config,
             environ,
-            reef_url=reef_url,
+            aster_url=aster_url,
             token=token,
             executor=executor,
             cache_dir=cache_dir,
@@ -631,7 +631,7 @@ def task_author(
             has_behaviour_rule=has_behaviour_rule,
         )
     return AgentAuthor(
-        reef_url=reef_url,
+        aster_url=aster_url,
         token=token,
         scenario=scenario,
         model=model,
@@ -648,7 +648,7 @@ def claude_code_author(
     config: Mapping[str, object],
     environ: Mapping[str, str],
     *,
-    reef_url: str,
+    aster_url: str,
     token: str | None,
     executor: RemoteExecutor,
     cache_dir: Path,
@@ -685,7 +685,7 @@ def claude_code_author(
                 f"run's own setup or carry the token, which comes from {token_env} alone"
             )
     return ClaudeCodeAuthor(
-        reef_url=reef_url,
+        aster_url=aster_url,
         token=token,
         claude_token=claude_token,
         model=model.strip(),
@@ -698,7 +698,7 @@ def claude_code_author(
 
 
 def review_check(config: Mapping[str, Any], environ: Mapping[str, str], *, scenario: str) -> ReviewCheck | None:
-    """The test review the config's ``review`` mode asks for, on the author's Reef and dialect; none when off.
+    """The test review the config's ``review`` mode asks for, on the author's Aster and dialect; none when off.
 
     The model is ``review_model``, else ``agent_model``. :func:`task_author` checked the shared settings.
     """
@@ -706,7 +706,7 @@ def review_check(config: Mapping[str, Any], environ: Mapping[str, str], *, scena
     if mode == "off":
         return None
     return ReviewCheck(
-        reef_url=str(config["agent_reef_url"]),
+        aster_url=str(config["agent_aster_url"]),
         token=environ.get(str(config.get("agent_token_env", DEFAULT_AGENT_TOKEN_ENV))) or None,
         scenario=scenario,
         model=str(config.get("review_model") or config["agent_model"]),
@@ -1108,7 +1108,7 @@ class AutoEnvScalingGenerator(TaskGenerator):
             # A check the agent left running finishes, and deletes its candidate, before the task is written.
             await asyncio.to_thread(checks.close)
         if not authored.record_ids and not authored.transcript:
-            raise ProposalRefused("the Designer made no model call that Reef recorded", stage=STAGE_AUTHORING)
+            raise ProposalRefused("the Designer made no model call that Aster recorded", stage=STAGE_AUTHORING)
         record_id = authored.record_ids[-1] if authored.record_ids else ""
         try:
             task = admitted_task(

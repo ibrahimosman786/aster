@@ -5,9 +5,9 @@ from __future__ import annotations
 
 import pytest
 
-from reef.core.tasks import primary_reward
-from reef.evaluation.harness import TaskScorer, VerifierRewardScorer, verifier_reward
-from reef.harness.tasks.run import TaskResult
+from aster.core.tasks import primary_reward
+from aster.evaluation.harness import TaskScorer, VerifierRewardScorer, verifier_reward
+from aster.harness.tasks.run import TaskResult
 
 TASK = "/tasks/openenv-00012-003-deduction"
 
@@ -73,7 +73,7 @@ def test_an_older_row_without_the_rewards_mapping_still_scores() -> None:
 
 def test_the_scorer_resolves_from_its_class_reference() -> None:
     scorer = TaskScorer.from_setting(
-        "reef.evaluation.harness:VerifierRewardScorer", setting="evolution.evaluation.scorer"
+        "aster.evaluation.harness:VerifierRewardScorer", setting="evolution.evaluation.scorer"
     )
     assert isinstance(scorer, VerifierRewardScorer)
     assert scorer.score(TASK, task_run(verifier({"reward": 0.5}))) == 0.5

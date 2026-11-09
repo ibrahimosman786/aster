@@ -1,4 +1,4 @@
-"""The E2B executor's tunnel and file copies, run locally: the relay as the sandbox runs it, a pump as Reef does."""
+"""The E2B executor's tunnel and file copies, run locally: the relay as the sandbox runs it, a pump as Aster does."""
 
 from __future__ import annotations
 
@@ -19,10 +19,10 @@ from unittest.mock import Mock
 
 import pytest
 
-from reef.execution.sandbox.e2b import E2BExecutor, E2BSession, template_alias
-from reef.execution.sandbox.process import ProcessOutcome, ProgramLaunchError, ProgramTimeout, SandboxUnavailable
-from reef.execution.sandbox.relay import Relay
-from reef.execution.sandbox.remote import RELAY_SCRIPT, TunnelPump, pack, remote_command, remote_root, unpack
+from aster.execution.sandbox.e2b import E2BExecutor, E2BSession, template_alias
+from aster.execution.sandbox.process import ProcessOutcome, ProgramLaunchError, ProgramTimeout, SandboxUnavailable
+from aster.execution.sandbox.relay import Relay
+from aster.execution.sandbox.remote import RELAY_SCRIPT, TunnelPump, pack, remote_command, remote_root, unpack
 
 
 @pytest.mark.unit
@@ -88,7 +88,7 @@ def test_reconnecting_does_not_extend_the_command_deadline(tmp_path, monkeypatch
     rpc = pytest.importorskip("connectrpc.errors")
     from connectrpc.code import Code
 
-    import reef.execution.sandbox.e2b as executor
+    import aster.execution.sandbox.e2b as executor
 
     monkeypatch.setattr(executor, "time", SimpleNamespace(monotonic=Mock(side_effect=[0.0, 61.0])))
     sandbox = Mock()
@@ -111,7 +111,7 @@ def free_port() -> int:
 
 
 class Gateway:
-    """The Reef-side port the tunnel reaches: a JSON answer, a stream held open between pieces, and a request that
+    """The Aster-side port the tunnel reaches: a JSON answer, a stream held open between pieces, and a request that
     waits for another to arrive, as a trial waits on the model calls it makes."""
 
     def __init__(self) -> None:
@@ -220,7 +220,7 @@ def post(url: str, body: dict, headers: dict | None = None) -> urllib.request.Re
 
 
 @pytest.mark.unit
-def test_a_request_inside_the_sandbox_reaches_the_reef_port_and_its_answer_streams_back(tunnel) -> None:
+def test_a_request_inside_the_sandbox_reaches_the_aster_port_and_its_answer_streams_back(tunnel) -> None:
     gateway, local_port, _ = tunnel
     request = post(f"http://127.0.0.1:{local_port}/echo", {"x": 1}, {"Authorization": "Bearer inside"})
     with urllib.request.urlopen(request, timeout=10) as response:
@@ -341,7 +341,7 @@ def test_a_relay_that_answers_after_a_refused_poll_starts_the_pump() -> None:
 
 @pytest.mark.unit
 def test_a_root_crosses_as_it_is_and_the_command_names_its_sandbox_path(tmp_path: Path) -> None:
-    root = tmp_path / "reef-agent-abc"
+    root = tmp_path / "aster-agent-abc"
     (root / "workspace" / "harness" / "skills").mkdir(parents=True)
     (root / "workspace" / "harness" / "skills" / "a.md").write_text("A")
     (root / "pi-agent").mkdir()
@@ -377,17 +377,17 @@ def test_a_root_crosses_as_it_is_and_the_command_names_its_sandbox_path(tmp_path
 
     command, env = remote_command(
         ["/opt/agents/pi", "--mode", "json", "-p", "it's here"],
-        {"HOME": str(root), "PI_CODING_AGENT_DIR": f"{root}/pi-agent", "PATH": "/host/bin", "REEF_TOKEN": "t"},
+        {"HOME": str(root), "PI_CODING_AGENT_DIR": f"{root}/pi-agent", "PATH": "/host/bin", "ASTER_TOKEN": "t"},
         root,
     )
-    assert remote_root(root) == "/home/user/reef/reef-agent-abc"
+    assert remote_root(root) == "/home/user/aster/aster-agent-abc"
     assert command == "/opt/agents/pi --mode json -p 'it'\"'\"'s here'"
     assert env == {
-        "HOME": "/home/user/reef/reef-agent-abc",
-        "PI_CODING_AGENT_DIR": "/home/user/reef/reef-agent-abc/pi-agent",
-        "REEF_TOKEN": "t",
+        "HOME": "/home/user/aster/aster-agent-abc",
+        "PI_CODING_AGENT_DIR": "/home/user/aster/aster-agent-abc/pi-agent",
+        "ASTER_TOKEN": "t",
     }
-    assert template_alias("pi", "0.84.2") == "reef-pi-0-84-2-runs-v1"
+    assert template_alias("pi", "0.84.2") == "aster-pi-0-84-2-runs-v1"
 
 
 @pytest.mark.unit
@@ -401,16 +401,16 @@ def test_an_e2b_executor_needs_its_key(monkeypatch) -> None:
 def test_the_first_sandbox_stops_only_the_ones_its_own_deployment_left(tmp_path: Path, monkeypatch) -> None:
     e2b = pytest.importorskip("e2b")  # the e2b extra; the reap is the SDK's list and kill
 
-    import reef.execution.sandbox.remote as remote_executor
-    from reef.execution.sandbox.remote import deployment_owner
+    import aster.execution.sandbox.remote as remote_executor
+    from aster.execution.sandbox.remote import deployment_owner
 
     mine, theirs = deployment_owner(tmp_path / "a"), deployment_owner(tmp_path / "b")
     assert mine != theirs and mine == deployment_owner(tmp_path / "a")
     running = [
-        SimpleNamespace(sandbox_id="left-1", metadata={"reef": "sandbox", "reef_owner": mine}),
-        SimpleNamespace(sandbox_id="left-2", metadata={"reef": "sandbox", "reef_owner": mine}),
+        SimpleNamespace(sandbox_id="left-1", metadata={"aster": "sandbox", "aster_owner": mine}),
+        SimpleNamespace(sandbox_id="left-2", metadata={"aster": "sandbox", "aster_owner": mine}),
         # A filter the API does not honour must not cost another deployment its sandbox.
-        SimpleNamespace(sandbox_id="other", metadata={"reef": "sandbox", "reef_owner": theirs}),
+        SimpleNamespace(sandbox_id="other", metadata={"aster": "sandbox", "aster_owner": theirs}),
     ]
     queries, killed = [], []
 
@@ -431,14 +431,14 @@ def test_the_first_sandbox_stops_only_the_ones_its_own_deployment_left(tmp_path:
     )
 
     executor = E2BExecutor(api_key="k", owner=mine)
-    assert executor.labels() == {"reef": "sandbox", "reef_owner": mine}
+    assert executor.labels() == {"aster": "sandbox", "aster_owner": mine}
     monkeypatch.setattr(remote_executor, "REAPED_OWNERS", set())
     executor.reap_once()
     assert killed == ["left-1", "left-2"]
     # Once per process: the sandboxes it starts itself are never taken for leftovers.
     executor.reap_once()
     assert len(queries) == 1
-    assert queries == [({"reef": "sandbox", "reef_owner": mine}, "k")]
+    assert queries == [({"aster": "sandbox", "aster_owner": mine}, "k")]
     # No owner, no deployment to speak for: nothing is listed or stopped.
     E2BExecutor(api_key="k").reap_once()
     assert E2BExecutor(api_key="k").reap() == 0 and len(queries) == 1
@@ -449,8 +449,8 @@ def test_a_run_longer_than_e2bs_ceiling_opens_within_it_and_keeps_its_sandbox_al
     extends the deadline while it works, instead of losing the sandbox mid-run."""
     e2b = pytest.importorskip("e2b")
 
-    import reef.execution.sandbox.remote as remote_executor
-    from reef.execution.sandbox.e2b import SANDBOX_MAX_TIMEOUT_S, E2BExecutor, E2BSession
+    import aster.execution.sandbox.remote as remote_executor
+    from aster.execution.sandbox.e2b import SANDBOX_MAX_TIMEOUT_S, E2BExecutor, E2BSession
 
     asked: list[int] = []
     extended: list[int] = []
@@ -470,7 +470,7 @@ def test_a_run_longer_than_e2bs_ceiling_opens_within_it_and_keeps_its_sandbox_al
     monkeypatch.setattr(remote_executor, "REAPED_OWNERS", set())
 
     # Four hours of agent run: the sandbox is still created within what E2B grants.
-    session = E2BExecutor(api_key="k", template="reef-pi", timeout_s=14400).open()
+    session = E2BExecutor(api_key="k", template="aster-pi", timeout_s=14400).open()
     try:
         assert asked == [SANDBOX_MAX_TIMEOUT_S]
         # The keeper asks for the ceiling again rather than waiting out its own period.
@@ -482,7 +482,7 @@ def test_a_run_longer_than_e2bs_ceiling_opens_within_it_and_keeps_its_sandbox_al
     assert session.keeper.stopped.is_set()
 
     # A short run asks for what it needs and no more.
-    E2BExecutor(api_key="k", template="reef-pi", timeout_s=60).open().close()
+    E2BExecutor(api_key="k", template="aster-pi", timeout_s=60).open().close()
     assert asked[-1] == 660
 
     # A session closed twice stops its keeper once and stays closed.

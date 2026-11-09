@@ -10,7 +10,7 @@
 
 from recipes.sao.processor import SAOJobData, SAOSamples
 from recipes.sao.recipe import SAORecipe
-from reef.train.algos.registry import register_loss_family_ref, register_objective_ref
+from aster.train.algos.registry import register_loss_family_ref, register_objective_ref
 
 register_objective_ref("sao", "recipes.sao.slime:SaoObjective")
 register_loss_family_ref("sao", "recipes.sao.slime:SaoAlgorithm")

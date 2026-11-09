@@ -2,10 +2,10 @@
 
 Meta-Harness is full-history search over a fixed model's harness. Each step,
 a proposer reads every earlier candidate with its scores on fixed evaluation
-tasks, and writes one complete harness tree. Reef evaluates that tree and
+tasks, and writes one complete harness tree. Aster evaluates that tree and
 keeps it only when its mean score beats the served tree's. The method
-represents every candidate as a complete Reef harness tree, so the same
-search works with any Reef adapter and any run scorer. `MetaHarness` has no
+represents every candidate as a complete Aster harness tree, so the same
+search works with any Aster adapter and any run scorer. `MetaHarness` has no
 Harbor, Terminal-Bench, Terminus, or coding-agent dependency.
 
 ```text
@@ -24,7 +24,7 @@ of the history. Upstream's proposer is a coding agent that reads the whole
 search as files; [`agent/`](agent/README.md) runs that proposer as a method
 made of prompts, on the deployment's coding agent.
 
-Reef owns tree validation, adapter rendering, model binding, run
+Aster owns tree validation, adapter rendering, model binding, run
 execution, timeouts, residue policy, finite-score checks, the score cache,
 selection, publication, and scenario commits. Meta-Harness adds the proposal:
 what the proposer model sees and how its reply becomes a candidate.
@@ -33,14 +33,14 @@ what the proposer model sees and how its reply becomes a candidate.
 
 The search learns from the evaluation tasks, not from traffic or uploaded
 tasks. So a training request starts each step: the deployment trains in
-`manual` mode, and each `POST /reef/train` runs one step. The request's
+`manual` mode, and each `POST /aster/train` runs one step. The request's
 `text` is an instruction that the proposer reads, such as "Propose the next
 candidate of the search." The number of requests is the number of steps;
 upstream's `--iterations` is the same count.
 
 ```bash
-curl -f http://127.0.0.1:8901/reef/train \
-  -H "Authorization: Bearer $REEF_TOKEN" -H "x-reef-scenario: <scenario>" \
+curl -f http://127.0.0.1:8901/aster/train \
+  -H "Authorization: Bearer $ASTER_TOKEN" -H "x-aster-scenario: <scenario>" \
   -H "Content-Type: application/json" \
   -d '{"text": "Propose the next candidate of the search.", "session": "", "artifact_id": ""}'
 ```
@@ -50,13 +50,13 @@ training](../../docs/reference/http-api.rst#manual-training) for the route.
 
 ## Configuration
 
-A deployment names the method in `evolution.method` of Reef's harness
+A deployment names the method in `evolution.method` of Aster's harness
 evolution recipe, trains in `manual` mode, and selects with the `compare`
 policy on means:
 
 ```yaml
 recipe:
-  implementation: reef.recipe.harness:HarnessEvolutionRecipe
+  implementation: aster.recipe.harness:HarnessEvolutionRecipe
   config:
     training_mode: manual
     evolution:
@@ -84,7 +84,7 @@ inference:
 ```
 
 `seed` is a directory of tree files, such as `rules.md` with the starting
-rules. `evaluation.scorer` names a standard Reef run scorer class:
+rules. `evaluation.scorer` names a standard Aster run scorer class:
 
 ```python
 class RolloutScore(TaskScorer):
@@ -131,7 +131,7 @@ showed, when the tree changes a file of a part outside `components` (such
 files must stay byte for byte equal to the parent's), when the tree holds
 more than `max_files` files, or when the tree fails the adapter's
 validation. It also refuses a tree that the history already holds. A refused
-reply leaves the head unchanged, so the step skips and Reef evaluates
+reply leaves the head unchanged, so the step skips and Aster evaluates
 nothing. The adapter's validation remains authoritative: an adapter may
 still refuse an otherwise valid file.
 
@@ -150,7 +150,7 @@ mean, and a tie keeps the current choice. The seed runs once with the first
 candidate, and then each candidate runs once.
 
 Keep the evaluation suite fixed, so that the scores of all candidates stay
-comparable: do not combine this method with task collection. Reef's own
+comparable: do not combine this method with task collection. Aster's own
 `max_model_calls_per_step`, executor, timeout, and residue options apply as
 usual.
 
@@ -170,7 +170,7 @@ run again.
 ## Terminus 2 code evolution
 
 Use the Terminal-Bench campaign's `terminus` adapter and its `extension`
-part to evolve Python behavior. Reef does not bundle the adapter:
+part to evolve Python behavior. Aster does not bundle the adapter:
 `pip install -e examples/terminal_bench` registers it (see [the terminus
 adapter](examples/terminal_bench/README.md#the-terminus-adapter)). It accepts one self-contained module defining `Agent(Terminus2)`,
 at `extensions/<name>.py` in the tree. Start from a no-op subclass so the
@@ -196,7 +196,7 @@ recipe:
       executor: sandbox
       sandbox:
         egress_hosts: [api.e2b.dev, api.openai.com]
-        env_from: [REEF_TERMINUS_ENVIRONMENT, E2B_API_KEY]
+        env_from: [ASTER_TERMINUS_ENVIRONMENT, E2B_API_KEY]
       method:
         module: recipes.meta_harness:MetaHarness
         config:
@@ -204,15 +204,15 @@ recipe:
 ```
 
 Combine this with the tasks, scorer, model, and proposer settings above. Export
-`REEF_TERMINUS_ENVIRONMENT=e2b` and `E2B_API_KEY` in the deployment. Install
+`ASTER_TERMINUS_ENVIRONMENT=e2b` and `E2B_API_KEY` in the deployment. Install
 `harbor[e2b]` on Linux with Python 3.12+ and bubblewrap;
 place the runtime and any local task directories under `/usr` or `/opt`, which
 the existing sandbox mounts read-only. Registry task ids also work.
 
-Reef's sandbox isolates the Python runner; Harbor uses E2B for the terminal
+Aster's sandbox isolates the Python runner; Harbor uses E2B for the terminal
 task. Rendering never imports candidate code, and local execution refuses
 extensions. Rules, skills, model binding, timeouts, trajectories, scoring, and
-publication all use Reef's existing components. `egress_hosts` currently enables
+publication all use Aster's existing components. `egress_hosts` currently enables
 network access; it does not enforce a hostname firewall. Only explicitly named
 deployment variables are forwarded. A tree without an extension can still run
 stock Terminus 2 locally with Docker.

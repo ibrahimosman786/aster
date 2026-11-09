@@ -2,7 +2,7 @@
 
 One demo (``./run.sh bugfix`` or ``./run.sh research``):
 
-    ask     - the request goes to ``POST /reef/train`` as a training
+    ask     - the request goes to ``POST /aster/train`` as a training
               request, and the deployment, in ``training_mode: manual``,
               runs one evolve step for it at once
     step    - the service's Reefine method designs the change, writes it
@@ -15,8 +15,8 @@ One demo (``./run.sh bugfix`` or ``./run.sh research``):
               changed, and the demo activates it through the route (a person
               reads the page first)
     install - the active selection's source tree
-              (``GET /reef/harness?form=source``) renders for pi with a model
-              binding at this Reef into work/harness; when the snapshot names
+              (``GET /aster/harness?form=source``) renders for pi with a model
+              binding at this Aster into work/harness; when the snapshot names
               ``requires``, the demo checks each item on this machine first,
               and an unmet one stops it
     show    - one ``pi -p`` session on the installed tree, with the session's
@@ -29,7 +29,7 @@ floor), published, inactive. The won count is the first of the two things
 RFC #310's stage 6 asks for (requests that passed the checks); the held out
 shapes are not here.
 
-Start this through ./run.sh: it starts the Reef these constants point at
+Start this through ./run.sh: it starts the Aster these constants point at
 from configs/deployment.yaml, installs the active selection, and runs a mode.
 The demo is the client here: it pulls, renders and runs the snapshot itself.
 Every mode writes work/<mode>-<timestamp>.json with the raw rows it read.
@@ -45,21 +45,21 @@ import urllib.request
 from pathlib import Path
 from urllib.parse import urlencode
 
-from reef_client import ReefClient, ReefClientError
+from reef_client import AsterClient, AsterClientError
 
 from recipes.beta.reefine.agent import launch_pi, tool_calls
-from reef.execution.sandbox.process import LocalExecutor, ProgramTimeout
-from reef.harness.adapters import get_adapter
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tasks.trajectory import final_assistant_text
-from reef.harness.tasks.vendor_install import AdapterProgram
-from reef.harness.tree import HarnessTree, render_tree
-from reef.service.artifact_page import result_of
+from aster.execution.sandbox.process import LocalExecutor, ProgramTimeout
+from aster.harness.adapters import get_adapter
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tasks.trajectory import final_assistant_text
+from aster.harness.tasks.vendor_install import AdapterProgram
+from aster.harness.tree import HarnessTree, render_tree
+from aster.service.artifact_page import result_of
 
 SERVICE_URL = "http://127.0.0.1:8901"  # deployment.yaml's port
 SCENARIO = "reefine-demo"  # this workload's isolated lane
-TOKEN = os.environ.get("REEF_TOKEN", "reef-local")  # matches deployment.yaml
-MODEL = os.environ.get("REEF_UPSTREAM_MODEL", "gemma4:26b")  # run.sh exports the same default
+TOKEN = os.environ.get("ASTER_TOKEN", "aster-local")  # matches deployment.yaml
+MODEL = os.environ.get("ASTER_UPSTREAM_MODEL", "gemma4:26b")  # run.sh exports the same default
 # A local model reads the API skill and writes the change, then six pi runs score it.
 STEP_TIMEOUT_S = 1800.0
 POLL_S = 5.0
@@ -69,8 +69,8 @@ WORK = HERE / "work"
 # The install writes the rendered tree and the snapshot metadata file here.
 INSTALL_ROOT = WORK / "harness"
 DEMOS = HERE / "demos"
-RELEASE_FILE = ".reef-harness-release"
-#: pi's provider file: the model binding writes provider reef there, and pi sends that provider's headers.
+RELEASE_FILE = ".aster-harness-release"
+#: pi's provider file: the model binding writes provider aster there, and pi sends that provider's headers.
 PI_MODELS = "pi-agent/models.json"
 SHOW_TIMEOUT_S = 600.0
 CHECK_TIMEOUT_S = 30.0
@@ -123,11 +123,11 @@ def request_text(demo):
 
 def service_client():
     # The first call loads the model on a local server, minutes beside a model already resident.
-    return ReefClient(SERVICE_URL, token=TOKEN, timeout_s=300.0)
+    return AsterClient(SERVICE_URL, token=TOKEN, timeout_s=300.0)
 
 
 def scenario_headers():
-    return {"x-reef-scenario": SCENARIO}
+    return {"x-aster-scenario": SCENARIO}
 
 
 def fetch_text(path):
@@ -140,10 +140,10 @@ def fetch_text(path):
 
 
 def catalog_rows(client):
-    """The catalog oldest first, as GET /reef/harness/artifacts lists it; empty before the scenario exists."""
+    """The catalog oldest first, as GET /aster/harness/artifacts lists it; empty before the scenario exists."""
     try:
-        return client.get("/reef/harness/artifacts", extra_headers=scenario_headers())["artifacts"]
-    except ReefClientError as exc:
+        return client.get("/aster/harness/artifacts", extra_headers=scenario_headers())["artifacts"]
+    except AsterClientError as exc:
         if exc.status != 404:
             raise
         return []
@@ -159,12 +159,12 @@ def request_text_of(row):
 
 
 def harness_manifest(client):
-    return client.get("/reef/harness", extra_headers=scenario_headers())
+    return client.get("/aster/harness", extra_headers=scenario_headers())
 
 
 def ensure_scenario(client):
     """Create the scenario, with its root snapshot, if it does not exist yet; its harness manifest."""
-    client.post("/reef/scenarios", SCENARIO, {"name": SCENARIO})
+    client.post("/aster/scenarios", SCENARIO, {"name": SCENARIO})
     return harness_manifest(client)
 
 
@@ -250,14 +250,14 @@ def unmet(items):
 
 
 def install(artifact_id=None):
-    """Render the active selection (or ``artifact_id``) for pi with a model binding at this Reef, into work/harness.
+    """Render the active selection (or ``artifact_id``) for pi with a model binding at this Aster, into work/harness.
 
     Return the artifact ID, or None when the artifact requires something this machine lacks.
     """
     client = service_client()
     ensure_scenario(client)
     query = "?" + urlencode({"form": "source", **({"artifact_id": artifact_id} if artifact_id else {})})
-    manifest = client.get(f"/reef/harness{query}", extra_headers=scenario_headers())
+    manifest = client.get(f"/aster/harness{query}", extra_headers=scenario_headers())
     requires = manifest.get("requires") or []
     say(f"requires: {requires_of(requires)}")
     missing = unmet(requires)
@@ -268,10 +268,10 @@ def install(artifact_id=None):
     descriptor = get_adapter("pi")
     binding = ModelBinding(base_url=SERVICE_URL, model=MODEL, api_key=TOKEN)
     files = render_tree(HarnessTree(manifest["files"]), descriptor, binding.config_overlays(descriptor))
-    # Reef answers a model call only with the scenario header. The render refuses a tree that sets provider
+    # Aster answers a model call only with the scenario header. The render refuses a tree that sets provider
     # headers, so the client adds its own to its binding after the render; pi sends them on every call.
     models = json.loads(files[PI_MODELS])
-    models["providers"]["reef"]["headers"] = scenario_headers()
+    models["providers"]["aster"]["headers"] = scenario_headers()
     files[PI_MODELS] = json.dumps(models, indent=2, sort_keys=True) + "\n"
     shutil.rmtree(INSTALL_ROOT, ignore_errors=True)
     for relative, content in files.items():
@@ -291,11 +291,11 @@ def ask(text):
     the deployment's manual mode runs one step for it. A refusal (the
     screens, a mode that takes no requests) is a stop, with the service's
     answer saying why."""
-    say(f"ask: POST /reef/train {text!r}")
+    say(f"ask: POST /aster/train {text!r}")
     payload = {"text": text, "session": SCENARIO, "artifact_id": installed_artifact() or ""}
     try:
-        answer, _ = service_client().post("/reef/train", SCENARIO, payload)
-    except ReefClientError as exc:
+        answer, _ = service_client().post("/aster/train", SCENARIO, payload)
+    except AsterClientError as exc:
         raise SystemExit(f"the request was not accepted: {exc}") from exc
     say(
         f"accepted: training request {answer['agent_record_id']}; its page is {SERVICE_URL}{answer.get('page_path', '')}"
@@ -316,17 +316,17 @@ def wait_for_step(client, text, before, deadline):
     while time.monotonic() < deadline:
         try:
             rows = catalog_rows(client)
-            error = client.get("/reef/status").get("error")
+            error = client.get("/aster/status").get("error")
         except (TimeoutError, OSError) as exc:
             # A step in flight holds the catalog until it ends; a service that is gone does not answer /healthz.
             try:
                 client.get("/healthz")
-            except (ReefClientError, TimeoutError, OSError):
-                raise SystemExit("the service stopped answering; check work/reef.log") from exc
+            except (AsterClientError, TimeoutError, OSError):
+                raise SystemExit("the service stopped answering; check work/aster.log") from exc
             time.sleep(POLL_S)
             continue
         if error:
-            raise SystemExit(f"evolve step failed: {error}; check work/reef.log")
+            raise SystemExit(f"evolve step failed: {error}; check work/aster.log")
         steps = training_rows(rows)
         for row in steps[shown:]:
             metrics = row.get("metrics") or {}
@@ -345,7 +345,7 @@ def activate(client, rows, row, run_dir):
     """Save the inactive step's page beside the run, print its URL, activate the row's artifact; the id of the
     active selection that the activation names."""
     step = rows.index(row)
-    page = f"/reef/harness/artifacts/{step}/page"
+    page = f"/aster/harness/artifacts/{step}/page"
     saved = run_dir / f"step-{step}.html"
     saved.write_text(fetch_text(page), encoding="utf-8")
     say(f"inactive: the page says why and what changed: {SERVICE_URL}{page} (saved as {saved.relative_to(HERE)})")
@@ -353,9 +353,9 @@ def activate(client, rows, row, run_dir):
     body = {"artifact_id": row["artifact_id"]}
     if row.get("component"):
         body["component"] = row["component"]
-    answer, _ = client.post(f"/reef/scenarios/{SCENARIO}/activate", SCENARIO, body)
+    answer, _ = client.post(f"/aster/scenarios/{SCENARIO}/activate", SCENARIO, body)
     if answer.get("artifact_id") != row["artifact_id"]:
-        raise SystemExit(f"reef answered the activation without artifact {row['artifact_id']}: {answer}")
+        raise SystemExit(f"aster answered the activation without artifact {row['artifact_id']}: {answer}")
     say(f"activated: artifact {answer['artifact_id']} is active")
     return answer["artifact_id"]
 
@@ -457,7 +457,7 @@ def demo(mode):
     record["rows"] = rows
     if row is None:
         write_record(record_path, record)
-        raise SystemExit(f"no step settled the request within {STEP_TIMEOUT_S:.0f} s; check work/reef.log")
+        raise SystemExit(f"no step settled the request within {STEP_TIMEOUT_S:.0f} s; check work/aster.log")
     metrics = row.get("metrics") or {}
     selection_result = result_of(row)
     changes = changes_of(metrics)

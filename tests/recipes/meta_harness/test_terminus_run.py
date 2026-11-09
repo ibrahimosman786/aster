@@ -1,11 +1,11 @@
-"""The terminus adapter through ``run_task``, the path Reef actually uses.
+"""The terminus adapter through ``run_task``, the path Aster actually uses.
 
 The gap these close: every earlier terminus test drove the runner directly
 with a hand-built environment, so none of them noticed that ``run_task``
 hands a run only the descriptor's own env. An adapter can pass its unit
 tests and still be unable to start.
 
-A stub binary stands in for ``reef-terminus``: it records the environment and
+A stub binary stands in for ``aster-terminus``: it records the environment and
 working directory it was launched with and writes a trial file where the
 descriptor says the reader will look. That exercises the descriptor, the
 render, the executor, the trajectory reader, and the residue check together,
@@ -22,13 +22,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
-from reef_terminus.runner import SESSION_DIR_ENV, TREE_DIR_ENV, TRIALS_DIR_ENV, trial_record
+from aster_terminus.runner import SESSION_DIR_ENV, TREE_DIR_ENV, TRIALS_DIR_ENV, trial_record
 
-from reef.execution.sandbox.process import ProcessOutcome, ProgramExecutor, ProgramLaunchError, SandboxExecutor
-from reef.harness.adapters import get_adapter
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tasks.run import TaskRunError, run_task
-from reef.harness.tree import HarnessTree, render_tree
+from aster.execution.sandbox.process import ProcessOutcome, ProgramExecutor, ProgramLaunchError, SandboxExecutor
+from aster.harness.adapters import get_adapter
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tasks.run import TaskRunError, run_task
+from aster.harness.tree import HarnessTree, render_tree
 
 # Stands in for the runner: prove the run reaches it with what it needs.
 STUB = """#!/usr/bin/env python3
@@ -67,7 +67,7 @@ TREE = {
     "commands/summarize.md": "Summarize.",
     "config/primary.json": '{"max_turns": 12}',
 }
-#: The model comes from Reef's binding: a tree cannot set model_name.
+#: The model comes from Aster's binding: a tree cannot set model_name.
 BINDING = ModelBinding(base_url="http://127.0.0.1:9", model="openai/gpt-4o", api_key="k")
 
 
@@ -89,7 +89,7 @@ def home(tmp_path: Path, monkeypatch) -> Path:
 
 
 def _stub(tmp_path: Path) -> str:
-    binary = tmp_path / "reef-terminus-stub"
+    binary = tmp_path / "aster-terminus-stub"
     binary.write_text(STUB.format(tree=TREE_DIR_ENV, sessions=SESSION_DIR_ENV, trials=TRIALS_DIR_ENV))
     binary.chmod(0o755)
     return str(binary)
@@ -159,10 +159,10 @@ def test_the_run_root_is_under_the_home_directory_on_macos_only_and_removed(
     descriptor = get_adapter("terminus")
     result = run_task(descriptor, render(TREE), "t", binary=_stub(tmp_path), timeout=60.0)
     root = Path(result.trajectory[0]["root"])
-    expected = home / ".reef" / "runs" if platform == "darwin" else Path(tempfile.gettempdir())
+    expected = home / ".aster" / "runs" if platform == "darwin" else Path(tempfile.gettempdir())
     assert root.parent == expected
     assert not root.exists()
-    assert (home / ".reef").exists() == (platform == "darwin")
+    assert (home / ".aster").exists() == (platform == "darwin")
 
 
 @dataclass(frozen=True)
@@ -193,20 +193,20 @@ class RecordingSandbox(SandboxExecutor):
 def test_a_run_on_e2b_gets_neither_the_local_docker_context_nor_the_macos_root(
     tmp_path: Path, home: Path, monkeypatch
 ) -> None:
-    """The service's Docker context and the root under ~/.reef/runs serve local Docker, which on macOS shares
+    """The service's Docker context and the root under ~/.aster/runs serve local Docker, which on macOS shares
     only the home directory with its VM; a run the sandbox runs on E2B gets neither, on macOS too."""
     monkeypatch.setattr(sys, "platform", "darwin")
     monkeypatch.setenv("DOCKER_HOST", "unix:///var/run/docker.sock")
     descriptor = get_adapter("terminus")
     executor = RecordingSandbox(
-        egress_hosts=("api.e2b.dev",), env={"REEF_TERMINUS_ENVIRONMENT": "e2b", "E2B_API_KEY": "key"}
+        egress_hosts=("api.e2b.dev",), env={"ASTER_TERMINUS_ENVIRONMENT": "e2b", "E2B_API_KEY": "key"}
     )
     with pytest.raises(TaskRunError, match="recorded, not run"):
         run_task(descriptor, render(TREE), "task", executor=executor)
     ((root, env),) = executor.launched
     assert not set(descriptor.host_env) & set(env)
     assert root.parent == Path(tempfile.gettempdir())
-    assert not (home / ".reef").exists()
+    assert not (home / ".aster").exists()
 
 
 @pytest.mark.unit
@@ -282,20 +282,20 @@ def test_an_extension_cannot_reach_a_local_process(tmp_path: Path) -> None:
     [
         (
             (),
-            {"REEF_TERMINUS_ENVIRONMENT": "e2b", "E2B_API_KEY": "dummy"},
+            {"ASTER_TERMINUS_ENVIRONMENT": "e2b", "E2B_API_KEY": "dummy"},
             "on e2b requires egress_hosts and E2B_API_KEY",
         ),
         (
             ("api.e2b.dev",),
-            {"REEF_TERMINUS_ENVIRONMENT": "e2b", "E2B_API_KEY": ""},
+            {"ASTER_TERMINUS_ENVIRONMENT": "e2b", "E2B_API_KEY": ""},
             "requires egress_hosts and E2B_API_KEY",
         ),
         (
             ("api.modal.com",),
-            {"REEF_TERMINUS_ENVIRONMENT": "modal", "MODAL_TOKEN_ID": "id"},
+            {"ASTER_TERMINUS_ENVIRONMENT": "modal", "MODAL_TOKEN_ID": "id"},
             "on modal requires egress_hosts and MODAL_TOKEN_ID, MODAL_TOKEN_SECRET",
         ),
-        (("api.example",), {"REEF_TERMINUS_ENVIRONMENT": "docker"}, r"a remote task environment \(e2b or modal\)"),
+        (("api.example",), {"ASTER_TERMINUS_ENVIRONMENT": "docker"}, r"a remote task environment \(e2b or modal\)"),
     ],
 )
 def test_remote_terminus_requires_explicit_network_and_credentials(egress, credentials, message) -> None:

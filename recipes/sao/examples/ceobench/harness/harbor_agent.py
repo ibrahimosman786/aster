@@ -1,10 +1,10 @@
-"""One Harbor trial: CEO-Bench's bash agent, served by Reef and scored week by week.
+"""One Harbor trial: CEO-Bench's bash agent, served by Aster and scored week by week.
 
 ``harness/`` is the benchmark's bash agent. ``agent.py`` is its loop and
 ``tools.py`` its tools, both the benchmark's call for call; its prompt and
 tool definitions are read from the pinned checkout in the task image when
 the rollout starts, so they are the benchmark's byte for byte. This module
-is what Reef adds around that agent:
+is what Aster adds around that agent:
 
 - the task's engine session, started through the task image's
   ``/opt/ceobench-engine.py`` and read over its HTTP API (status, dashboard,
@@ -28,8 +28,8 @@ week is credited, and how long the game waits for the trainer.
 
 Connection settings come from the environment set by ``run.sh``:
 
-- ``REEF_SERVICE_URL`` (required), ``REEF_SCENARIO``, ``REEF_TOKEN``,
-  ``REEF_TIMEOUT_S``
+- ``ASTER_SERVICE_URL`` (required), ``ASTER_SCENARIO``, ``ASTER_TOKEN``,
+  ``ASTER_TIMEOUT_S``
 - ``CEOBENCH_LLM_TIMEOUT_S`` (default 1800): how long one model call may
   take, a paced hold included; the benchmark's loop retries a timeout.
 - ``CEOBENCH_REASONING_EFFORT`` (default ``none``) and
@@ -92,7 +92,7 @@ import openai
 from harbor.agents.base import BaseAgent
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
-from reef_client import ReefClient
+from reef_client import AsterClient
 from reef_client.serve import CaptureStore, ServeConfig, build_handler
 
 from .agent import DEFAULT_MAX_COMPLETION_TOKENS, BashAgent
@@ -346,20 +346,20 @@ class TaskContainer:
 
 
 class HarborAgent(BaseAgent):
-    """One Harbor trial: one CEO-Bench rollout, the benchmark's bash agent served by Reef."""
+    """One Harbor trial: one CEO-Bench rollout, the benchmark's bash agent served by Aster."""
 
     def __init__(self, *args, seed: int = DEFAULT_SEED, days: int = DEFAULT_DAYS, **kwargs):
         super().__init__(*args, **kwargs)
         environ = os.environ
-        self.service_url = environ.get("REEF_SERVICE_URL", "").rstrip("/")
+        self.service_url = environ.get("ASTER_SERVICE_URL", "").rstrip("/")
         if not self.service_url:
-            raise ValueError("the ceobench harness requires REEF_SERVICE_URL")
-        self.scenario = environ.get("REEF_SCENARIO", "ceobench-sao")
-        self.token = environ.get("REEF_TOKEN", "reef-local")
+            raise ValueError("the ceobench harness requires ASTER_SERVICE_URL")
+        self.scenario = environ.get("ASTER_SCENARIO", "ceobench-sao")
+        self.token = environ.get("ASTER_TOKEN", "aster-local")
         self.seed = int(seed)
         self.days = int(days)
-        self.client = ReefClient(
-            self.service_url, token=self.token, timeout_s=float(environ.get("REEF_TIMEOUT_S", "7200"))
+        self.client = AsterClient(
+            self.service_url, token=self.token, timeout_s=float(environ.get("ASTER_TIMEOUT_S", "7200"))
         )
         self.llm_timeout_s = float(environ.get("CEOBENCH_LLM_TIMEOUT_S", "") or 1800.0)
         self.reasoning_effort = environ.get("CEOBENCH_REASONING_EFFORT", "none") or None
@@ -399,7 +399,7 @@ class HarborAgent(BaseAgent):
 
     @staticmethod
     def name() -> str:
-        return "reef-ceobench"
+        return "aster-ceobench"
 
     def version(self) -> str | None:
         return None
@@ -409,7 +409,7 @@ class HarborAgent(BaseAgent):
 
         Nothing to install: the image carries the pinned checkout.
         """
-        await asyncio.to_thread(self.client.post, "/reef/scenarios", self.scenario, {"name": self.scenario})
+        await asyncio.to_thread(self.client.post, "/aster/scenarios", self.scenario, {"name": self.scenario})
 
     async def run(self, instruction: str, environment: BaseEnvironment, context: AgentContext) -> None:
         # The rollout is a blocking loop of model calls and container
@@ -428,7 +428,7 @@ class HarborAgent(BaseAgent):
             await environment.download_dir(RUNS_DIR, self.logs_dir / "ceobench")
         context.metadata = {
             **(context.metadata or {}),
-            "reef": {
+            "aster": {
                 "agent_record_ids": [turn["receipt"] for turn in self.records.turns],
                 "agent_record_tokens": [turn["tokens"] for turn in self.records.turns],
                 "agent_record_weeks": [turn["week"] for turn in self.records.turns],
@@ -454,12 +454,12 @@ class HarborAgent(BaseAgent):
         context.n_output_tokens = sum(int(item.get("completion_tokens") or 0) for item in usage)
 
     def start_proxy(self) -> ThreadingHTTPServer:
-        """A local reef-client proxy: the agent's OpenAI client talks to it, Reef gets the calls."""
+        """A local reef-client proxy: the agent's OpenAI client talks to it, Aster gets the calls."""
         config = ServeConfig(
             upstream=self.service_url,
             listen_host="127.0.0.1",
             listen_port=0,  # an ephemeral port, so concurrent trials never collide
-            override_headers={"x-reef-scenario": self.scenario, "authorization": f"Bearer {self.token}"},
+            override_headers={"x-aster-scenario": self.scenario, "authorization": f"Bearer {self.token}"},
         )
         self.capture = CaptureStore()
         server = ThreadingHTTPServer((config.listen_host, config.listen_port), build_handler(config, self.capture))
@@ -470,7 +470,7 @@ class HarborAgent(BaseAgent):
         self, task: TaskContainer, environment: BaseEnvironment, loop: asyncio.AbstractEventLoop, proxy_port: int
     ) -> dict:
         """The benchmark runner's rollout, with the weeks credited as they close."""
-        model = self.model_name or "reef"
+        model = self.model_name or "aster"
         session = task.start_engine(
             seed=self.seed,
             days=self.days,
@@ -501,7 +501,7 @@ class HarborAgent(BaseAgent):
         )
         client = openai.OpenAI(
             base_url=f"http://127.0.0.1:{proxy_port}/v1",
-            api_key="reef",  # the proxy replaces it with the Reef token
+            api_key="aster",  # the proxy replaces it with the Aster token
             timeout=httpx.Timeout(self.llm_timeout_s),
         )
         agent = BashAgent(

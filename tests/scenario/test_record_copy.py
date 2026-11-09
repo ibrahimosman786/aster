@@ -7,8 +7,8 @@ from pathlib import Path
 
 from tests.support.trajectory_uploads import UploadRecipe, dispatcher_for
 
-from reef.core.records_types import AgentRecord, RequestType
-from reef.dispatcher import Dispatcher
+from aster.core.records_types import AgentRecord, RequestType
+from aster.dispatcher import Dispatcher
 
 
 def report(record_id: str) -> AgentRecord:

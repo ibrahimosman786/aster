@@ -3,12 +3,12 @@
 For each step of ``PROMPTS_PER_STEP`` training prompts, in the order
 ``skills.wave_schedule`` fixes from the seed:
 
-    ask     — one chat completion per prompt through Reef at temperature 1.0:
+    ask     — one chat completion per prompt through Aster at temperature 1.0:
               the student's on-policy sample, recorded with its tokens and
               log-probs
     report  — the dataset's demonstration as the report's ``teacher_context`` against
               that sample's receipt
-    learn   — Reef's recipe batches the step's reports, runs one optimizer
+    learn   — Aster's recipe batches the step's reports, runs one optimizer
               step and publishes the weights; the loop blocks on that
               snapshot, so the next step samples from the updated policy
 
@@ -56,7 +56,7 @@ def main() -> None:
         schedule = schedule[:STEPS]
     client = skills.make_client()
     # The inference routes serve only a scenario that exists: create it before the first model call.
-    client.post("/reef/scenarios", skills.SCENARIO, {"name": skills.SCENARIO})
+    client.post("/aster/scenarios", skills.SCENARIO, {"name": skills.SCENARIO})
     print(
         f"[{TASK}] {len(examples)} training prompts, {len(schedule)} steps of {PROMPTS_PER_STEP} "
         f"({EPOCHS} epochs, seed {SEED}); service {skills.SERVICE_URL}, scenario {skills.SCENARIO}",

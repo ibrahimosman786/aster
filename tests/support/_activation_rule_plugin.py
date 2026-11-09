@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from reef.core.activation import ActivationRule, MadeArtifact
-from reef.evaluation import CandidateEvaluator, EvaluationResult, UpdateCandidate
+from aster.core.activation import ActivationRule, MadeArtifact
+from aster.evaluation import CandidateEvaluator, EvaluationResult, UpdateCandidate
 
 
 class ComponentRule(ActivationRule):

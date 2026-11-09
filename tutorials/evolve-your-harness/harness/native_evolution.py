@@ -23,8 +23,8 @@ import re
 from pathlib import Path
 from string import Template
 
-from reef.harness.runners.native.graph import SEED_GRAPH
-from reef.harness.tree import HarnessTree, TreePatch
+from aster.harness.runners.native.graph import SEED_GRAPH
+from aster.harness.tree import HarnessTree, TreePatch
 
 from .evolution import grade_text
 

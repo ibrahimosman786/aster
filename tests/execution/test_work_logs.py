@@ -10,13 +10,13 @@ from contextlib import closing
 
 import pytest
 
-from reef.execution import work_logs
-from reef.execution.jobs import BackgroundJobRunner, BackgroundJobWorker, SupportsReceipt
-from reef.execution.workers import QueueWorker
-from reef.storage.sql_coordination import SQLiteCoordinationDatabase, SQLWorkQueue
-from reef.storage.work_queue import MAX_LOG_LINES, NewWork
+from aster.execution import work_logs
+from aster.execution.jobs import BackgroundJobRunner, BackgroundJobWorker, SupportsReceipt
+from aster.execution.workers import QueueWorker
+from aster.storage.sql_coordination import SQLiteCoordinationDatabase, SQLWorkQueue
+from aster.storage.work_queue import MAX_LOG_LINES, NewWork
 
-logger = logging.getLogger("reef.test.work_logs")
+logger = logging.getLogger("aster.test.work_logs")
 
 
 class LoggingWorker(QueueWorker):
@@ -50,7 +50,7 @@ def queue():
 
 @pytest.mark.unit
 def test_a_worker_keeps_the_lines_that_its_work_logs_in_each_attempt(queue, caplog):
-    with caplog.at_level(logging.INFO, logger="reef"):
+    with caplog.at_level(logging.INFO, logger="aster"):
         assert LoggingWorker(queue, error=RuntimeError("judge down")).run_once()
         assert LoggingWorker(queue).run_once()
     first = queue.read_log("jobs", "a", 1)
@@ -65,7 +65,7 @@ def test_a_worker_keeps_the_lines_that_its_work_logs_in_each_attempt(queue, capl
 @pytest.mark.unit
 def test_an_attempt_keeps_at_most_the_line_limit_and_says_that_it_cut_the_log(queue, caplog, monkeypatch):
     monkeypatch.setattr(work_logs, "MAX_LOG_LINES", 5)
-    with caplog.at_level(logging.INFO, logger="reef"):
+    with caplog.at_level(logging.INFO, logger="aster"):
         assert LoggingWorker(queue, lines=9).run_once()
     lines = queue.read_log("jobs", "a", 1)
     assert [line.number for line in lines] == list(range(6))
@@ -77,7 +77,7 @@ def test_a_worker_without_a_log_keeps_nothing(queue, caplog):
     class Quiet(LoggingWorker):
         keeps_log = False
 
-    with caplog.at_level(logging.INFO, logger="reef"):
+    with caplog.at_level(logging.INFO, logger="aster"):
         assert Quiet(queue).run_once()
     assert queue.read_log("jobs", "a", 1) == ()
     assert MAX_LOG_LINES == 2000
@@ -107,7 +107,7 @@ def test_a_background_job_logs_to_the_attempt_that_submitted_it_also_after_the_a
             return {}
 
     try:
-        with caplog.at_level(logging.INFO, logger="reef"):
+        with caplog.at_level(logging.INFO, logger="aster"):
             assert Submitting(queue).run_once()
             assert [line.message for line in queue.read_log("jobs", "a", 1)] == ["submit"]
             judge.release.set()

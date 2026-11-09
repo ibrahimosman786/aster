@@ -1,12 +1,12 @@
-"""Harbor agent that drives several scored rollouts of one IMO problem through Reef.
+"""Harbor agent that drives several scored rollouts of one IMO problem through Aster.
 
 The problem arrives as the trial's ``instruction``. The agent looks up its gold
-answer and runs ``ROLLOUTS`` rollouts through Reef's ``/v1/chat/completions``,
+answer and runs ``ROLLOUTS`` rollouts through Aster's ``/v1/chat/completions``,
 scoring each \\boxed{} answer against the gold with the strict equivalence rule
 the Harbor verifier uses and reporting the binary reward (1.0 correct, 0.0 wrong)
 against that rollout's receipt — one candidate training step per rollout. The last
 completion is written to ``/workspace/answer.txt`` for the Harbor verifier, and a
-watcher thread posts the verifier's own reward to Reef once Harbor ends the trial.
+watcher thread posts the verifier's own reward to Aster once Harbor ends the trial.
 """
 
 import asyncio
@@ -19,13 +19,13 @@ import time
 from harbor.agents.base import BaseAgent
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
-from reef_client import ReefClient
+from reef_client import AsterClient
 
 from .report import post_report
 
-#: The Reef ``run.sh`` starts from ``serve.yaml``.
+#: The Aster ``run.sh`` starts from ``serve.yaml``.
 SERVICE_URL = "http://127.0.0.1:8900"
-TOKEN = "reef-local"
+TOKEN = "aster-local"
 #: This workload's isolated lane, and the recipe that serves it.
 SCENARIO = "sao-smoke"
 RECIPE = "sao"
@@ -52,10 +52,10 @@ class HarborAgent(BaseAgent):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._client = ReefClient(SERVICE_URL, token=TOKEN, timeout_s=1800)  # long IMO generations
+        self._client = AsterClient(SERVICE_URL, token=TOKEN, timeout_s=1800)  # long IMO generations
         # Harbor runs the verifier after run() returns and ends the trial by
         # writing result.json; watch for it from construction, so the verifier
-        # reward still reaches Reef when the rollouts themselves failed.
+        # reward still reaches Aster when the rollouts themselves failed.
         self._report_watch_from = time.time()
         self._reporter = threading.Thread(target=self._report_trial_result, daemon=True)
         self._reporter.start()
@@ -63,21 +63,21 @@ class HarborAgent(BaseAgent):
 
     @staticmethod
     def name() -> str:
-        return "reef-sao"
+        return "aster-sao"
 
     def version(self) -> str | None:
         return None
 
     async def setup(self, environment: BaseEnvironment) -> None:
         """Create the scenario if it does not exist yet: the inference routes serve only a scenario that exists."""
-        await asyncio.to_thread(self._client.post, "/reef/scenarios", SCENARIO, {"name": SCENARIO})
+        await asyncio.to_thread(self._client.post, "/aster/scenarios", SCENARIO, {"name": SCENARIO})
 
     async def run(self, instruction: str, environment: BaseEnvironment, context: AgentContext) -> None:
         gold = next(answer for prefix, answer in GOLD_ANSWERS.items() if instruction.startswith(prefix))
 
         agent_record_ids = []
         for index in range(ROLLOUTS):
-            response, agent_record_id = await asyncio.to_thread(self._ask_reef, instruction)
+            response, agent_record_id = await asyncio.to_thread(self._ask_aster, instruction)
             completion = response["choices"][0]["message"]["content"]
             predicted = extract_answer(completion)
             score = 1.0 if answers_equal(gold, predicted) else 0.0
@@ -90,11 +90,11 @@ class HarborAgent(BaseAgent):
         if result.return_code != 0:
             raise RuntimeError(f"writing {ANSWER_PATH} failed: {result.stderr}")
 
-        context.metadata = {**(context.metadata or {}), "reef": {"agent_record_ids": agent_record_ids}}
+        context.metadata = {**(context.metadata or {}), "aster": {"agent_record_ids": agent_record_ids}}
         context.n_input_tokens = response["usage"]["prompt_tokens"]
         context.n_output_tokens = response["usage"]["completion_tokens"]
 
-    def _ask_reef(self, instruction: str) -> tuple[dict, str]:
+    def _ask_aster(self, instruction: str) -> tuple[dict, str]:
         return self._client.inference_with_record(
             SCENARIO,
             "/v1/chat/completions",
@@ -114,4 +114,4 @@ class HarborAgent(BaseAgent):
             time.sleep(1.0)
         result = json.loads(result_path.read_text(encoding="utf-8"))
         post_report(result, client=self._client, scenario=SCENARIO)
-        self.logger.info("reported verifier reward %s to reef", result["verifier_result"]["rewards"]["reward"])
+        self.logger.info("reported verifier reward %s to aster", result["verifier_result"]["rewards"]["reward"])

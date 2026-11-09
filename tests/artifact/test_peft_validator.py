@@ -10,8 +10,8 @@ from typing import Any
 
 import pytest
 
-from reef.artifact import AdapterArtifactError, Artifact, PEFTValidator, read_peft_config
-from reef.artifact.peft import ADAPTER_METADATA, METADATA_SCHEMA, read_adapter_metadata
+from aster.artifact import AdapterArtifactError, Artifact, PEFTValidator, read_peft_config
+from aster.artifact.peft import ADAPTER_METADATA, METADATA_SCHEMA, read_adapter_metadata
 
 
 @contextmanager
@@ -98,7 +98,7 @@ def test_validate_skips_the_base_model_check_when_unconfigured(tmp_path: Path) -
 
 
 def metadata(root: Path, **overrides: Any) -> dict[str, Any]:
-    """Write the training metadata Reef would produce for the adapter above."""
+    """Write the training metadata Aster would produce for the adapter above."""
     config_path = root / "adapter_config.json"
     config = json.loads(config_path.read_text(encoding="utf-8"))
     document: dict[str, Any] = {
@@ -126,11 +126,11 @@ def test_an_artifact_without_metadata_stays_admissible(tmp_path: Path) -> None:
 
 
 def test_requiring_metadata_refuses_an_unauditable_adapter(tmp_path: Path) -> None:
-    with pytest.raises(AdapterArtifactError, match="Reef exported"):
+    with pytest.raises(AdapterArtifactError, match="Aster exported"):
         PEFTValidator(BASE_MODEL, require_metadata=True).validate(adapter(tmp_path))
 
 
-def test_a_reef_exported_adapter_validates_against_its_metadata(tmp_path: Path) -> None:
+def test_a_aster_exported_adapter_validates_against_its_metadata(tmp_path: Path) -> None:
     artifact = adapter(tmp_path)
     document = metadata(Path(artifact.local_path))
     PEFTValidator(BASE_MODEL, require_metadata=True).validate(artifact)

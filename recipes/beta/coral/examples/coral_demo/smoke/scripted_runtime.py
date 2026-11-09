@@ -44,7 +44,7 @@ class ScriptedRuntime:
         self,
         worktree_path: Path,
         coral_md_path: Path,
-        model: str = "reef-policy",
+        model: str = "aster-policy",
         runtime_options: dict[str, Any] | None = None,
         max_turns: int = 0,
         log_dir: Path | None = None,

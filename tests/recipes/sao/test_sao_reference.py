@@ -16,7 +16,7 @@ from types import SimpleNamespace
 import pytest
 from tests.support.reference_algorithms import sao
 
-from reef.train.slime_backend.loss_families import resolve_loss_family
+from aster.train.slime_backend.loss_families import resolve_loss_family
 
 
 def _sao_backend_args(**overrides):

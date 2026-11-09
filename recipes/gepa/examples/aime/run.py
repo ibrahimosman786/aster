@@ -1,7 +1,7 @@
-"""The AIME driver: one embedded Reef service, GEPA's search, two sealed test passes.
+"""The AIME driver: one embedded Aster service, GEPA's search, two sealed test passes.
 
 The method is the recipe (``gepa.yaml``); this file is only the benchmark
-around it. It owns the Reef service in process, so every problem it
+around it. It owns the Aster service in process, so every problem it
 solves is real recorded traffic against the served tree and the method
 reflects on transcripts it actually produced.
 
@@ -51,55 +51,55 @@ from recipes.gepa import GEPA
 from recipes.gepa.archive import Archive
 from recipes.gepa.components import texts_of
 from recipes.gepa.method import ARCHIVE_FILE, archive_for_step
-from reef.artifact.memory import InMemoryRepositoryBackend
-from reef.core.records_types import RequestType
-from reef.dispatcher import Dispatcher
-from reef.evaluation.harness import History, evaluation_selection
-from reef.harness import run_task
-from reef.harness.adapters import get_adapter
-from reef.harness.adapters.descriptor import AdapterDescriptor
-from reef.harness.sync import HARNESS_COMPONENT
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tree import HarnessTree, TreePatch, render_tree
-from reef.inference.http import HttpInferenceHandler, InferenceProxyRuntime, provider_request_headers
-from reef.recipe.config import recipe_config_from_file_layout
-from reef.recipe.harness import HarnessEvolutionRecipe
-from reef.recipe.registry import build_recipe
-from reef.service.app import create_app
-from reef.service.deploy.config_utils import load_config
-from reef.service.wire import SCENARIO_HEADER
-from reef.storage.records import RecordStore
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.sqlite import SQLiteScenarioStorage
-from reef.train.harness_backend.component import HISTORY_DIR, HarnessTrainingComponent
-from reef.train.harness_backend.state import HarnessState
-from reef.train.jobs import JobLoopState
+from aster.artifact.memory import InMemoryRepositoryBackend
+from aster.core.records_types import RequestType
+from aster.dispatcher import Dispatcher
+from aster.evaluation.harness import History, evaluation_selection
+from aster.harness import run_task
+from aster.harness.adapters import get_adapter
+from aster.harness.adapters.descriptor import AdapterDescriptor
+from aster.harness.sync import HARNESS_COMPONENT
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tree import HarnessTree, TreePatch, render_tree
+from aster.inference.http import HttpInferenceHandler, InferenceProxyRuntime, provider_request_headers
+from aster.recipe.config import recipe_config_from_file_layout
+from aster.recipe.harness import HarnessEvolutionRecipe
+from aster.recipe.registry import build_recipe
+from aster.service.app import create_app
+from aster.service.deploy.config_utils import load_config
+from aster.service.wire import SCENARIO_HEADER
+from aster.storage.records import RecordStore
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.sqlite import SQLiteScenarioStorage
+from aster.train.harness_backend.component import HISTORY_DIR, HarnessTrainingComponent
+from aster.train.harness_backend.state import HarnessState
+from aster.train.jobs import JobLoopState
 
 HERE = Path(__file__).resolve().parent
 # run.sh exports these; the defaults repeat here so the module imports (and
-# the dry run works) without it. gepa.yaml interpolates REEF_WORK, so it has
+# the dry run works) without it. gepa.yaml interpolates ASTER_WORK, so it has
 # to be set before load_recipe reads the file, not before this import block.
-os.environ.setdefault("REEF_WORK", str(HERE / "work"))
-os.environ.setdefault("REEF_MODEL", "gpt-4.1-mini-2025-04-14")
-os.environ.setdefault("REEF_PI_BINARY", "pi")
-os.environ.setdefault("REEF_GEPA_WORKERS", "128")
-os.environ.setdefault("REEF_GEPA_EXECUTOR", "auto")
+os.environ.setdefault("ASTER_WORK", str(HERE / "work"))
+os.environ.setdefault("ASTER_MODEL", "gpt-4.1-mini-2025-04-14")
+os.environ.setdefault("ASTER_PI_BINARY", "pi")
+os.environ.setdefault("ASTER_GEPA_WORKERS", "128")
+os.environ.setdefault("ASTER_GEPA_EXECUTOR", "auto")
 
-WORK = Path(os.environ["REEF_WORK"])
-SCENARIO = os.environ.get("REEF_GEPA_SCENARIO", "gepa-aime")
+WORK = Path(os.environ["ASTER_WORK"])
+SCENARIO = os.environ.get("ASTER_GEPA_SCENARIO", "gepa-aime")
 # The multi-node variant evolves the rules node and a skill node together;
 # the default single-node run is the one the retained record compares against.
-MULTI = os.environ.get("REEF_GEPA_MULTI") == "1"
+MULTI = os.environ.get("ASTER_GEPA_MULTI") == "1"
 COMPONENTS = ["rules", "skill"] if MULTI else ["rules"]
 # The service key the Pi runs present. The embedded service does not
 # authenticate; this must never be the provider key, which would land in a
 # rendered models.json inside the run root.
-EMBEDDED_KEY = "reef-embedded"
+EMBEDDED_KEY = "aster-embedded"
 RUN_TIMEOUT_S = 600.0
 # Runs are independent: the evaluation's validation pass (gepa.yaml's
 # execution.evolution.workers), the driver's minibatch, and the test passes all run this
 # many at once. It only changes wall time, never sampling or scoring.
-WORKERS = int(os.environ["REEF_GEPA_WORKERS"])
+WORKERS = int(os.environ["ASTER_GEPA_WORKERS"])
 STEP_TIMEOUT_S = 7200.0
 RESULTS = HERE / "results" / "quickstart-seed-0-2026-09-01" / "manifest.json"
 
@@ -110,7 +110,7 @@ def load_recipe(
     """The recipe gepa.yaml declares, with the validation split filled in.
 
     This driver is the deployment: it owns the provider endpoint and hands it
-    to the recipe as its runtime, the way ``reef.upstream_url`` does in a served
+    to the recipe as its runtime, the way ``aster.upstream_url`` does in a served
     deployment. The method never sees the endpoint or the key.
     """
     config = load_config(HERE / "gepa.yaml")
@@ -132,7 +132,7 @@ def load_recipe(
     evolution["seed"] = str(seed_dir)
     sections["evolution"] = evolution
     runtime = InferenceProxyRuntime(
-        model_path=os.environ["REEF_MODEL"],
+        model_path=os.environ["ASTER_MODEL"],
         base_url=aime.OPENAI_BASE_URL,
         api_key=api_key,
         inference_timeout_s=RUN_TIMEOUT_S,
@@ -150,7 +150,7 @@ def load_recipe(
 
 @contextmanager
 def worker_runtime(recipe: HarnessEvolutionRecipe):
-    """Ship only the example's harness package; nodes provide Reef and Pi.
+    """Ship only the example's harness package; nodes provide Aster and Pi.
 
     Ray reads RAY_ADDRESS when set; without it, start a local Ray runtime.
     Do not tear down an externally owned runtime when embedding this driver.
@@ -180,7 +180,7 @@ def provider_key() -> str:
 
 def default_headers_middleware(scenario: str) -> Any:
     """Pi's requests ride this run's scenario: a run knows only an
-    OpenAI-compatible base url and sends no reef headers, so the missing
+    OpenAI-compatible base url and sends no aster headers, so the missing
     scenario header is stamped in before routing."""
 
     @web.middleware
@@ -193,7 +193,7 @@ def default_headers_middleware(scenario: str) -> Any:
 
 
 class RunService:
-    """The in-process Reef service one AIME run owns."""
+    """The in-process Aster service one AIME run owns."""
 
     def __init__(
         self,
@@ -216,7 +216,7 @@ class RunService:
             recipe,
             InMemoryRepositoryBackend.factory(directory=run_dir / "artifacts"),
             local_artifact_dir=run_dir / "staged",
-            scenario_storage=SQLiteScenarioStorage(run_dir / "reef-data"),
+            scenario_storage=SQLiteScenarioStorage(run_dir / "aster-data"),
             coordination=memory_coordination(),
         )
         self.app = create_app(
@@ -238,7 +238,7 @@ class RunService:
         # before any request lands.
         self.dispatcher.get_or_create_scenario(self.scenario)
         self.loop = asyncio.new_event_loop()
-        self.thread = threading.Thread(target=self.loop.run_forever, name="reef-embedded", daemon=True)
+        self.thread = threading.Thread(target=self.loop.run_forever, name="aster-embedded", daemon=True)
         self.thread.start()
         asyncio.run_coroutine_threadsafe(self.serve(), self.loop).result(timeout=60)
 
@@ -263,7 +263,7 @@ class RunService:
 
     def binding(self) -> ModelBinding:
         """The endpoint a run reaches this service through."""
-        return ModelBinding(self.base_url, os.environ["REEF_MODEL"], api_key=EMBEDDED_KEY, timeout_s=RUN_TIMEOUT_S)
+        return ModelBinding(self.base_url, os.environ["ASTER_MODEL"], api_key=EMBEDDED_KEY, timeout_s=RUN_TIMEOUT_S)
 
     def committed_state(self) -> HarnessState:
         """The harness state after the latest step that ended, which the harness training component keeps; the
@@ -355,18 +355,18 @@ def max_sequence(records: RecordStore, scenario: str) -> int:
 
 def report(service: RunService, client: Any, payload: dict[str, Any]) -> None:
     """Report one scored problem; a replayed round lands on its 409."""
-    from reef_client import ReefClientError
+    from reef_client import AsterClientError
 
     try:
         client.report(service.scenario, dict(payload))
-    except ReefClientError as exc:
+    except AsterClientError as exc:
         if exc.status != 409:
             raise
 
 
 def pull_tree(client: Any, service: RunService, target: Path) -> dict[str, Any]:
-    """The pull path: materialize the served source tree from ``GET /reef/harness?form=source``."""
-    manifest = client.get("/reef/harness?form=source", extra_headers={SCENARIO_HEADER: service.scenario})
+    """The pull path: materialize the served source tree from ``GET /aster/harness?form=source``."""
+    manifest = client.get("/aster/harness?form=source", extra_headers={SCENARIO_HEADER: service.scenario})
     if target.exists():
         shutil.rmtree(target)
     HarnessTree(manifest["files"]).write(target)
@@ -407,7 +407,7 @@ def verify_binary(binary: str) -> str:
     except (OSError, subprocess.SubprocessError) as exc:
         raise SystemExit(f"the Pi binary {binary!r} is required: {exc}") from exc
     if found != aime.PI_VERSION:
-        raise SystemExit(f"Pi version is {found!r}, expected {aime.PI_VERSION}; set REEF_PI_BINARY")
+        raise SystemExit(f"Pi version is {found!r}, expected {aime.PI_VERSION}; set ASTER_PI_BINARY")
     return found
 
 
@@ -486,7 +486,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    binary = os.environ["REEF_PI_BINARY"]
+    binary = os.environ["ASTER_PI_BINARY"]
     version = verify_binary(binary)
     trainset, valset, testset = aime.load_aime_splits()
     tasks = [str(example["input"]) for example in valset]
@@ -499,7 +499,7 @@ def main() -> None:
             "scenario": SCENARIO,
             "components": COMPONENTS,
             "pi_version": version,
-            "task_model": os.environ["REEF_MODEL"],
+            "task_model": os.environ["ASTER_MODEL"],
             "reflection_model": aime.REFLECTION_MODEL,
             "budget": args.budget,
             "seed": args.seed,
@@ -512,7 +512,7 @@ def main() -> None:
         print(json.dumps(plan, indent=2, sort_keys=True))
         return
 
-    from reef_client import ReefClient
+    from reef_client import AsterClient
 
     key = provider_key()
     WORK.mkdir(parents=True, exist_ok=True)
@@ -529,7 +529,7 @@ def main() -> None:
         )
         try:
             service.start()
-            client = ReefClient(service.base_url, timeout_s=STEP_TIMEOUT_S)
+            client = AsterClient(service.base_url, timeout_s=STEP_TIMEOUT_S)
             search(service, client, binary, trainset, tasks, args.budget, args.seed)
             scores = test_passes(service, recipe, client, binary, testset)
             final = committed_archive(service, tasks, HarnessTree.read(WORK / "selected"), args.seed)

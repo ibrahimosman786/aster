@@ -4,7 +4,7 @@ environment assumption about the real Hermes Agent lives here: a pinned
 hermes runs one run against a stdlib OpenAI-compatible stub and must read
 our rendered config.yaml, reach the stub with the SOUL.md text and the bound
 key, write a session snapshot our reader parses, make no extra model call,
-and leave no unexplained residue. Skipped unless REEF_REAL_HERMES_BINARY
+and leave no unexplained residue. Skipped unless ASTER_REAL_HERMES_BINARY
 points at an installed hermes (.github/workflows/harness-smoke.yml provides
 one)."""
 
@@ -22,17 +22,17 @@ from typing import Any
 import pytest
 from tests.support.harness_render import write_rendered
 
-from reef.harness.adapters import get_adapter
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tasks.run import run_task
-from reef.harness.tree import HarnessTree, render_tree
+from aster.harness.adapters import get_adapter
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tasks.run import run_task
+from aster.harness.tree import HarnessTree, render_tree
 
-REAL_HERMES = os.environ.get("REEF_REAL_HERMES_BINARY", "")
+REAL_HERMES = os.environ.get("ASTER_REAL_HERMES_BINARY", "")
 
-pytestmark = pytest.mark.skipif(not REAL_HERMES, reason="REEF_REAL_HERMES_BINARY does not name a real hermes binary")
+pytestmark = pytest.mark.skipif(not REAL_HERMES, reason="ASTER_REAL_HERMES_BINARY does not name a real hermes binary")
 
 MODEL = "smoke-model"
-RULES_SENTENCE = "The reef smoke marker phrase is TIDEPOOL-STONE-41."
+RULES_SENTENCE = "The aster smoke marker phrase is TIDEPOOL-STONE-41."
 
 
 class StubOpenAI(ThreadingHTTPServer):
@@ -148,7 +148,7 @@ def test_real_hermes_reads_the_scanner_off_and_finds_the_commands_beside_a_run_h
     extra.mkdir()
     for tree, listed in (("default", None), ("empty", []), ("own", [str(extra.resolve())])):
         config = {} if listed is None else {"config/primary.json": json.dumps({"skills": {"external_dirs": listed}})}
-        root = tmp_path / tree / "reef-harness"
+        root = tmp_path / tree / "aster-harness"
         write_rendered(root, HarnessTree({**config, **command}), descriptor, binding)
         found = [*(listed or []), str((root / "hermes-commands").resolve())]
         result = subprocess.run(
@@ -241,7 +241,7 @@ def test_real_hermes_reads_the_curator_off(tmp_path) -> None:
 def test_the_identity_the_rules_follow_is_the_one_the_real_hermes_seeds() -> None:
     """The hermes render steps put hermes's own first run identity ahead of the rules; it must stay the text the pinned
     hermes writes, read here with the interpreter the real binary runs on."""
-    from reef.harness.adapters.hermes.render import DEFAULT_IDENTITY
+    from aster.harness.adapters.hermes.render import DEFAULT_IDENTITY
 
     interpreter = Path(REAL_HERMES).read_text(encoding="utf-8").splitlines()[0].removeprefix("#!").strip()
     seeded = subprocess.run(

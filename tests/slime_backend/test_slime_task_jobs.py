@@ -15,18 +15,18 @@ from tests.slime_backend.test_slime_component import Stack, batch_for, parameter
 from tests.support.job_data import job_data_ref
 from tests.support.slime_component import finished
 
-from reef.core.job_data import JobData, TaskSample
-from reef.execution.executor.placement import GpuBundles
-from reef.storage.durable_files import read_json
-from reef.train.component import TrainingJob
-from reef.train.slime_backend import rollout_group as rollout_group_module
-from reef.train.slime_backend.dataset import DATASET_FILE
-from reef.train.slime_backend.harbor_rollouts import TASK_ROLLOUTS_FILE, TaskJobSource
-from reef.train.slime_backend.objectives import SlimeObjective, register_slime_objective, unregister_slime_objective
-from reef.train.slime_backend.rollout_group import SlimeRolloutGroup
+from aster.core.job_data import JobData, TaskSample
+from aster.execution.executor.placement import GpuBundles
+from aster.storage.durable_files import read_json
+from aster.train.component import TrainingJob
+from aster.train.slime_backend import rollout_group as rollout_group_module
+from aster.train.slime_backend.dataset import DATASET_FILE
+from aster.train.slime_backend.harbor_rollouts import TASK_ROLLOUTS_FILE, TaskJobSource
+from aster.train.slime_backend.objectives import SlimeObjective, register_slime_objective, unregister_slime_objective
+from aster.train.slime_backend.rollout_group import SlimeRolloutGroup
 
 OBJECTIVE = "slime_dataset"
-FAMILY = "reef.train.slime_backend.native:SlimeNativeAlgorithm"
+FAMILY = "aster.train.slime_backend.native:SlimeNativeAlgorithm"
 HARBOR = {"environment": "modal", "concurrency": 4}
 
 

@@ -27,7 +27,7 @@ EXAMPLE_DIRS = {
     "guidance_ttt": ROOT / "recipes" / "tttd" / "examples" / "guidance_ttt",
     "ceobench": ROOT / "recipes" / "sao" / "examples" / "ceobench",
 }
-REEF_EVAL_EXAMPLE_DIRS = (
+ASTER_EVAL_EXAMPLE_DIRS = (
     *EXAMPLE_DIRS.values(),
     ROOT / "recipes" / "openclawrl" / "examples" / "openclawrl",
     ROOT / "recipes" / "sdpo" / "examples" / "sciknoweval",
@@ -35,7 +35,7 @@ REEF_EVAL_EXAMPLE_DIRS = (
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("example_dir", REEF_EVAL_EXAMPLE_DIRS, ids=lambda path: path.name)
+@pytest.mark.parametrize("example_dir", ASTER_EVAL_EXAMPLE_DIRS, ids=lambda path: path.name)
 def test_reef_eval_examples_declare_their_runtime_dependency(example_dir: Path) -> None:
     project = tomllib.loads((example_dir / "pyproject.toml").read_text(encoding="utf-8"))["project"]
     assert project["requires-python"] == ">=3.12"
@@ -67,7 +67,7 @@ def _install_harbor_protocol(monkeypatch) -> None:
 
 def _load_harness(monkeypatch, example: str):
     _install_harbor_protocol(monkeypatch)
-    package_name = f"_reef_{example}_example_harness"
+    package_name = f"_aster_{example}_example_harness"
     package_dir = EXAMPLE_DIRS[example] / "harness"
     spec = importlib.util.spec_from_file_location(
         package_name,
@@ -95,7 +95,7 @@ def _load_harness(monkeypatch, example: str):
             ("harbor/imo-4", "harbor/imo-8", "harbor/imo-12"),
             ({"position": 0}, {"position": 1}, {"position": 2}),
             "work/lab",
-            "reef",
+            "aster",
         ),
         (
             "guidance_ttt",
@@ -173,12 +173,12 @@ def test_reef_eval_entrypoint_dispatches_the_documented_workload(
     reef_eval.Lab = Lab
     monkeypatch.setitem(sys.modules, "reef_eval", reef_eval)
     for key, value in {
-        "REEF_SERVICE_URL": "http://127.0.0.1:8900",
-        "REEF_SCENARIO": f"{example}-host-test",
-        "REEF_RECIPE": recipe,
-        "REEF_TOKEN": "reef-local",
-        "REEF_MODEL": "reef-test-model",
-        "REEF_TIMEOUT_S": "30",
+        "ASTER_SERVICE_URL": "http://127.0.0.1:8900",
+        "ASTER_SCENARIO": f"{example}-host-test",
+        "ASTER_RECIPE": recipe,
+        "ASTER_TOKEN": "aster-local",
+        "ASTER_MODEL": "aster-test-model",
+        "ASTER_TIMEOUT_S": "30",
         "SAO_ROLLOUTS": "2",
         "SAO_MAX_TOKENS": "32",
         "JUDGE_URL": "http://127.0.0.1:8082",
@@ -196,7 +196,7 @@ def test_reef_eval_entrypoint_dispatches_the_documented_workload(
         # The entrypoint waits for training after each mocked rollout; keep that
         # query local too, regardless of what is listening on the example port.
         def _training_steps(request, timeout):
-            assert request.full_url.endswith("/reef/status")
+            assert request.full_url.endswith("/aster/status")
             status = {"scenarios": {"sao-smoke": {"scenario_step": len(calls) * 6}}}
             return io.BytesIO(json.dumps(status).encode())
 
@@ -272,7 +272,7 @@ def test_basic_harness_runs_inference_and_preserves_its_receipt(monkeypatch) -> 
 
     monkeypatch.setattr(agent_module.asyncio, "to_thread", call_inline)
     agent = object.__new__(agent_module.HarborAgent)
-    agent._ask_reef = lambda _instruction: (
+    agent._ask_aster = lambda _instruction: (
         {
             "choices": [{"message": {"content": "42"}}],
             "usage": {"prompt_tokens": 3, "completion_tokens": 1},
@@ -285,7 +285,7 @@ def test_basic_harness_runs_inference_and_preserves_its_receipt(monkeypatch) -> 
     asyncio.run(agent.run("answer the task", environment, context))
 
     assert environment.commands and "42" in environment.commands[0]
-    assert context.metadata["reef"] == {"agent_record_ids": ["receipt-basic"]}
+    assert context.metadata["aster"] == {"agent_record_ids": ["receipt-basic"]}
     assert (context.n_input_tokens, context.n_output_tokens) == (3, 1)
 
 
@@ -323,7 +323,7 @@ def test_sao_harness_scores_and_reports_every_rollout(monkeypatch) -> None:
     agent._client = Client()
     agent._scenario = "sao-host-test"
     agent._recipe = "sao"
-    agent._ask_reef = lambda _instruction: next(responses)
+    agent._ask_aster = lambda _instruction: next(responses)
     environment = _Environment()
     context = SimpleNamespace(metadata=None, n_input_tokens=0, n_output_tokens=0)
 
@@ -334,7 +334,7 @@ def test_sao_harness_scores_and_reports_every_rollout(monkeypatch) -> None:
         ["receipt-correct"],
         ["receipt-wrong"],
     ]
-    assert context.metadata["reef"]["agent_record_ids"] == ["receipt-correct", "receipt-wrong"]
+    assert context.metadata["aster"]["agent_record_ids"] == ["receipt-correct", "receipt-wrong"]
     assert (context.n_input_tokens, context.n_output_tokens) == (9, 2)
 
 
@@ -362,7 +362,7 @@ def test_harbor_result_posts_verifier_reward_to_its_exact_receipts(monkeypatch, 
     result = {
         "id": "trial-7",
         "task_name": "smoke",
-        "agent_result": {"metadata": {"reef": {"agent_record_ids": ["receipt-7"]}}},
+        "agent_result": {"metadata": {"aster": {"agent_record_ids": ["receipt-7"]}}},
         "verifier_result": {"rewards": {"reward": 0.75}},
     }
     client = Client()

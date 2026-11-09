@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from reef.train.slime_backend.reef_adapters.megatron.scheduler_resume import restore_scheduler_progress
+from aster.train.slime_backend.aster_adapters.megatron.scheduler_resume import restore_scheduler_progress
 
 
 class _CosineScheduler:

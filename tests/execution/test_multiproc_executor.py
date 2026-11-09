@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from reef.execution.executor import Executor, ExecutorConfig, ExecutorFailedError, WorkerSpec, resolve
+from aster.execution.executor import Executor, ExecutorConfig, ExecutorFailedError, WorkerSpec, resolve
 
 
 class Counter:
@@ -60,7 +60,7 @@ class Rendezvous:
 
 class RunSleeper:
     def run(self, directory):
-        from reef.execution.sandbox.process import RUN_OWNER_LEASE, LocalExecutor
+        from aster.execution.sandbox.process import RUN_OWNER_LEASE, LocalExecutor
 
         root = Path(directory)
         token = RUN_OWNER_LEASE.set(True)

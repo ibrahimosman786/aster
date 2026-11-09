@@ -22,7 +22,7 @@ import urllib.request
 def chat(prompt: str) -> str:
     body = json.dumps(
         {
-            "model": os.environ.get("SMOKE_MODEL", "reef-policy"),
+            "model": os.environ.get("SMOKE_MODEL", "aster-policy"),
             "messages": [{"role": "user", "content": prompt}],
             "max_tokens": 512,
         }

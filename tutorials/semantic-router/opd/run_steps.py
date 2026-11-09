@@ -1,4 +1,4 @@
-"""Run one or two OPD feasibility batches through the routed Reef frontend and verify the published student."""
+"""Run one or two OPD feasibility batches through the routed Aster frontend and verify the published student."""
 
 import argparse
 import os
@@ -10,19 +10,19 @@ from pathlib import Path
 from urllib.parse import quote
 
 from bridge import MARKER, NATIVE_URL, SCENARIO, sampling_digest
-from reef_client import ReefClient, ReefClientError
+from reef_client import AsterClient, AsterClientError
 
 from recipes.opd.examples.math.run import Question, load_questions, report_id, write_json
-from reef.storage.records import RecordStore
-from reef.storage.samples import consumed_sample_id
-from reef.storage.sqlite import SQLiteScenarioStorage
+from aster.storage.records import RecordStore
+from aster.storage.samples import consumed_sample_id
+from aster.storage.sqlite import SQLiteScenarioStorage
 
-SCENARIO_PATH = f"/reef/scenarios/{quote(SCENARIO, safe='')}"
+SCENARIO_PATH = f"/aster/scenarios/{quote(SCENARIO, safe='')}"
 
 
 def sample(
-    outer: ReefClient,
-    native: ReefClient,
+    outer: AsterClient,
+    native: AsterClient,
     records: RecordStore,
     prompt: str,
     seed: int,
@@ -44,7 +44,7 @@ def sample(
     started = time.monotonic()
     reply, headers = outer.post("/v1/chat/completions", SCENARIO, body)
     elapsed = time.monotonic() - started
-    receipt = headers["x-reef-agent-record-id"]
+    receipt = headers["x-aster-agent-record-id"]
     record = records.get(SCENARIO, receipt)
     if record is None or record.artifact_id is not None:
         raise RuntimeError(f"Missing or unexpected weight-bound routed record {receipt}")
@@ -104,7 +104,7 @@ def sample(
     }
 
 
-def weights(native: ReefClient) -> list[dict]:
+def weights(native: AsterClient) -> list[dict]:
     """Return the native weight history, newest first, with exactly the newest artifact active."""
     rows = [row for row in native.get(f"{SCENARIO_PATH}/artifacts")["artifacts"] if row["component"] == "weights"]
     if not rows or [row["active"] for row in rows] != [True] + [False] * (len(rows) - 1):
@@ -113,7 +113,7 @@ def weights(native: ReefClient) -> list[dict]:
 
 
 def await_update(
-    native: ReefClient, before: list[dict], consumed: set[str], timeout: float
+    native: AsterClient, before: list[dict], consumed: set[str], timeout: float
 ) -> tuple[list[dict], dict]:
     """Wait for one publication and verify the submitted records and checkpoint belong to the same training job."""
     deadline = time.monotonic() + timeout
@@ -121,7 +121,7 @@ def await_update(
         history = weights(native)
         if len(history) > len(before):
             break
-        error = native.get("/reef/status").get("error")
+        error = native.get("/aster/status").get("error")
         if error:
             raise RuntimeError(f"Native training failed: {error}")
         time.sleep(2)
@@ -176,7 +176,7 @@ def main() -> None:
     args = parser.parse_args()
     if not 1 <= args.train_tokens <= 256 or args.update_timeout <= 0:
         parser.error("choose 1 to 256 train tokens and a positive update timeout")
-    for variable in ("ROUTE_EXP_DIR", "ROUTER_RECORD_DIR", "REEF_TOKEN", "ROUTER_TOKEN"):
+    for variable in ("ROUTE_EXP_DIR", "ROUTER_RECORD_DIR", "ASTER_TOKEN", "ROUTER_TOKEN"):
         if not os.environ.get(variable):
             parser.error(f"set {variable} before starting the driver")
     questions = load_questions(args.train_data)[: 2 * args.steps]
@@ -197,20 +197,20 @@ def main() -> None:
 
 def run(args: argparse.Namespace, questions: list[Question], output: Path, records: RecordStore) -> None:
     """Submit one four-record OPD batch per step and check the weights served after the last update."""
-    outer = ReefClient(
+    outer = AsterClient(
         os.environ.get("OPD_ROUTER_URL", "http://127.0.0.1:18920"),
         token=os.environ["ROUTER_TOKEN"],
         timeout_s=args.update_timeout,
     )
-    native = ReefClient(NATIVE_URL, token=os.environ["REEF_TOKEN"], timeout_s=args.update_timeout)
+    native = AsterClient(NATIVE_URL, token=os.environ["ASTER_TOKEN"], timeout_s=args.update_timeout)
     try:
         native.get(f"{SCENARIO_PATH}/artifacts")
-    except ReefClientError as exc:
+    except AsterClientError as exc:
         if exc.status != 404:
             raise
     else:
         raise RuntimeError(f"Use a fresh native Scenario; {SCENARIO} already exists")
-    native.post("/reef/scenarios", SCENARIO, {"name": SCENARIO})
+    native.post("/aster/scenarios", SCENARIO, {"name": SCENARIO})
     history = weights(native)
     if len(history) != 1 or history[0]["operation"] != "creation":
         raise RuntimeError("Expected a fresh weight history")

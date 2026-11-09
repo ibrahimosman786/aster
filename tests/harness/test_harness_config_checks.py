@@ -10,17 +10,17 @@ import pytest
 
 from tests.support.harness_render import descriptor_data, write_descriptor
 
-import reef.harness.adapters
-from reef.harness.adapters import BUILTIN_ADAPTERS, builtin_descriptor_path, get_adapter
-from reef.harness.adapters.descriptor import (
+import aster.harness.adapters
+from aster.harness.adapters import BUILTIN_ADAPTERS, builtin_descriptor_path, get_adapter
+from aster.harness.adapters.descriptor import (
     ADAPTER_FILE,
     AdapterDescriptor,
     AdapterRenderer,
     DescriptorError,
     load_descriptor,
 )
-from reef.harness.adapters.matchers import ABSENT, parse_matcher
-from reef.harness.tree import HarnessTree, RenderError, render_tree
+from aster.harness.adapters.matchers import ABSENT, parse_matcher
+from aster.harness.tree import HarnessTree, RenderError, render_tree
 
 OPENCODE = "plugin/config.json"
 
@@ -33,7 +33,7 @@ def test_every_bundled_descriptor_loads(adapter: str) -> None:
 
 
 def test_every_descriptor_file_is_a_bundled_adapter() -> None:
-    adapters_dir = Path(reef.harness.adapters.__file__).parent
+    adapters_dir = Path(aster.harness.adapters.__file__).parent
     assert {path.parent.name for path in adapters_dir.glob(f"*/{ADAPTER_FILE}")} == set(BUILTIN_ADAPTERS)
 
 
@@ -162,7 +162,7 @@ def test_is_default_keeps_the_value_the_defaults_set(tmp_path: Path) -> None:
 
 def test_is_default_of_a_key_the_defaults_do_not_set_is_is_absent(tmp_path: Path) -> None:
     descriptor = checked(tmp_path, [{"key": "small_model", "match": "IsDefault()"}], {})
-    for value in ["reef/served", None, "", {}, []]:
+    for value in ["aster/served", None, "", {}, []]:
         # An empty value is a set one.
         with pytest.raises(RenderError, match="on small_model in"):
             render_config(descriptor, {"small_model": value})

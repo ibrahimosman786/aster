@@ -3,7 +3,7 @@ real thing. The hermetic suites drive a scripted fake, so every format and
 environment assumption about the real binary lives here: a pinned pi runs one
 run against a stdlib OpenAI-compatible stub and must read our rendered
 tree, reach the stub with the rules text, write a session our reader
-parses, and leave no unexplained residue. Skipped unless REEF_REAL_PI_BINARY
+parses, and leave no unexplained residue. Skipped unless ASTER_REAL_PI_BINARY
 points at an installed pi (.github/workflows/harness-smoke.yml provides one)."""
 
 from __future__ import annotations
@@ -19,17 +19,17 @@ import pytest
 from tests.support.harness_render import write_layer
 from tests.support.openai_stub import MODEL, StubOpenAI
 
-from reef.harness.adapters import get_adapter
-from reef.harness.sync import layer_install
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tasks.run import run_task
-from reef.harness.tree import HarnessTree, render_tree
+from aster.harness.adapters import get_adapter
+from aster.harness.sync import layer_install
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tasks.run import run_task
+from aster.harness.tree import HarnessTree, render_tree
 
-REAL_PI = os.environ.get("REEF_REAL_PI_BINARY", "")
+REAL_PI = os.environ.get("ASTER_REAL_PI_BINARY", "")
 
-pytestmark = pytest.mark.skipif(not REAL_PI, reason="REEF_REAL_PI_BINARY does not name a real pi binary")
+pytestmark = pytest.mark.skipif(not REAL_PI, reason="ASTER_REAL_PI_BINARY does not name a real pi binary")
 
-RULES_SENTENCE = "The reef smoke marker phrase is TIDEPOOL-STONE-41."
+RULES_SENTENCE = "The aster smoke marker phrase is TIDEPOOL-STONE-41."
 
 
 def capturing_wrapper(tmp_path: Path, capture: Path) -> str:
@@ -56,11 +56,11 @@ def test_real_pi_run_renders_runs_and_cleans_up(tmp_path: Path) -> None:
     server = StubOpenAI()
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
-        # The model comes through Reef's binding, as in every run: a tree may not name a provider of its own.
+        # The model comes through Aster's binding, as in every run: a tree may not name a provider of its own.
         binding = ModelBinding(base_url=f"http://127.0.0.1:{server.server_address[1]}", model=MODEL, api_key="dummy")
         descriptor = get_adapter("pi")
         files = render_tree(HarnessTree({"rules.md": RULES_SENTENCE}), descriptor, binding.config_overlays(descriptor))
-        capture = Path(os.environ.get("REEF_REAL_PI_SESSION_OUT", tmp_path / "real-pi-session.jsonl"))
+        capture = Path(os.environ.get("ASTER_REAL_PI_SESSION_OUT", tmp_path / "real-pi-session.jsonl"))
         binary = capturing_wrapper(tmp_path, capture)
         result = run_task(get_adapter("pi"), files, "Reply with exactly the word READY", binary=binary, timeout=120.0)
     finally:
@@ -85,13 +85,13 @@ def test_real_pi_run_renders_runs_and_cleans_up(tmp_path: Path) -> None:
 #: A tree with a marker in each part pi's adapter evolves. The prompt runs the command, so its text is the request's.
 PROBE_TOOL = (
     'export default function (pi: any) { pi.registerTool({ name: "tidepool_probe", label: "probe", '
-    'description: "The reef smoke extension marker is TIDEPOOL-EXT-19.", parameters: { type: "object", '
+    'description: "The aster smoke extension marker is TIDEPOOL-EXT-19.", parameters: { type: "object", '
     'properties: {} }, async execute() { return { content: [{ type: "text", text: "ok" }], details: {} }; } }); }\n'
 )
 PARTS = {
     "rules.md": RULES_SENTENCE,
-    "skills/probe/SKILL.md": "---\nname: probe\ndescription: The reef smoke skill marker is TIDEPOOL-SKILL-23.\n---\n",
-    "commands/ship.md": "The reef smoke command marker is TIDEPOOL-COMMAND-31.\n",
+    "skills/probe/SKILL.md": "---\nname: probe\ndescription: The aster smoke skill marker is TIDEPOOL-SKILL-23.\n---\n",
+    "commands/ship.md": "The aster smoke command marker is TIDEPOOL-COMMAND-31.\n",
     "extensions/probe.ts": PROBE_TOOL,
 }
 MARKERS = ("TIDEPOOL-STONE-41", "TIDEPOOL-SKILL-23", "TIDEPOOL-COMMAND-31", "TIDEPOOL-EXT-19")

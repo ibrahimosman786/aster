@@ -18,7 +18,7 @@ from tests.recipes.autoenvscaling.autoenvscaling_stubs import (
     agent_files,
     fenced,
     run_agent,
-    serving_reef,
+    serving_aster,
     source_of,
     sources,
 )
@@ -43,8 +43,8 @@ from recipes.beta.autoenvscaling.author import (
     call_receipt,
     repository_snapshot,
 )
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.record2sample.generator.designer import HARBOR_OUTPUT_TEXT, SYSTEM_PROMPT
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.record2sample.generator.designer import HARBOR_OUTPUT_TEXT, SYSTEM_PROMPT
 
 
 class HeldChecks(CandidateChecks):
@@ -73,11 +73,11 @@ def test_asking_for_a_check_while_one_runs_waits_for_that_one(tmp_path: Path) ->
     assert checks.count == 1, "the second ask started no check of its own"
 
 
-def test_the_gateway_records_each_model_call_on_reef_and_keeps_its_receipt(tmp_path: Path) -> None:
-    reef, served = serving_reef("ok")
+def test_the_gateway_records_each_model_call_on_aster_and_keeps_its_receipt(tmp_path: Path) -> None:
+    aster, served = serving_aster("ok")
     calls = ModelCalls(budget=1)
-    upstream = ModelBinding(base_url=f"http://127.0.0.1:{reef.server_address[1]}", model="designer", api_key="token")
-    headers = {"x-reef-scenario": "autoenvscaling", "x-reef-tag-role": "designer"}
+    upstream = ModelBinding(base_url=f"http://127.0.0.1:{aster.server_address[1]}", model="designer", api_key="token")
+    headers = {"x-aster-scenario": "autoenvscaling", "x-aster-tag-role": "designer"}
     gateway = RecordingGateway(upstream, calls, AgentTools(tmp_path, NoChecks(1)), headers=headers)
     gateway.start()
 
@@ -98,13 +98,13 @@ def test_the_gateway_records_each_model_call_on_reef_and_keeps_its_receipt(tmp_p
         assert post() == 429, "the run's model-call budget is spent"
     finally:
         gateway.stop()
-        reef.shutdown()
-        reef.server_close()
+        aster.shutdown()
+        aster.server_close()
     assert calls.receipts == ["rec-1"]
     [call] = served
     assert call["model"] == "designer" and call["headers"]["authorization"] == "Bearer token"
-    assert call["headers"]["x-reef-scenario"] == "autoenvscaling" and call["headers"]["x-reef-tag-role"] == "designer"
-    streamed = b'event: response.completed\ndata: {"type":"response.completed","reef":{"agent_record_id":"rec-9"}}\n\n'
+    assert call["headers"]["x-aster-scenario"] == "autoenvscaling" and call["headers"]["x-aster-tag-role"] == "designer"
+    streamed = b'event: response.completed\ndata: {"type":"response.completed","aster":{"agent_record_id":"rec-9"}}\n\n'
     assert call_receipt({}, streamed) == "rec-9" and call_receipt({}, b"{}") is None
 
 
@@ -246,10 +246,10 @@ def test_a_missing_repository_or_commit_is_a_bad_source_and_a_network_failure_an
 @pytest.mark.parametrize("api", ["openai", "responses"])
 def test_the_prompt_designer_asks_once_with_the_session_cut_to_its_budget(tmp_path: Path, api: str) -> None:
     reply = fenced(DOCUMENT)
-    reef, calls = serving_reef(reply)
+    aster, calls = serving_aster(reply)
     try:
         author = PromptAuthor(
-            reef_url=f"http://127.0.0.1:{reef.server_address[1]}",
+            aster_url=f"http://127.0.0.1:{aster.server_address[1]}",
             token="token",
             scenario="autoenvscaling",
             model="designer",
@@ -264,12 +264,12 @@ def test_the_prompt_designer_asks_once_with_the_session_cut_to_its_budget(tmp_pa
             stop=threading.Event(),
         )
     finally:
-        reef.shutdown()
-        reef.server_close()
+        aster.shutdown()
+        aster.server_close()
     [call] = calls
     assert call["path"] == ("/v1/responses" if api == "responses" else "/v1/chat/completions")
     assert call["model"] == "designer" and call["headers"]["authorization"] == "Bearer token"
-    assert call["headers"]["x-reef-scenario"] == "autoenvscaling" and call["headers"]["x-reef-tag-role"] == "designer"
+    assert call["headers"]["x-aster-scenario"] == "autoenvscaling" and call["headers"]["x-aster-tag-role"] == "designer"
     if api == "responses":
         system, prompt = call["instructions"], call["input"][0]["content"][0]["text"]
     else:
@@ -290,11 +290,11 @@ def test_the_behaviour_rule_reaches_both_authors_and_is_absent_when_off(tmp_path
     assert BEHAVIOUR_RULES_TEXT in agent_files(tmp_path / "on", has_behaviour_rule=True, checks=NoChecks(1))
     assert rule not in agent_files(tmp_path / "off", has_behaviour_rule=False, checks=NoChecks(1))
 
-    reef, calls = serving_reef(fenced(DOCUMENT))
+    aster, calls = serving_aster(fenced(DOCUMENT))
     try:
         for has_behaviour_rule in (True, False):
             PromptAuthor(
-                reef_url=f"http://127.0.0.1:{reef.server_address[1]}",
+                aster_url=f"http://127.0.0.1:{aster.server_address[1]}",
                 token="token",
                 scenario="autoenvscaling",
                 model="designer",
@@ -309,7 +309,7 @@ def test_the_behaviour_rule_reaches_both_authors_and_is_absent_when_off(tmp_path
                 stop=threading.Event(),
             )
     finally:
-        reef.shutdown()
-        reef.server_close()
+        aster.shutdown()
+        aster.server_close()
     with_rule, without_rule = (call["messages"][1]["content"] for call in calls)
     assert BEHAVIOUR_RULES_TEXT in with_rule and rule not in without_rule

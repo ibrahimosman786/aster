@@ -10,12 +10,12 @@ import pytest
 import tests
 from tests.support.harness_steps import PI_SEED, harness_backend
 
-from reef.evaluation.harness import HarnessCandidate, TaskScorer
-from reef.execution.executor import Executor, ExecutorConfig, WorkerSpec
-from reef.execution.executor.config import executor_settings
-from reef.execution.executor.requirements import ExecutionRequirements
+from aster.evaluation.harness import HarnessCandidate, TaskScorer
+from aster.execution.executor import Executor, ExecutorConfig, WorkerSpec
+from aster.execution.executor.config import executor_settings
+from aster.execution.executor.requirements import ExecutionRequirements
 
-pytestmark = pytest.mark.skipif(os.environ.get("REEF_TEST_RAY") != "1", reason="opt-in real Ray integration")
+pytestmark = pytest.mark.skipif(os.environ.get("ASTER_TEST_RAY") != "1", reason="opt-in real Ray integration")
 
 
 class GPUScorer(TaskScorer):

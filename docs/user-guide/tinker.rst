@@ -76,8 +76,8 @@ job metric ``unrenderable_samples`` counts it. A task job's own rollouts keep
 the sampled IDs and log probabilities that Tinker returns.
 
 Aster's normal ``WeightTrainingRecipe`` drives the integration. The backend is
-one training component (``reef.train.tinker_backend``) and one inference
-runtime (``reef.inference.tinker``). Aster submits each job's ready data to the
+one training component (``aster.train.tinker_backend``) and one inference
+runtime (``aster.inference.tinker``). Aster submits each job's ready data to the
 component as one training job. They share nothing in process: each saved
 checkpoint carries a ``tinker-checkpoint.json`` manifest that names its
 remote training state and sampler. The inference side serves the sampler that
@@ -186,7 +186,7 @@ Serve on inference engines
 
 Aster's own SGLang engines can serve the adapters that Tinker trains, in place
 of Tinker's sampler. The engines run on an inference component
-(``python -m reef.inference.remote``), a service separate from the trainer.
+(``python -m aster.inference.remote``), a service separate from the trainer.
 The Aster control plane starts the engines on the component and loads each
 saved adapter into them. Tinker still trains in the HTTP service's process,
 and the trainer never talks to the engines.
@@ -207,14 +207,14 @@ the base model that Tinker trains in ``inference.model-path``,
    training:
      backend: tinker
      options:
-       state-dir: /var/lib/reef/tinker
+       state-dir: /var/lib/aster/tinker
        lora-rank: 32
 
 ``aster serve`` then starts an inference component on this host before the
 HTTP service. The component listens on a free loopback port and starts its own
 Ray session; with ``training.ray-address`` it joins that cluster instead.
 ``aster serve`` generates the two component tokens
-(``REEF_REMOTE_CONTROL_TOKEN`` and ``REEF_REMOTE_INFERENCE_TOKEN``) unless
+(``ASTER_REMOTE_CONTROL_TOKEN`` and ``ASTER_REMOTE_INFERENCE_TOKEN``) unless
 they are set, and both children inherit them. The HTTP service starts the
 engines before it serves, so its readiness deadline is at least
 ``training.ready-timeout``.
@@ -264,15 +264,15 @@ the component:
 
 .. code:: bash
 
-   export REEF_REMOTE_CONTROL_TOKEN=...    # starts engines and replaces weights
-   export REEF_REMOTE_INFERENCE_TOKEN=...  # sends inference requests
-   python -m reef.inference.remote --port 8000
+   export ASTER_REMOTE_CONTROL_TOKEN=...    # starts engines and replaces weights
+   export ASTER_REMOTE_INFERENCE_TOKEN=...  # sends inference requests
+   python -m aster.inference.remote --port 8000
 
 The component starts its own Ray session and no engines. Its control routes
 other than ``health`` answer ``409`` until a control plane starts the engines. It starts only the
 engine backend that ``--engine`` names (default ``sglang``) and refuses any
 other backend that a control plane asks for.
-``python -m reef.inference.remote --help`` lists the bind address, the upload
+``python -m aster.inference.remote --help`` lists the bind address, the upload
 directory and the Ray options.
 
 On the Aster host, set the same two variables. Keep ``inference.backend:
@@ -289,7 +289,7 @@ sglang`` and add an ``inference.remote`` section with the component's URL:
    training:
      backend: tinker
      options:
-       state-dir: /var/lib/reef/tinker
+       state-dir: /var/lib/aster/tinker
        lora-rank: 32
 
 ``aster serve`` then starts no local component. The control plane asks the
@@ -322,7 +322,7 @@ a CPU. The component runs a stub engine in its own process and Ray session, and
 the test process is the control plane with the Tinker SDK faked. It trains one
 TTTD step, checks that the component serves the adapter, restarts the control
 plane, and checks that the component serves the committed adapter again. With
-``REEF_TEST_TINKER_REAL=1`` and ``TINKER_API_KEY`` set, it trains, downloads
+``ASTER_TEST_TINKER_REAL=1`` and ``TINKER_API_KEY`` set, it trains, downloads
 and converts a real checkpoint.
 
 Train all the parameters on Spindle
@@ -357,7 +357,7 @@ Prerequisites:
    training:
      backend: spindle_full
      options:
-       state-dir: /var/lib/reef/spindle-full
+       state-dir: /var/lib/aster/spindle-full
        base-url: https://<workspace>--spindle-server.modal.run
        base: hf://org/model@0123456789abcdef0123456789abcdef01234567
        release-repo: org/model-releases     # one commit per saved checkpoint

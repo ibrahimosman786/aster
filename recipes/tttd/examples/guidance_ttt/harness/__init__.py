@@ -1,6 +1,6 @@
 """Harness-side building blocks for summary-only Guidance-TTT.
 
-``harness.agent`` is the Reef adapter: one trainable guidance call per rollout,
+``harness.agent`` is the Aster adapter: one trainable guidance call per rollout,
 one frozen external execution, and one verifier reward reported against the
 exact guidance receipt. ``harness.harbor_agent`` wires that loop to Harbor and
 is the only module that imports the external ``harbor`` package, so everything
@@ -12,7 +12,7 @@ task's ``instruction.md`` and the rest of its vocabulary as that task's
 not a harness change.
 """
 
-from .agent import GuidanceRolloutResult, ReefGuidanceTTTHarness, prepare_library
+from .agent import GuidanceRolloutResult, AsterGuidanceTTTHarness, prepare_library
 from .contract import TaskContract
 from .execution import (
     ExecutionBackend,
@@ -32,7 +32,7 @@ __all__ = [
     "JudgeScorer",
     "JudgeUnavailableError",
     "OpenAICompatibleExecutionClient",
-    "ReefGuidanceTTTHarness",
+    "AsterGuidanceTTTHarness",
     "Scorer",
     "TaskContract",
     "extract_solution_code",

@@ -56,14 +56,14 @@ with no GPU.
 
       .. code:: bash
 
-         export REEF_TOKEN=reef-local
-         export REEF_UPSTREAM_API_KEY=sk-...
+         export ASTER_TOKEN=aster-local
+         export ASTER_UPSTREAM_API_KEY=sk-...
 
          aster serve \
            --inference.upstream-url https://api.openai.com \
            --inference.upstream-model gpt-4o
 
-      Aster listens on ``127.0.0.1:8900`` and writes state under ``.reef/`` in
+      Aster listens on ``127.0.0.1:8900`` and writes state under ``.aster/`` in
       the directory where you run it. The upstream key and Aster token come
       from the environment. Without ``-c``, no config file is read. To connect
       another provider, change the URL and model. Existing deployments can
@@ -81,14 +81,14 @@ with no GPU.
 
       .. code:: bash
 
-         curl -sS -X POST http://127.0.0.1:8900/reef/scenarios \
-           -H "Authorization: Bearer reef-local" \
+         curl -sS -X POST http://127.0.0.1:8900/aster/scenarios \
+           -H "Authorization: Bearer aster-local" \
            -H "Content-Type: application/json" \
-           -d '{"name": "hello-reef"}'
+           -d '{"name": "hello-aster"}'
 
    #. **Send a request and report on it.** The body is the provider's;
-      ``x-reef-scenario`` is the only thing Aster adds. The response header
-      ``x-reef-agent-record-id`` carries the **receipt**, which names the
+      ``x-aster-scenario`` is the only thing Aster adds. The response header
+      ``x-aster-agent-record-id`` carries the **receipt**, which names the
       stored exchange. Tests, a verifier, a rubric, a thumbs-down, or any other
       grader you already have can report feedback against it.
 
@@ -96,25 +96,25 @@ with no GPU.
 
          import httpx
 
-         reef = httpx.Client(
+         client = httpx.Client(
              base_url="http://127.0.0.1:8900",
-             headers={"Authorization": "Bearer reef-local", "x-reef-scenario": "hello-reef"},
+             headers={"Authorization": "Bearer aster-local", "x-aster-scenario": "hello-aster"},
          )
 
-         response = reef.post(
+         response = client.post(
              "/v1/chat/completions",
-             json={"model": "gpt-4o", "messages": [{"role": "user", "content": "Return exactly: reef is ready"}]},
+             json={"model": "gpt-4o", "messages": [{"role": "user", "content": "Return exactly: aster is ready"}]},
          )
          response.raise_for_status()
-         receipt = response.headers["x-reef-agent-record-id"]  # e.g. ee5aa401634b4567bf9dae21816abde4
-         matched = response.json()["choices"][0]["message"]["content"].strip() == "reef is ready"
+         receipt = response.headers["x-aster-agent-record-id"]  # e.g. ee5aa401634b4567bf9dae21816abde4
+         matched = response.json()["choices"][0]["message"]["content"].strip() == "aster is ready"
 
-         report = reef.post(
-             "/reef/report",
+         report = client.post(
+             "/aster/report",
              json={"score": float(matched), "feedback": "matched" if matched else "wrong answer", "references": [receipt]},
          )
          print(report.json())
-         # {"agent_record_id": "cce17dd7...", "scenario": "hello-reef", "request_type": "report"}
+         # {"agent_record_id": "cce17dd7...", "scenario": "hello-aster", "request_type": "report"}
 
       Reports are records too, so the response carries the report's own record
       id. Only inference-record ids are receipts, and they appear only
@@ -127,21 +127,21 @@ with no GPU.
 
          from reef_client import AsterClient
 
-         client = AsterClient("http://127.0.0.1:8900", token="reef-local")
+         client = AsterClient("http://127.0.0.1:8900", token="aster-local")
 
          body, receipt = client.inference_with_record(
-             "hello-reef",                                   # the scenario
+             "hello-aster",                                   # the scenario
              "/v1/chat/completions",
              {"model": "gpt-4o", "messages": [{"role": "user", "content": "hi"}]},
          )
          answer = body["choices"][0]["message"]["content"]
 
          # ... whatever already judges your agent decides this score ...
-         client.report("hello-reef", {"score": 1.0}, references=[receipt])
+         client.report("hello-aster", {"score": 1.0}, references=[receipt])
 
       With an OpenAI SDK instead, point ``base_url`` at
-      ``http://127.0.0.1:8900/v1``, send ``x-reef-scenario`` as a default
-      header, and read ``x-reef-agent-record-id`` off the raw response.
+      ``http://127.0.0.1:8900/v1``, send ``x-aster-scenario`` as a default
+      header, and read ``x-aster-agent-record-id`` off the raw response.
 
       On the wire it is an ordinary provider request with one added header, and
       the receipt comes back in a response header:
@@ -150,19 +150,19 @@ with no GPU.
 
          curl -sS -D - -o /dev/null \
            http://127.0.0.1:8900/v1/chat/completions \
-           -H "Authorization: Bearer reef-local" \
-           -H "x-reef-scenario: hello-reef" \
+           -H "Authorization: Bearer aster-local" \
+           -H "x-aster-scenario: hello-aster" \
            -H "Content-Type: application/json" \
            -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "hi"}]}'
-         # x-reef-agent-record-id: ee5aa401634b4567bf9dae21816abde4
+         # x-aster-agent-record-id: ee5aa401634b4567bf9dae21816abde4
 
    #. **Read the artifacts.**
 
       .. code:: bash
 
-         curl -sS -H "Authorization: Bearer reef-local" \
-           http://127.0.0.1:8900/reef/scenarios/hello-reef/artifacts
-         # {"scenario": "hello-reef", "artifacts": [{"artifact_id": "...", "operation": "creation", "active": true, ...}]}
+         curl -sS -H "Authorization: Bearer aster-local" \
+           http://127.0.0.1:8900/aster/scenarios/hello-aster/artifacts
+         # {"scenario": "hello-aster", "artifacts": [{"artifact_id": "...", "operation": "creation", "active": true, ...}]}
 
       One artifact, and it will stay at one: this deployment's recipe is the
       core ``recipe``, which records and trains nothing.
@@ -175,7 +175,7 @@ Weight recipes need GPUs (`Evolve your model
 <../user-guide/evolve-your-model.rst>`__).
 
 A harness recipe runs on a laptop with only a model endpoint. Bind
-``reef.recipe.harness:HarnessEvolutionRecipe`` and give it a **preset**
+``aster.recipe.harness:HarnessEvolutionRecipe`` and give it a **preset**
 naming your method (``evolution.method``), the seed tree, and the evaluation's
 tasks and scorer (``evolution.evaluation``). ``tutorials/evolve-your-harness/run.sh`` wires the whole loop
 together. Run it, then read `Evolve your harness

@@ -1,9 +1,9 @@
-"""Opt-in functional smoke of domain-classifier routing through a running ``reef serve`` and the real SR.
+"""Opt-in functional smoke of domain-classifier routing through a running ``aster serve`` and the real SR.
 
 It is not part of the test suite and never starts or stops a service. ``manifests`` writes two manifests from
 ``manifest.example.yaml``: both add the pinned Vela Domain classifier at ``--model-directory`` and a
 ``math_request`` domain rule to each Scenario; the second only sends ``code-opd``'s rule to its student.
-``check`` then sends requests to a ``reef serve`` started with the first manifest and the CPU stand-ins of
+``check`` then sends requests to a ``aster serve`` started with the first manifest and the CPU stand-ins of
 ``fake_provider.py``, whose answers name the model that answered. It checks, for two Scenarios: a domain rule
 match, the default target, an explicit pin, a refused cross-Scenario pin, JSON and SSE receipts, feedback
 linked to each Scenario's receipts, and a policy update by ``SIGHUP``. It prints a JSON summary and exits 1
@@ -67,7 +67,7 @@ def write_manifests(model_directory: Path, output: Path) -> None:
 
 
 class NoRedirects(urllib.request.HTTPRedirectHandler):
-    """A stateless handler that refuses redirects to keep the Reef token at the requested endpoint."""
+    """A stateless handler that refuses redirects to keep the Aster token at the requested endpoint."""
 
     def redirect_request(
         self, req: urllib.request.Request, fp: HTTPResponse, code: int, msg: str, headers: Message, newurl: str
@@ -77,7 +77,7 @@ class NoRedirects(urllib.request.HTTPRedirectHandler):
 
 
 class SmokeClient:
-    """Requests to one Reef service with one service token; ``checks`` collects every outcome in order."""
+    """Requests to one Aster service with one service token; ``checks`` collects every outcome in order."""
 
     def __init__(self, url: str, token: str) -> None:
         self.url = url.rstrip("/")
@@ -92,7 +92,7 @@ class SmokeClient:
             data=json.dumps(body).encode(),
             headers={
                 "Authorization": "Bearer " + self.token,
-                "x-reef-scenario": scenario,
+                "x-aster-scenario": scenario,
                 "Content-Type": "application/json",
             },
             method="POST",
@@ -113,11 +113,11 @@ class SmokeClient:
             return status, text, None
         if not stream:
             answer = json.loads(text)["choices"][0]["message"]["content"]
-            return status, answer, headers.get("x-reef-agent-record-id")
+            return status, answer, headers.get("x-aster-agent-record-id")
         events = [line.removeprefix("data: ") for line in text.splitlines() if line.startswith("data: ")]
         if len(events) < 2 or events[-1] != "[DONE]":
             return status, text, None
-        receipt = json.loads(events[-2]).get("reef", {}).get("agent_record_id")
+        receipt = json.loads(events[-2]).get("aster", {}).get("agent_record_id")
         answer = "".join(
             choice.get("delta", {}).get("content") or ""
             for event in events[:-2]
@@ -157,9 +157,9 @@ def run_matrix(client: SmokeClient, code_math_target: str) -> dict[str, list[str
 
 
 def check(arguments: argparse.Namespace) -> int:
-    if arguments.reef_pid <= 1:
-        raise ValueError("--reef-pid must identify one reef serve process with a PID greater than 1")
-    client = SmokeClient(arguments.url, os.environ["REEF_TOKEN"])
+    if arguments.aster_pid <= 1:
+        raise ValueError("--aster-pid must identify one aster serve process with a PID greater than 1")
+    client = SmokeClient(arguments.url, os.environ["ASTER_TOKEN"])
     receipts = run_matrix(client, "code-teacher")
     # SIGHUP applies the edited manifest; requests get 503 until the new policy is published.
     with tempfile.NamedTemporaryFile(
@@ -168,7 +168,7 @@ def check(arguments: argparse.Namespace) -> int:
         replacement.write(arguments.updated_manifest.read_text(encoding="utf-8"))
     os.chmod(replacement.name, 0o600)
     os.replace(replacement.name, arguments.manifest)
-    os.kill(arguments.reef_pid, signal.SIGHUP)
+    os.kill(arguments.aster_pid, signal.SIGHUP)
     deadline = time.monotonic() + arguments.update_timeout
     answer = ""
     while time.monotonic() < deadline:
@@ -180,9 +180,9 @@ def check(arguments: argparse.Namespace) -> int:
     updated = run_matrix(client, "code-student")
     for scenario in ("code-opd", "math-opd"):
         references = receipts[scenario] + updated[scenario]
-        status, text, _ = client.post("/reef/report", scenario, {"score": 1, "references": references})
+        status, text, _ = client.post("/aster/report", scenario, {"score": 1, "references": references})
         client.expect(f"{scenario} feedback links its receipts", status == 200, status=status, body=text[:200])
-    status, text, _ = client.post("/reef/report", "math-opd", {"score": 1, "references": receipts["code-opd"][:1]})
+    status, text, _ = client.post("/aster/report", "math-opd", {"score": 1, "references": receipts["code-opd"][:1]})
     client.expect("foreign-Scenario feedback refused", status == 400, status=status, body=text[:200])
     all_receipts = [receipt for scenario in receipts.values() for receipt in scenario] + [
         receipt for scenario in updated.values() for receipt in scenario
@@ -199,11 +199,11 @@ def main() -> int:
     manifests = commands.add_parser("manifests", help="Write the initial and updated manifests.")
     manifests.add_argument("--model-directory", type=Path, required=True, help="Directory of the four model files.")
     manifests.add_argument("--output-directory", type=Path, required=True)
-    smoke = commands.add_parser("check", help="Run the requests against a running reef serve.")
+    smoke = commands.add_parser("check", help="Run the requests against a running aster serve.")
     smoke.add_argument("--url", default="http://127.0.0.1:8900")
-    smoke.add_argument("--manifest", type=Path, required=True, help="The manifest reef serve reads; it is replaced.")
+    smoke.add_argument("--manifest", type=Path, required=True, help="The manifest aster serve reads; it is replaced.")
     smoke.add_argument("--updated-manifest", type=Path, required=True)
-    smoke.add_argument("--reef-pid", type=int, required=True, help="The PID of reef serve, to send SIGHUP.")
+    smoke.add_argument("--aster-pid", type=int, required=True, help="The PID of aster serve, to send SIGHUP.")
     smoke.add_argument("--update-timeout", type=float, default=180.0)
     arguments = parser.parse_args()
     if arguments.command == "manifests":

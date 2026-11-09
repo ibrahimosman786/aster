@@ -7,17 +7,17 @@ Check a deployment, select its artifacts, follow training, and recover after a r
 :Before you start: a running deployment from `Evolve your model <evolve-your-model.rst>`__ or `Evolve your harness <evolve-your-harness.rst>`__, its URL and token
 :You will have: the routine checks, the version operations, and the recovery rules
 
-The examples use ``REEF_URL`` and ``REEF_TOKEN`` as in `HTTP API <../reference/http-api.rst>`__.
+The examples use ``ASTER_URL`` and ``ASTER_TOKEN`` as in `HTTP API <../reference/http-api.rst>`__.
 
 Check health and status
 -----------------------
 
 .. code:: bash
 
-   curl -f "$REEF_URL/healthz"
-   curl -sS -H "Authorization: Bearer $REEF_TOKEN" "$REEF_URL/reef/status"
+   curl -f "$ASTER_URL/healthz"
+   curl -sS -H "Authorization: Bearer $ASTER_TOKEN" "$ASTER_URL/aster/status"
 
-``/healthz`` answers as soon as the HTTP service is up; it says nothing about training. ``/reef/status`` is the training side. It reports these values for the deployment:
+``/healthz`` answers as soon as the HTTP service is up; it says nothing about training. ``/aster/status`` is the training side. It reports these values for the deployment:
 
 - the last asynchronous error
 - model preload failures
@@ -33,23 +33,23 @@ It reports these values for every scenario:
 
 The committed outcome includes the recipe-owned metrics. You can therefore tell a skipped or rejected update from one that is still running. Look here first when requests keep being served by an old version.
 
-The service and every process ``aster serve`` started write logs under ``reef.run-dir`` (``.reef/run/`` by default), one ``<service>.log`` and one ``<service>.pid`` each.
+The service and every process ``aster serve`` started write logs under ``aster.run-dir`` (``.aster/run/`` by default), one ``<service>.log`` and one ``<service>.pid`` each.
 
 Read the artifacts
 ------------------
 
 .. code:: bash
 
-   curl -sS -H "Authorization: Bearer $REEF_TOKEN" \
-     "$REEF_URL/reef/scenarios/code-repair/artifacts"
+   curl -sS -H "Authorization: Bearer $ASTER_TOKEN" \
+     "$ASTER_URL/aster/scenarios/code-repair/artifacts"
 
 An artifact is one immutable output, such as a checkpoint's weights or a harness tree. Its ``artifact_id`` is the only identifier callers need. Keep the ID as an opaque string: do not parse a Git revision or component name from it.
 
 Training, imports and harness syncs make artifacts. The list is newest first, with one row per artifact. ``active`` marks the selected artifact of each component. ``activated`` marks artifacts that have served as active. ``served`` marks artifacts served beside the active selection (`Serve an artifact beside the active selection`_). The ``creation`` rows hold the starting artifacts (`Starting artifacts`_). Their ``source`` says where they came from. See `Artifacts <../reference/http-api.rst#artifacts>`__ for the fields.
 
-A training step that made no artifact, such as a rejected or skipped step, has no row. Neither do activations, train-from operations and serves. ``GET /reef/scenarios/{scenario}/operations`` lists every step (`Record and commit history <../reference/http-api.rst#record-and-commit-history>`__).
+A training step that made no artifact, such as a rejected or skipped step, has no row. Neither do activations, train-from operations and serves. ``GET /aster/scenarios/{scenario}/operations`` lists every step (`Record and commit history <../reference/http-api.rst#record-and-commit-history>`__).
 
-For harness scenarios, ``GET /reef/harness/artifacts`` lists the harness artifacts. Pull a listed tree with ``GET /reef/harness?artifact_id=<id>``. An artifact waiting for activation has ``active: false`` and ``activated: false``. The older ``/reef/harness/artifacts`` route remains for clients that need its step pages.
+For harness scenarios, ``GET /aster/harness/artifacts`` lists the harness artifacts. Pull a listed tree with ``GET /aster/harness?artifact_id=<id>``. An artifact waiting for activation has ``active: false`` and ``activated: false``. The older ``/aster/harness/artifacts`` route remains for clients that need its step pages.
 
 Starting artifacts
 ------------------
@@ -71,7 +71,7 @@ The creation row's ``source`` is ``{"kind": "default", "inputs": {...}}``, with 
 
 A new trainer starts its first job from its starting artifact. A train-from or the trainer's own training step changes the start later (`Train from an artifact`_). Activate that artifact to serve it again, or train from it to start training again from it; the ``slime`` backend refuses train-from, as it refuses every artifact.
 
-A change of the configuration does not change an existing scenario. It keeps its stored starting artifacts, and a new scenario gets the new default start. A start that no longer fits the configuration fails only its own scenario: the runtime refuses to activate it, or the training component refuses to start from it, with that component's message. The ``slime`` backend trains only the weights that its workers load from ``inference.model-path``. It refuses to create a scenario from an artifact item. A scenario whose starting artifact came from other inputs does not load, and the error names both inputs. Aster refuses a scenario that an earlier Aster stored with a shared base snapshot (``reef-scenario/4`` metadata). Create such a scenario again.
+A change of the configuration does not change an existing scenario. It keeps its stored starting artifacts, and a new scenario gets the new default start. A start that no longer fits the configuration fails only its own scenario: the runtime refuses to activate it, or the training component refuses to start from it, with that component's message. The ``slime`` backend trains only the weights that its workers load from ``inference.model-path``. It refuses to create a scenario from an artifact item. A scenario whose starting artifact came from other inputs does not load, and the error names both inputs. Aster refuses a scenario that an earlier Aster stored with a shared base snapshot (``aster-scenario/4`` metadata). Create such a scenario again.
 
 Choose a scenario's start
 -------------------------
@@ -82,10 +82,10 @@ A new scenario uses the default starting artifacts. To start it from another art
 
 .. code:: bash
 
-   curl -sS -X POST -H "Authorization: Bearer $REEF_TOKEN" \
+   curl -sS -X POST -H "Authorization: Bearer $ASTER_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{"name": "code-repair-2", "owner": "acme", "artifact_id": "code-repair/<artifact_id>"}' \
-     "$REEF_URL/reef/scenarios"
+     "$ASTER_URL/aster/scenarios"
 
 The owner's artifact library holds the item ``<scenario>/<artifact_id>`` for each artifact that a scenario of the owner made. An artifact from an item keeps its artifact ID in each scenario, and it gets no second item. The library also holds the artifact items that you stored, such as an upload to S3 or a Hugging Face snapshot (`Data items <../reference/http-api.rst#data-items>`__). Aster reads the item's files and checks them as `Import an artifact`_ describes. Then it stores them, by reference or as a copy, as the component's starting artifact. The item is thus the active artifact and the training start of its component. Add ``component`` when the scenario has several components; each other component holds its default start. The answer's ``components`` maps each component to its starting ``artifact_id``. A scenario with one component also returns that ID as ``artifact_id``.
 
@@ -93,7 +93,7 @@ Before registration, Aster checks that every training component accepts its star
 
 When Aster cannot read the item, or a layout or training-start check refuses it, Aster registers no scenario. It answers with the status of the import, such as HTTP 400 for a directory without the component layout, or HTTP 404 for an item that the owner does not store. The scenario name remains available for a valid creation request. A scenario that already exists ignores ``artifact_id`` and ``component``.
 
-A report or a record import creates a missing scenario from the default start. A request header does not select the starting artifact. An inference response identifies the answering artifact with ``x-reef-artifact-id``. An inference request never creates a scenario.
+A report or a record import creates a missing scenario from the default start. A request header does not select the starting artifact. An inference response identifies the answering artifact with ``x-aster-artifact-id``. An inference request never creates a scenario.
 
 To pull a specific harness artifact, add ``?artifact_id=<id>`` to the harness manifest route. To serve an earlier artifact again, activate it as `Activate an artifact`_ describes.
 
@@ -104,10 +104,10 @@ To serve or train an artifact that was made outside Aster, such as an adapter th
 
 .. code:: bash
 
-   curl -sS -X POST -H "Authorization: Bearer $REEF_TOKEN" \
+   curl -sS -X POST -H "Authorization: Bearer $ASTER_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{"source": "s3://my-bucket/checkpoints/step-400/"}' \
-     "$REEF_URL/reef/scenarios/code-repair/artifacts"
+     "$ASTER_URL/aster/scenarios/code-repair/artifacts"
 
 Aster reads ``hf://org/model@revision``, ``s3://bucket/prefix/`` and ``file:///absolute/path``, a directory on the service's machine. To import a directory from your own machine, upload it to one of these places first. S3 needs the ``s3`` extra (``uv pip install 'aster-infra[s3]'``) and reads with boto3's standard credentials: the environment, a profile or an instance role. Aster stores no credential. A reader can read whatever the service can read, so only give import access to callers that may train the scenario. ``storage.artifact-sources`` adds readers for other schemes (`Python API <../reference/python-api.rst#artifact-imports>`__).
 
@@ -117,7 +117,7 @@ The import adds an ``import`` row to the artifact list, with the URI and the ver
 
 To import model weights from Hugging Face without a copy, name a full commit SHA: ``hf://org/model@<40-digit commit>``. Aster then keeps a reference to that revision, and downloads its weights only when a serving engine loads them. A commit names fixed files, so the artifact cannot change, but it can be lost: keep the repo on the Hub while you serve or train the artifact. A branch or a tag can move, so Aster copies those.
 
-A harness sync is different. ``POST /reef/harness/import`` merges the files that a person's session changed onto the active selection. It commits the result as a ``sync`` row. In that operation the new artifact becomes the active selection and training start of its component (`Evolve your harness <evolve-your-harness.rst>`__).
+A harness sync is different. ``POST /aster/harness/import`` merges the files that a person's session changed onto the active selection. It commits the result as a ``sync`` row. In that operation the new artifact becomes the active selection and training start of its component (`Evolve your harness <evolve-your-harness.rst>`__).
 
 Activate an artifact
 --------------------
@@ -126,10 +126,10 @@ The scenario keeps a mapping from each component to its selected ``artifact_id``
 
 .. code:: bash
 
-   curl -sS -X POST -H "Authorization: Bearer $REEF_TOKEN" \
+   curl -sS -X POST -H "Authorization: Bearer $ASTER_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{"artifact_id": "<id>"}' \
-     "$REEF_URL/reef/scenarios/code-repair/activate"
+     "$ASTER_URL/aster/scenarios/code-repair/activate"
 
 The target is any row of the artifact list. Aster updates the component selection atomically and appends an ``activate`` operation. It creates no artifact or repository revision. Inference then loads the selection in the background.
 
@@ -145,7 +145,7 @@ The deployment's `activation section <../reference/configuration.rst#the-activat
 - ``never`` makes each new artifact but does not activate it. A person activates it.
 - ``evaluated`` activates an artifact once an evaluation of it reaches ``min_mean_score``.
 
-A scenario can select one of these rules for itself with ``POST /reef/scenarios/{scenario}/update`` and ``{"activation": {"module": "never"}}``. Send ``"activation": null`` to follow the deployment's rule again. ``GET /reef/scenarios/{scenario}/settings`` reads back the scenario's rule and the rule that applies (`Scenario updates <../reference/http-api.rst#scenario-updates>`__).
+A scenario can select one of these rules for itself with ``POST /aster/scenarios/{scenario}/update`` and ``{"activation": {"module": "never"}}``. Send ``"activation": null`` to follow the deployment's rule again. ``GET /aster/scenarios/{scenario}/settings`` reads back the scenario's rule and the rule that applies (`Scenario updates <../reference/http-api.rst#scenario-updates>`__).
 
 An artifact that the rule does not activate still becomes the start of the next training job.
 
@@ -156,10 +156,10 @@ Each trainer continues from its own newest output: a weight trainer from its new
 
 .. code:: bash
 
-   curl -sS -X POST -H "Authorization: Bearer $REEF_TOKEN" \
+   curl -sS -X POST -H "Authorization: Bearer $ASTER_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{"artifact_id": "<id>"}' \
-     "$REEF_URL/reef/scenarios/code-repair/train-from"
+     "$ASTER_URL/aster/scenarios/code-repair/train-from"
 
 Aster cancels the running job. The next training job, or the next evolve step, starts from the artifact. Train-from never changes the active selection. Leave out ``"component"`` when the scenario has one component. A scenario of several components requires ``"component": "<name>"`` in the body, and an unknown component is HTTP 400. A weight artifact without optimizer state, such as a starting artifact made from the default configuration, starts training with a new optimizer state. Each train-from also starts a new run in experiment tracking.
 
@@ -187,17 +187,17 @@ A scenario can serve other artifacts beside its active selection, each at its ow
 
 .. code:: bash
 
-   curl -sS -X POST -H "Authorization: Bearer $REEF_TOKEN" \
+   curl -sS -X POST -H "Authorization: Bearer $ASTER_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{"artifact_id": "<id>"}' \
-     "$REEF_URL/reef/scenarios/code-repair/serve"
+     "$ASTER_URL/aster/scenarios/code-repair/serve"
 
-   curl -sS -X POST -H "Authorization: Bearer $REEF_TOKEN" \
+   curl -sS -X POST -H "Authorization: Bearer $ASTER_TOKEN" \
      -H "Content-Type: application/json" \
-     -d '{"model": "reef", "messages": [{"role": "user", "content": "hi"}]}' \
-     "$REEF_URL/reef/scenarios/code-repair/artifacts/<id>/v1/chat/completions"
+     -d '{"model": "aster", "messages": [{"role": "user", "content": "hi"}]}' \
+     "$ASTER_URL/aster/scenarios/code-repair/artifacts/<id>/v1/chat/completions"
 
-The default routes keep answering from the active selection. A call to the artifact's URL is recorded with the ``artifact_id`` that answered. Serving creates no artifact or repository revision. An activation does not change what is served, so serve the active artifact before you activate another one to keep it answering. ``POST /reef/scenarios/{scenario}/stop-serving`` with the same body ends the serve. Both survive a restart.
+The default routes keep answering from the active selection. A call to the artifact's URL is recorded with the ``artifact_id`` that answered. Serving creates no artifact or repository revision. An activation does not change what is served, so serve the active artifact before you activate another one to keep it answering. ``POST /aster/scenarios/{scenario}/stop-serving`` with the same body ends the serve. Both survive a restart.
 
 Serving another artifact leaves each trainer's start unchanged. Choose which clients call each URL, for example with a gateway. The runtime must answer each call from the artifact that the call names. A Tinker scenario can serve any of its artifacts. A runtime that loads weights into engines refuses a serve. `Serve an artifact beside the active selection <../reference/http-api.rst#serve-an-artifact-beside-the-active-selection>`__ in the HTTP API lists the answers and status codes.
 
@@ -208,11 +208,11 @@ For a scenario with several components, restore an earlier complete selection:
 
 .. code:: bash
 
-   curl -sS -X POST -H "Authorization: Bearer $REEF_TOKEN" \
+   curl -sS -X POST -H "Authorization: Bearer $ASTER_TOKEN" \
      -H "Content-Type: application/json" -d '{"step": 12}' \
-     "$REEF_URL/reef/scenarios/code-repair/restore"
+     "$ASTER_URL/aster/scenarios/code-repair/restore"
 
-Choose a step from ``GET /reef/scenarios/code-repair/operations``, or use step 0 for the starting artifacts. Aster restores all active component IDs together and appends a ``restore`` operation. It creates no artifacts and leaves the training starts unchanged. The answer's ``components`` gives the restored mapping. Poll startup status before sending inference requests.
+Choose a step from ``GET /aster/scenarios/code-repair/operations``, or use step 0 for the starting artifacts. Aster restores all active component IDs together and appends a ``restore`` operation. It creates no artifacts and leaves the training starts unchanged. The answer's ``components`` gives the restored mapping. Poll startup status before sending inference requests.
 
 Activation alone does not last under the default rule. The trainer still continues from its training start, and Aster activates the next artifact that it makes. To go back to an older artifact for good, activate it and do one of these:
 
@@ -231,9 +231,9 @@ How often a job saves depends on the backend:
 
 A Slime deployment bounds its checkpoints on disk with options in ``training.options``:
 
-- ``--reef-checkpoint-policy``: ``latest`` or ``best_reward``.
-- ``--reef-checkpoint-max-storage-fraction`` (default 0.8) and ``--reef-checkpoint-min-free-space-fraction`` (default 0.1).
-- ``--reef-checkpoint-max-storage`` and ``--reef-checkpoint-min-free-space``.
+- ``--aster-checkpoint-policy``: ``latest`` or ``best_reward``.
+- ``--aster-checkpoint-max-storage-fraction`` (default 0.8) and ``--aster-checkpoint-min-free-space-fraction`` (default 0.1).
+- ``--aster-checkpoint-max-storage`` and ``--aster-checkpoint-min-free-space``.
 
 Retention never deletes the checkpoint that the next job starts from. When storage cannot hold the next checkpoint, the job fails. The service log names the error, and the commit that ends the job records it in the ``training_job`` metric. A failed job ends like a finished one. Aster consumed the records of its data when it submitted the job, so they do not train again. The next job starts from the last saved checkpoint.
 
@@ -244,7 +244,7 @@ Track experiments with W&B
 
 Tracking is optional and off by default; ``observability.wandb`` in `Configuration <../reference/configuration.rst#experiment-tracking>`__ lists every key. Export ``WANDB_API_KEY`` before starting the stack; there is no key field, and Aster refuses Slime's ``--wandb-key`` flag so a credential never enters a command line or a run config.
 
-What you see in W&B: one group per scenario and one run per scenario, plus a new run after every train-from, so the training from each new start is its own curve. An activation does not end a run. Every training result lands on the run-local ``train/step`` axis carrying the monotonic ``reef/step`` that joins it to the commit history, and the commit metrics record ``experiment/run_id``, so an Aster version leads to its run and the run's ``reef/training_job_id`` leads back. A scenario with several trainers prefixes each step's metrics with its component name, on the same ``train/step`` axis, and records the name as ``reef/component``; the run summary then names the last trainer that committed and its job. Aster sends each event from a background thread after its commit lands, in commit order, so a slow tracker does not delay serving or training. Tracking failures are logged and never fail a training step or its commit. Events still queued at shutdown are sent before the tracker closes.
+What you see in W&B: one group per scenario and one run per scenario, plus a new run after every train-from, so the training from each new start is its own curve. An activation does not end a run. Every training result lands on the run-local ``train/step`` axis carrying the monotonic ``aster/step`` that joins it to the commit history, and the commit metrics record ``experiment/run_id``, so an Aster version leads to its run and the run's ``aster/training_job_id`` leads back. A scenario with several trainers prefixes each step's metrics with its component name, on the same ``train/step`` axis, and records the name as ``aster/component``; the run summary then names the last trainer that committed and its job. Aster sends each event from a background thread after its commit lands, in commit order, so a slow tracker does not delay serving or training. Tracking failures are logged and never fail a training step or its commit. Events still queued at shutdown are sent before the tracker closes.
 
 The same run also receives ``operations/*`` every 10 seconds, plotted against
 ``operations/time_seconds``. Use these panels to inspect unread records,
@@ -294,7 +294,7 @@ A process that stops normally releases the control lease. After a crash, the
 next process waits until the old lease expires (at most 30 seconds) before it
 loads scenarios; see `Run the services in separate processes`_.
 
-After a step commits, ``/reef/status`` reports its scenario's
+After a step commits, ``/aster/status`` reports its scenario's
 ``artifact_head_sync`` with the repository synchronization state and any
 ``error``. Repository revisions stay internal.
 The ``state`` is ``synchronized`` when the backend head names the chain tip,
@@ -304,7 +304,7 @@ Aster retries synchronization; if it still fails, the new commit stops before
 publishing or writing its commit record. A conflict never overwrites the other
 writer's head. Restart also synchronizes the head before loading the scenario.
 
-The scenario storage and the repository live under ``.reef/`` by default (``agent_record_dir``, ``task_file_dir``, ``artifact_repository``, ``artifact_work_dir``, ``artifact_cache_dir``). On ephemeral storage none of the guarantees above hold past its loss. Each scenario needs one control service; run a second deployment on other ports and storage paths rather than two deployments on one store. The services of one deployment share its store; see `Run the services in separate processes`_. `State model <../advanced_topics/state-model.rst#commit-ordering>`__ describes the commit ordering behind the table. ``DELETE /reef/scenarios/{scenario}`` retires a scenario: the storage backend archives its records, commits, settings and task files, its history and step records move under an ``archived/`` sibling and its repository ref is renamed into ``refs/reef/archived/``, so a name can be reused without the old chain. Deleting a weight-training scenario cancels its running training job.
+The scenario storage and the repository live under ``.aster/`` by default (``agent_record_dir``, ``task_file_dir``, ``artifact_repository``, ``artifact_work_dir``, ``artifact_cache_dir``). On ephemeral storage none of the guarantees above hold past its loss. Each scenario needs one control service; run a second deployment on other ports and storage paths rather than two deployments on one store. The services of one deployment share its store; see `Run the services in separate processes`_. `State model <../advanced_topics/state-model.rst#commit-ordering>`__ describes the commit ordering behind the table. ``DELETE /aster/scenarios/{scenario}`` retires a scenario: the storage backend archives its records, commits, settings and task files, its history and step records move under an ``archived/`` sibling and its repository ref is renamed into ``refs/aster/archived/``, so a name can be reused without the old chain. Deleting a weight-training scenario cancels its running training job.
 
 Run the services in separate processes
 --------------------------------------
@@ -364,14 +364,14 @@ Start each service with the same config and ``--component``:
 
 .. code:: bash
 
-   export REEF_TOKEN="$(openssl rand -hex 16)"
-   aster serve -c deploy.yaml --component control --reef.port 8901
-   aster serve -c deploy.yaml --component inference --reef.port 8902
-   aster serve -c deploy.yaml --component samples --reef.port 8903
-   aster serve -c deploy.yaml --component training --reef.port 8904
-   aster serve -c deploy.yaml --component evaluation --reef.port 8905
-   aster serve -c deploy.yaml --component data --reef.port 8906
-   aster serve -c deploy.yaml --component harness --reef.port 8907
+   export ASTER_TOKEN="$(openssl rand -hex 16)"
+   aster serve -c deploy.yaml --component control --aster.port 8901
+   aster serve -c deploy.yaml --component inference --aster.port 8902
+   aster serve -c deploy.yaml --component samples --aster.port 8903
+   aster serve -c deploy.yaml --component training --aster.port 8904
+   aster serve -c deploy.yaml --component evaluation --aster.port 8905
+   aster serve -c deploy.yaml --component data --aster.port 8906
+   aster serve -c deploy.yaml --component harness --aster.port 8907
 
 A ``--component`` process starts no other Aster service. Start any external
 engines and training backends that the config requires. Inference owns the
@@ -381,7 +381,7 @@ serving runtime's startup work. All processes must reach the same store:
   the files under ``storage.agent-record-dir``.
 * On several hosts, use ``storage.record-backend: postgres``. The services keep
   their shared tables in the schema ``<record schema>_coordination``
-  (``reef_records_coordination`` by default), so deployments with their own
+  (``aster_records_coordination`` by default), so deployments with their own
   record schemas share no tables.
 
 Give each process its own ``storage.artifact-work-dir`` and
@@ -400,8 +400,8 @@ directory, as they reach the artifact backend.
 
 .. _Harness clients:
 
-**Harness clients.** Send ``GET /reef/harness``, ``GET /reef/harness/artifacts``,
-``POST /reef/harness/import`` and ``GET /reef/harness/adapters`` to the harness
+**Harness clients.** Send ``GET /aster/harness``, ``GET /aster/harness/artifacts``,
+``POST /aster/harness/import`` and ``GET /aster/harness/adapters`` to the harness
 service. It reads the commit history and the artifact backend, and loads a
 scenario without activating it. It writes no snapshot: an import goes to control
 as a ``harness_sync`` request, control merges the files onto the newest active
@@ -410,7 +410,7 @@ answer. It waits up to 30 seconds for control, and answers ``503`` when control
 did not commit the import in that time; the import stays queued, and the same
 files sent again wait for the same request. The harness service needs no control
 lease, so you can run several replicas of it behind one address. The snapshot and
-request pages, the step records and ``/reef/status`` stay with control. Set
+request pages, the step records and ``/aster/status`` stay with control. Set
 ``harness.inference_url`` to the address at which clients reach the inference
 service: a client's layer then sends its model calls there, not to the harness
 service.
@@ -420,14 +420,14 @@ Every service except inference must also reach the same data store
 `Choose the data store`_). Control, inference, training, evaluation and data must reach
 the same artifact backend.
 
-**Data requests.** Send the data routes (``/reef/namespaces/{owner}/data...``),
-``GET /reef/scenarios/{scenario}/artifacts/{artifact_id}/files`` and
-``GET /reef/scenarios/{scenario}/jobs`` to the data service. In the split
+**Data requests.** Send the data routes (``/aster/namespaces/{owner}/data...``),
+``GET /aster/scenarios/{scenario}/artifacts/{artifact_id}/files`` and
+``GET /aster/scenarios/{scenario}/jobs`` to the data service. In the split
 layout, control does not serve these routes. The data service also answers the
 reads of what each scenario stores: the scenario list, settings, contract,
 records, commits, artifacts, samples, tasks, and evaluations with their
 rollouts. Control answers these reads too. Writes to a scenario, the next-job
-read, the cancel of a training job, ``/reef/status`` and the harness pages
+read, the cancel of a training job, ``/aster/status`` and the harness pages
 stay with control; the harness client routes go to the harness service (see
 `Harness clients`_ below). The data service needs no control lease,
 so you can run several replicas of it behind one address.
@@ -444,13 +444,13 @@ The samples, evaluation and data services load a scenario without changing
 its production engine.
 
 **Inference requests.** Send model requests to the inference service, with the
-scenario in ``x-reef-scenario``. The inference service answers
+scenario in ``x-aster-scenario``. The inference service answers
 ``/v1/chat/completions``, ``/v1/responses``, ``/v1/messages``,
 ``/v1/messages/count_tokens``, the evaluation routes and the routes of an
 artifact served beside the active selection. A one-process ``aster serve`` answers
 the same routes in the same way, in control's process.
 
-Send ``GET /reef/scenarios/{scenario}/inference/status`` to inference to read
+Send ``GET /aster/scenarios/{scenario}/inference/status`` to inference to read
 the selected artifact's startup result. It reports ``pending``, ``starting``,
 ``ready`` or ``failed`` with the artifact ID. See `Startup status
 <../reference/http-api.rst#startup-status>`__ for the response and retry rules.
@@ -463,10 +463,10 @@ under the row's model name. The only credential that it sends is the
 deployment's provider key (``inference.upstream-api-key``), when one is set.
 No artifact changes the request on its way to the engine. The service
 appends the record to the scenario's record store and returns the record ID in
-``x-reef-agent-record-id``, and the ID of the artifact that answered in
-``x-reef-artifact-id``. ``x-reef-tag-*`` headers go into the record. The
+``x-aster-agent-record-id``, and the ID of the artifact that answered in
+``x-aster-artifact-id``. ``x-aster-tag-*`` headers go into the record. The
 inference service never creates a scenario: create it first with
-``POST /reef/scenarios`` or a harness install. The inference service answers:
+``POST /aster/scenarios`` or a harness install. The inference service answers:
 
 * ``404`` when the scenario is unknown or serves no model.
 * ``503`` with ``inference_starting`` and ``Retry-After: 30`` when its model
@@ -499,7 +499,7 @@ A failed startup does not stay failed, because the selection still states what
 the scenario serves. Control queues the startup again 60 seconds after it
 failed. After each automatic retry that fails, control doubles the wait, up to
 one hour. To retry at once, activate the active artifact again
-(``POST /reef/scenarios/{scenario}/activate``). This also sets the wait back to
+(``POST /aster/scenarios/{scenario}/activate``). This also sets the wait back to
 60 seconds. The service that fails a work item writes one warning to its log,
 with the queue, the item ID, the scenario and the error.
 
@@ -542,8 +542,8 @@ Choose the storage backend
 The storage backend keeps the records, commits, and settings of each scenario.
 The settings are the model configuration, the selected training mode, the
 automatic evaluation settings and the activation rule. You set them with
-``POST /reef/scenarios/{scenario}/update`` and read them back with
-``GET /reef/scenarios/{scenario}/settings``. After a restart, the scenario uses
+``POST /aster/scenarios/{scenario}/update`` and read them back with
+``GET /aster/scenarios/{scenario}/settings``. After a restart, the scenario uses
 its stored settings. If the recipe does not support the stored training mode,
 the scenario uses the default mode and Aster logs a warning.
 
@@ -569,16 +569,16 @@ To use PostgreSQL, install the driver with ``uv pip install 'aster-infra[postgre
 
    storage:
      record-backend: postgres
-     record-database-url: ${REEF_RECORD_DATABASE_URL}
-     record-database-schema: reef_records
-     agent-record-dir: .reef/agent-record
+     record-database-url: ${ASTER_RECORD_DATABASE_URL}
+     record-database-schema: aster_records
+     agent-record-dir: .aster/agent-record
 
-Set ``REEF_RECORD_DATABASE_URL`` to a PostgreSQL connection URL, such as
-``postgresql://reef:password@db.example.com/reef?sslmode=require``. The database
+Set ``ASTER_RECORD_DATABASE_URL`` to a PostgreSQL connection URL, such as
+``postgresql://aster:password@db.example.com/aster?sslmode=require``. The database
 must already exist; Aster creates its tables in the selected dedicated schema.
 The database role needs permission to create that schema and its tables on
 first startup. Give independent deployments distinct schemas (default:
-``reef_records``). PostgreSQL 14 and newer are supported. Connection strings
+``aster_records``). PostgreSQL 14 and newer are supported. Connection strings
 using ``postgresql+psycopg://`` are also accepted.
 
 A shared connection pool returns connections after each operation. Archived
@@ -597,7 +597,7 @@ as after a lost commit history.
 A change from one backend to another does not move records or commit history.
 Use a new deployment directory or schema for a new backend.
 
-A plugin backend is a subclass of ``reef.storage.scenario.ScenarioStorage``.
+A plugin backend is a subclass of ``aster.storage.scenario.ScenarioStorage``.
 It implements all abstract methods, including the ``from_config`` class method.
 Give its name as ``package.module:ClassName``, or give the name and a configuration:
 
@@ -607,9 +607,9 @@ Give its name as ``package.module:ClassName``, or give the name and a configurat
      record-backend:
        module: my_package.storage:ObjectStoreScenarioStorage
        config:
-         bucket: reef-state
+         bucket: aster-state
      coordination-backend: sqlite
-     agent-record-dir: .reef/agent-record
+     agent-record-dir: .aster/agent-record
 
 Aster calls ``from_config(config, directory=...)`` with the ``config`` mapping and
 ``agent_record_dir``. A plugin holds no tables of the services, so name where
@@ -629,7 +629,7 @@ The artifact backend stores the snapshots of each scenario. The default,
 ``storage.artifact-repository`` names. Git and Git LFS must be installed.
 
 To use a different store, name a subclass of
-``reef.artifact.ConfigurableRepositoryBackendFactory`` in
+``aster.artifact.ConfigurableRepositoryBackendFactory`` in
 ``storage.artifact-backend``. Give ``package.module:ClassName``, or give the
 name and a ``config`` mapping, as for a storage plugin:
 
@@ -639,7 +639,7 @@ name and a ``config`` mapping, as for a storage plugin:
      artifact-backend:
        module: my_package.artifacts:ObjectStoreArtifactBackend
        config:
-         bucket: reef-releases
+         bucket: aster-releases
 
 Aster calls ``from_config(config, context=...)`` to make the backend. The
 `Python artifact backend contract <../reference/python-api.rst#artifact-backends>`__
@@ -659,18 +659,18 @@ each snapshot to the Hub as it publishes it:
 
    storage:
      artifact-backend:
-       module: reef.artifact.git_lfs:GitLFSRepositoryBackendFactory
+       module: aster.artifact.git_lfs:GitLFSRepositoryBackendFactory
        config:
-         repository: https://huggingface.co/org/reef-artifacts
+         repository: https://huggingface.co/org/aster-artifacts
          refs: branches-and-tags
          token_env: HF_TOKEN
 
 - ``refs: branches-and-tags`` keeps each snapshot on a tag
-  ``reef/releases/<revision>``, and the refs that move on branches under
-  ``reef/``, because the Hub accepts no other refs. The default, ``reef``,
-  keeps every ref under ``refs/reef/``. A repository keeps the layout it
+  ``aster/releases/<revision>``, and the refs that move on branches under
+  ``aster/``, because the Hub accepts no other refs. The default, ``aster``,
+  keeps every ref under ``refs/aster/``. A repository keeps the layout it
   started with, and Aster refuses the other.
-- ``hf://org/reef-artifacts@<revision>`` names a stored snapshot by its Git
+- ``hf://org/aster-artifacts@<revision>`` names a stored snapshot by its Git
   commit revision, for a serving runtime or an import. Artifact IDs used by
   Aster's API are independent of these storage revisions.
 - ``token_env`` names the variable of a token that can write the repository.
@@ -687,11 +687,11 @@ directory. The scenario storage keeps the state of the tasks. The task file
 store keeps the files of the task directories, which can be text or binary.
 
 The default, ``local``, keeps the files in ``storage.task-file-dir``
-(default: ``.reef/task-files``). Put this directory on a persistent volume.
+(default: ``.aster/task-files``). Put this directory on a persistent volume.
 Archiving a scenario moves its files under ``archived/`` in that directory.
 
 To use a different store, name a subclass of
-``reef.storage.tasks.TaskFileStore`` in ``storage.task-file-backend``.
+``aster.storage.tasks.TaskFileStore`` in ``storage.task-file-backend``.
 Give ``package.module:ClassName``, or give the name and a ``config`` mapping:
 
 .. code-block:: yaml
@@ -700,8 +700,8 @@ Give ``package.module:ClassName``, or give the name and a ``config`` mapping:
      task-file-backend:
        module: my_package.tasks:ObjectStoreTaskFileStore
        config:
-         bucket: reef-tasks
-     task-file-dir: .reef/task-files
+         bucket: aster-tasks
+     task-file-dir: .aster/task-files
 
 Aster calls ``from_config(config, directory=...)`` with the ``config`` mapping
 and ``storage.task-file-dir``. A remote store can use that directory as a
@@ -727,20 +727,20 @@ delete items.
 - ``sqlite`` keeps the items in ``<agent-record-dir>/data/data-store.sqlite3``.
   Put the directory on a persistent volume.
 - ``postgres`` keeps them in ``storage.record-database-url``, in the schema
-  ``reef_data``. Deployments that use one database share their items.
+  ``aster_data``. Deployments that use one database share their items.
 - A plugin record backend uses ``sqlite``.
 
 To use another database or schema, or your own store, name a subclass of
-``reef.storage.data.DataStore``:
+``aster.storage.data.DataStore``:
 
 .. code-block:: yaml
 
    storage:
      data-store:
-       module: reef.storage.sql_data:PostgresDataStore
+       module: aster.storage.sql_data:PostgresDataStore
        config:
-         database_url: ${REEF_DATA_DATABASE_URL}
-         schema: reef_data
+         database_url: ${ASTER_DATA_DATABASE_URL}
+         schema: aster_data
 
 The task file store keeps the files of task items, apart from the files of each
 scenario.
@@ -764,7 +764,7 @@ it needs.
 
 ``local`` keeps the segments in ``<agent-record-dir>/segments``. Only the
 services of one host can share this directory. To share segments between
-hosts, name a subclass of ``reef.storage.segments.SegmentStore``, for example
+hosts, name a subclass of ``aster.storage.segments.SegmentStore``, for example
 a store in object storage:
 
 .. code-block:: yaml
@@ -773,7 +773,7 @@ a store in object storage:
      segment-backend:
        module: my_package.segments:ObjectStoreSegmentStore
        config:
-         bucket: reef-data
+         bucket: aster-data
 
 Aster calls ``from_config(config, directory=...)`` with
 ``<agent-record-dir>/segments``, which a remote store can use as a local cache.
@@ -823,7 +823,7 @@ The import runs again each time a scenario opens. To add tasks, add them to the
 manifest and the directory, and then restart the service or reload the
 scenario. A task that moves to the other split in the manifest moves in the
 scenario. To add tasks to one running scenario without a restart, create task
-items with ``POST /reef/namespaces/{owner}/data/tasks``. A task that is already
+items with ``POST /aster/namespaces/{owner}/data/tasks``. A task that is already
 imported with the same files does not change. A scenario does not open, and the
 error says why, when:
 
@@ -846,7 +846,7 @@ Limit the scenarios a service holds
 A service loads every registered scenario when it starts. By default, each
 scenario stays loaded until you delete it. A service also accepts any number
 of scenarios. A loaded scenario holds a storage session, its trainers and its
-local worker threads. Four ``reef`` settings change this. All of them are off
+local worker threads. Four ``aster`` settings change this. All of them are off
 by default.
 
 .. list-table::
@@ -869,7 +869,7 @@ by default.
 
 .. code-block:: yaml
 
-   reef:
+   aster:
      scenario-idle-unload-s: 3600
      max-loaded-scenarios: 50
      max-scenarios: 1000
@@ -896,18 +896,18 @@ scenario is idle, Aster does not preload the next scenario. That scenario loads
 on its first request.
 
 To set a different policy, write a subclass of
-``reef.scenario.admission.ScenarioAdmission``. Give its name as
+``aster.scenario.admission.ScenarioAdmission``. Give its name as
 ``package.module:ClassName``, or give the name and a ``config`` mapping, as for
 a storage plugin. Aster calls ``from_config(config)`` to make the plugin. The
 plugin implements two methods:
 
 - ``check_creation(scenario, registered_count=...)``: to refuse a new
-  scenario, raise ``reef.core.errors.ScenarioLimitReached`` (HTTP 409).
+  scenario, raise ``aster.core.errors.ScenarioLimitReached`` (HTTP 409).
 - ``admit_load(scenario, loaded=...)``: return a ``LoadAdmission``. Its
   ``unload_count`` is the number of loaded scenarios that Aster must unload
   first. Its ``candidates`` are the scenarios that Aster tries, in that order.
   Aster unloads only idle candidates. If too few candidates are idle, Aster
-  refuses the load with ``reef.core.errors.ScenarioCapacityFull`` (HTTP 503).
+  refuses the load with ``aster.core.errors.ScenarioCapacityFull`` (HTTP 503).
   The plugin can also raise that error itself.
 
 Aster calls the plugin before it creates a scenario and before it loads one.
@@ -919,17 +919,17 @@ refuses that configuration.
 Upgrade from an Aster that wrote older formats
 --------------------------------------------
 
-This Aster reads only ``reef-commit/8`` commit records and ``reef-scenario/7``
+This Aster reads only ``aster-commit/8`` commit records and ``aster-scenario/7``
 scenario metadata. It also reads no older record locator, consumption receipt,
 queued work item or ``release_id`` selector. A scenario with older data does not
 load, and its error names the format. Aster does not change or delete that data.
 
 To keep a scenario, rewrite its commit records with the last Aster that has
-``reef migrate-commits``, before you upgrade to this Aster:
+``aster migrate-commits``, before you upgrade to this Aster:
 
 #. Stop every Aster process that writes to the deployment.
 #. Back up the deployment (see `Back up a deployment`_).
-#. Run ``reef migrate-commits -c <config>``, and then run it with ``--apply``.
+#. Run ``aster migrate-commits -c <config>``, and then run it with ``--apply``.
 #. Upgrade Aster, and upgrade ``reef-client`` on each machine with an install.
 
 The command does not rewrite stored records or Git history. A scenario that

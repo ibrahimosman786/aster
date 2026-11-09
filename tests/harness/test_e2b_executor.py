@@ -8,13 +8,13 @@ from unittest.mock import Mock
 
 import pytest
 
-from reef.execution.sandbox.config import build_executor
-from reef.execution.sandbox.e2b import E2BExecutor, E2BSession
-from reef.execution.sandbox.process import ProgramLaunchError, SandboxUnavailable
-from reef.execution.sandbox.remote import protected_command, remote_root, unpack
-from reef.harness.adapters import get_adapter
-from reef.harness.tasks.run import run_task
-from reef.harness.tasks.vendor_install import AdapterProgram
+from aster.execution.sandbox.config import build_executor
+from aster.execution.sandbox.e2b import E2BExecutor, E2BSession
+from aster.execution.sandbox.process import ProgramLaunchError, SandboxUnavailable
+from aster.execution.sandbox.remote import protected_command, remote_root, unpack
+from aster.harness.adapters import get_adapter
+from aster.harness.tasks.run import run_task
+from aster.harness.tasks.vendor_install import AdapterProgram
 
 
 def test_factory_reads_only_explicit_environment_and_binds_the_remote_binary(monkeypatch):
@@ -57,7 +57,7 @@ def test_non_npm_agents_need_a_template_and_container_agents_keep_their_own_exec
     with pytest.raises(SandboxUnavailable, match="explicit e2b_template"):
         E2BExecutor(api_key="test-key").for_program(AdapterProgram(get_adapter("native")))
     _, binary = E2BExecutor(api_key="test-key", template="custom").for_program(AdapterProgram(get_adapter("native")))
-    assert binary == "reef-native"
+    assert binary == "aster-native"
     # An adapter whose runner starts its own containers, as the Terminal-Bench campaign's terminus does.
     container_agent = replace(get_adapter("native"), self_isolating=True)
     with pytest.raises(SandboxUnavailable, match="own containers"):

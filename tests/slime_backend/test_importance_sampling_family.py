@@ -10,10 +10,10 @@ import pytest
 
 from tests.slime_backend.test_score_centering import sao_args
 
-from reef.train.slime_backend.algorithm import PolicyGradientWeight
-from reef.train.slime_backend.importance_sampling import ImportanceSamplingAlgorithm
-from reef.train.slime_backend.loss_families import resolve_loss_family
-from reef.train.slime_backend.score_centering import ROLLOUT_KEYS
+from aster.train.slime_backend.algorithm import PolicyGradientWeight
+from aster.train.slime_backend.importance_sampling import ImportanceSamplingAlgorithm
+from aster.train.slime_backend.loss_families import resolve_loss_family
+from aster.train.slime_backend.score_centering import ROLLOUT_KEYS
 
 
 @pytest.fixture
@@ -41,9 +41,9 @@ def batch(torch, **overrides):
 
 
 @pytest.mark.unit
-def test_the_loss_truncates_the_ratio_at_tis_clip_on_reefs_advantages(slime_loss) -> None:
+def test_the_loss_truncates_the_ratio_at_tis_clip_on_asters_advantages(slime_loss) -> None:
     torch = slime_loss
-    from reef.train.slime_backend.importance_sampling.objective import importance_sampling_loss
+    from aster.train.slime_backend.importance_sampling.objective import importance_sampling_loss
 
     # p / q is 1 at the first token and 4 at the second, which --tis-clip 2 truncates to 2.
     logits = torch.tensor([0.0, math.log(4.0)], requires_grad=True)
@@ -61,11 +61,11 @@ def test_the_loss_truncates_the_ratio_at_tis_clip_on_reefs_advantages(slime_loss
 @pytest.mark.unit
 def test_the_loss_trains_only_rows_with_the_samplers_log_probs(slime_loss) -> None:
     torch = slime_loss
-    from reef.train.slime_backend.importance_sampling.objective import importance_sampling_loss
+    from aster.train.slime_backend.importance_sampling.objective import importance_sampling_loss
 
     logits = torch.zeros(2, requires_grad=True)
     for missing in ("rollout_log_probs", "advantages"):
-        with pytest.raises(ValueError, match="recorded rollout log-probs and Reef's advantages"):
+        with pytest.raises(ValueError, match="recorded rollout log-probs and Aster's advantages"):
             importance_sampling_loss(
                 SimpleNamespace(tis_clip=2.0), batch(torch, **{missing: None}), logits, torch.mean
             )
@@ -74,7 +74,7 @@ def test_the_loss_trains_only_rows_with_the_samplers_log_probs(slime_loss) -> No
 @pytest.mark.unit
 def test_the_family_declares_its_truncation_so_score_centering_can_correct_it() -> None:
     pytest.importorskip("torch")
-    from reef.train.slime_backend.reef_adapters.slime_arguments import configure_reef_loss_args
+    from aster.train.slime_backend.aster_adapters.slime_arguments import configure_aster_loss_args
 
     spec = resolve_loss_family("importance_sampling")
     assert isinstance(spec, ImportanceSamplingAlgorithm)
@@ -89,5 +89,5 @@ def test_the_family_declares_its_truncation_so_score_centering_can_correct_it() 
             spec.validate_specific_args(SimpleNamespace(tis_clip=cap), "the recipe")
 
     args = sao_args(loss_family="importance_sampling", tis_clip=2.0)
-    configure_reef_loss_args(args)
+    configure_aster_loss_args(args)
     assert set(ROLLOUT_KEYS) <= set(args.custom_rollout_data_keys)

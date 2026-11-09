@@ -1,4 +1,4 @@
-"""Prepare the two policies and verify real Qwen2.5 requests through a local managed Reef deployment."""
+"""Prepare the two policies and verify real Qwen2.5 requests through a local managed Aster deployment."""
 
 from __future__ import annotations
 
@@ -15,13 +15,13 @@ import aiohttp
 import yaml
 from hot_update import CHAT, observe_update, owner_events
 
-from reef.service.routing import RoutingSnapshot
-from reef.storage.sqlite import SQLiteScenarioStorage
+from aster.service.routing import RoutingSnapshot
+from aster.storage.sqlite import SQLiteScenarioStorage
 
 SCENARIO = "qwen-demo"
 MODELS = {"student": "Qwen/Qwen2.5-0.5B-Instruct", "teacher": "Qwen/Qwen2.5-1.5B-Instruct"}
 PROMPT = "What is two plus two? Answer in one sentence."
-KEYWORD = "reef_teacher_required"
+KEYWORD = "aster_teacher_required"
 
 
 def write_manifests(args: argparse.Namespace) -> None:
@@ -69,7 +69,7 @@ async def completion(
     first_content: asyncio.Event | None = None,
     stream_tokens: int = 384,
 ) -> dict[str, object]:
-    """Check the provider model, generated content, token count and Reef receipt in the actual JSON or SSE reply."""
+    """Check the provider model, generated content, token count and Aster receipt in the actual JSON or SSE reply."""
     stream = first_content is not None
     body = {
         "model": selector,
@@ -89,7 +89,7 @@ async def completion(
             reply = await response.json()
             models = {reply["model"]}
             answer = reply["choices"][0]["message"]["content"]
-            receipt = response.headers.get("x-reef-agent-record-id")
+            receipt = response.headers.get("x-aster-agent-record-id")
             tokens = reply["usage"]["completion_tokens"]
         else:
             models = set()
@@ -106,7 +106,7 @@ async def completion(
                     raise RuntimeError("SSE receipt must directly precede [DONE]")
                 chunk = json.loads(data)
                 models.add(chunk["model"])
-                receipt = chunk.get("reef", {}).get("agent_record_id")
+                receipt = chunk.get("aster", {}).get("agent_record_id")
                 if chunk.get("usage"):
                     tokens = chunk["usage"]["completion_tokens"]
                 for choice in chunk["choices"]:
@@ -148,7 +148,7 @@ async def check(args: argparse.Namespace, pidfd: int) -> dict[str, object]:
     directory = args.run_directory
     source = directory / "manifest.yaml"
     initial, updated = source.read_bytes(), (directory / "manifest.updated.yaml").read_bytes()
-    events = owner_events(args.deployment_id, args.reef_pid)
+    events = owner_events(args.deployment_id, args.aster_pid)
     # Rendering adds a configuration digest. Read it from this generation to calculate both exact snapshot IDs.
     rendered = yaml.safe_load((events.parent / "manifest.yaml").read_bytes())
     versions = []
@@ -160,9 +160,9 @@ async def check(args: argparse.Namespace, pidfd: int) -> dict[str, object]:
         raise RuntimeError("expected a fresh owner serving this tutorial's initial manifest")
     results = []
     updates = []
-    headers = {"Authorization": "Bearer " + os.environ["REEF_TOKEN"], "x-reef-scenario": SCENARIO}
+    headers = {"Authorization": "Bearer " + os.environ["ASTER_TOKEN"], "x-aster-scenario": SCENARIO}
     async with aiohttp.ClientSession(
-        base_url=f"http://127.0.0.1:{args.reef_port}", headers=headers, timeout=aiohttp.ClientTimeout(total=180)
+        base_url=f"http://127.0.0.1:{args.aster_port}", headers=headers, timeout=aiohttp.ClientTimeout(total=180)
     ) as session:
         phases = [("initial", "student", versions[0], 0)]
         for tokens in args.stream_tokens:
@@ -219,10 +219,10 @@ async def check(args: argparse.Namespace, pidfd: int) -> dict[str, object]:
                 reply["phase"] = phase
                 results.append(reply)
 
-    # The routed public API returns the receipt. Read it back from this run's local Reef record store.
+    # The routed public API returns the receipt. Read it back from this run's local Aster record store.
     receipts = [result["receipt"] for result in results]
     if len(set(receipts)) != len(receipts):
-        raise RuntimeError("duplicate Reef receipts")
+        raise RuntimeError("duplicate Aster receipts")
     with closing(SQLiteScenarioStorage(directory / "records")) as storage, closing(storage.open(SCENARIO)) as scenario:
         for result in results:
             receipt = result["receipt"]
@@ -260,11 +260,11 @@ def main() -> None:
     for role in MODELS:
         manifests.add_argument(f"--{role}-port", type=int, required=True)
         manifests.add_argument(f"--{role}-revision", required=True)
-    verify = commands.add_parser("check", help="Run on the same Linux host as this tutorial's reef serve.")
+    verify = commands.add_parser("check", help="Run on the same Linux host as this tutorial's aster serve.")
     verify.add_argument("--run-directory", required=True, type=Path)
     verify.add_argument("--deployment-id", required=True)
-    verify.add_argument("--reef-port", required=True, type=int)
-    verify.add_argument("--reef-pid", required=True, type=int)
+    verify.add_argument("--aster-port", required=True, type=int)
+    verify.add_argument("--aster-pid", required=True, type=int)
     verify.add_argument("--stream-tokens", nargs="+", type=int, default=[384], help="One update pair per length")
     args = parser.parse_args()
     if args.command == "manifests":
@@ -273,7 +273,7 @@ def main() -> None:
         if any(not 1 <= count <= 1536 for count in args.stream_tokens):
             verify.error("--stream-tokens entries must be between 1 and 1536")
         # Linux pidfd_send_signal accepts an open /proc/PID directory and rejects recycled PIDs.
-        pidfd = os.open(f"/proc/{args.reef_pid}", os.O_RDONLY | os.O_DIRECTORY)
+        pidfd = os.open(f"/proc/{args.aster_pid}", os.O_RDONLY | os.O_DIRECTORY)
         try:
             result = asyncio.run(check(args, pidfd))
         finally:

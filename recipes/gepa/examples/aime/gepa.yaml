@@ -1,24 +1,24 @@
 # The recipe the AIME driver boots: run.py loads this file, fills
 # evolution.evaluation.tasks with the pinned validation split, builds the
-# implementation below, and serves it from its own embedded Reef service. The
+# implementation below, and serves it from its own embedded Aster service. The
 # Pi runs the driver runs point at that service, so the problems it solves
 # are recorded traffic and the method reflects on the served tree's own
 # transcripts.
 #
-# ${REEF_*} values interpolate from the environment through reef's config
+# ${ASTER_*} values interpolate from the environment through aster's config
 # loader; run.sh exports the defaults.
 
 # The harness evolution recipe, with GEPA as its method: the archive, Pareto
 # parent sampling, and the reflective proposal. The evaluation below is GEPA's
 # validation pass and its strict mean improvement.
 recipe:
-  implementation: reef.recipe.harness:HarnessEvolutionRecipe
+  implementation: aster.recipe.harness:HarnessEvolutionRecipe
 
   config:
     evolution:
       adapter: pi
       # The harness binary the evaluation tasks run headless, from the environment.
-      binary: ${REEF_PI_BINARY}
+      binary: ${ASTER_PI_BINARY}
       # The first tree, beside this file: rules.md is the quickstart's system
       # prompt and the only evolvable file; config/primary.json (Pi starts with
       # no built-in tools, one model call per problem) and the extension that
@@ -27,7 +27,7 @@ recipe:
       seed: seed
       # The scenario's history (every candidate, run and decision) and its
       # step records. A resumed run reads the history from here.
-      state_dir: ${REEF_WORK}/harness
+      state_dir: ${ASTER_WORK}/harness
       models:
         # GEPA's reflection model. The key stays out of this file and out of every
         # published tree; only the named environment variable carries it.
@@ -38,7 +38,7 @@ recipe:
       method:
         module: recipes.gepa:GEPA
         config:
-          # The archive is the method's state/archive.json, which Reef commits
+          # The archive is the method's state/archive.json, which Aster commits
           # with each step: the candidates, their validation vectors and the
           # metric-call count a resumed run continues from. run.py sets seed from
           # --seed and trainset_size to the pinned training split, so each
@@ -48,7 +48,7 @@ recipe:
           skip_perfect_score: true
           perfect_score: 1.0
           max_metric_calls: 150
-          # The evolvable parts of the tree. run.py appends "skill" under REEF_GEPA_MULTI=1.
+          # The evolvable parts of the tree. run.py appends "skill" under ASTER_GEPA_MULTI=1.
           components: [rules]
           # The wording GEPA's own default evaluator writes into the reflective
           # records, in the harness/ package.
@@ -75,10 +75,10 @@ pipeline:
       job_samples: 3
 
 inference:
-  upstream-model: ${REEF_MODEL}
+  upstream-model: ${ASTER_MODEL}
 
 execution:
   evolution:
     # auto selects uni for one worker, mp for multiple workers; ray is explicit.
-    backend: ${REEF_GEPA_EXECUTOR}
-    workers: ${REEF_GEPA_WORKERS}  # Default 128; override to fit host memory or Ray cluster capacity.
+    backend: ${ASTER_GEPA_EXECUTOR}
+    workers: ${ASTER_GEPA_WORKERS}  # Default 128; override to fit host memory or Ray cluster capacity.

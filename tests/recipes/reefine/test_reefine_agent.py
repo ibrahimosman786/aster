@@ -22,18 +22,18 @@ from recipes.beta.reefine.agent import AgentRun, CheckTool, ReefineAgent, TrialT
 from recipes.beta.reefine.agent_gateway import ReefineGateway
 from recipes.beta.reefine.multimodal import PRESETS, MultimodalProvider
 from recipes.beta.reefine.trial import trial_script
-from reef.core.training_request import TrainingRequest
-from reef.execution.sandbox.e2b import E2BSession
-from reef.execution.sandbox.process import LocalExecutor, ProcessOutcome, ProgramTimeout, SandboxExecutor
-from reef.execution.sandbox.remote import pack
-from reef.harness.adapters import get_adapter
-from reef.harness.gateway import reply_tool_calls, tool_summary
-from reef.harness.tasks.model_binding import ModelBinding, ModelBindings
-from reef.harness.tree import TreePatch
-from reef.train.harness_backend import Services, StepContext, Workspace
-from reef.train.harness_backend.agent.run import AgentExecution
-from reef.train.harness_backend.calls import StepCalls
-from reef.train.types import JobData
+from aster.core.training_request import TrainingRequest
+from aster.execution.sandbox.e2b import E2BSession
+from aster.execution.sandbox.process import LocalExecutor, ProcessOutcome, ProgramTimeout, SandboxExecutor
+from aster.execution.sandbox.remote import pack
+from aster.harness.adapters import get_adapter
+from aster.harness.gateway import reply_tool_calls, tool_summary
+from aster.harness.tasks.model_binding import ModelBinding, ModelBindings
+from aster.harness.tree import TreePatch
+from aster.train.harness_backend import Services, StepContext, Workspace
+from aster.train.harness_backend.agent.run import AgentExecution
+from aster.train.harness_backend.calls import StepCalls
+from aster.train.types import JobData
 
 REVIEW = {"result": "complete", "covered": ["reads answers aloud"], "uncovered": [], "delivers": True}
 SPEAK = "export default function (pi) { if (process.env.PI_OFFLINE) return; }"
@@ -158,12 +158,12 @@ FAKE_PI = textwrap.dedent(
     sessions.mkdir(parents=True, exist_ok=True)
     assert "PI_OFFLINE" not in os.environ, "an agent or a trial runs online"
     assert pathlib.Path(sys.argv[sys.argv.index("-e") + 1], "{tools}").exists() == (
-        "REEF_AGENT_URL" in os.environ)
+        "ASTER_AGENT_URL" in os.environ)
     # The run environment is minimal, so the test sets the mode in a file beside the binary.
     mode_file = pathlib.Path(sys.argv[0]).with_name("mode")
     mode = mode_file.read_text() if mode_file.exists() else ""
-    if "REEF_AGENT_URL" in os.environ:
-        base = os.environ["REEF_AGENT_URL"]
+    if "ASTER_AGENT_URL" in os.environ:
+        base = os.environ["ASTER_AGENT_URL"]
         if mode == "sleep":
             time.sleep(30)
         if mode != "idle":
@@ -178,8 +178,8 @@ FAKE_PI = textwrap.dedent(
             print(post(base + "/trial", {{"task": "Say hello out loud"}}))
         text = "done"
     else:
-        # The candidate harness: its extension calls the TTS route at REEF_SERVICE_URL, as in a user's session.
-        status, body = post(os.environ["REEF_SERVICE_URL"] + "/v1/audio/speech",
+        # The candidate harness: its extension calls the TTS route at ASTER_SERVICE_URL, as in a user's session.
+        status, body = post(os.environ["ASTER_SERVICE_URL"] + "/v1/audio/speech",
                             {{"model": "not/real", "input": sys.argv[-1]}})
         text = "spoke with status %d" % status
     event = {{"type": "message", "message": {{"role": "assistant", "content": [{{"type": "text", "text": text}}]}}}}
@@ -193,7 +193,7 @@ FAKE_PI = textwrap.dedent(
 
 
 def fake_pi(tmp_path: Path, mode: str = "") -> Path:
-    """The stand-in pi in ``tmp_path``: the agent with ``REEF_AGENT_URL``, the candidate harness without it."""
+    """The stand-in pi in ``tmp_path``: the agent with ``ASTER_AGENT_URL``, the candidate harness without it."""
     binary = tmp_path / "bin" / "pi"
     binary.parent.mkdir(exist_ok=True)
     binary.write_text(FAKE_PI.format(python=sys.executable, tools=reefine_agent.AGENT_TOOLS_PATH, speak=SPEAK))
@@ -499,7 +499,7 @@ def test_the_gateway_serves_the_served_model_and_the_provider_and_nothing_else(u
         assert upstream.gets[-1] == ("/api/v1/models?output_modalities=speech", "Bearer sk-or-test")
 
         assert post(f"{base}/trial", {"task": "say hi"}) == (200, b'{"task": "say hi"}')
-        assert post(f"{base}/reef/scenarios/s/activate", {})[0] == 404
+        assert post(f"{base}/aster/scenarios/s/activate", {})[0] == 404
         wrong = base.replace(base.rsplit("/", 1)[1], "not-the-token")
         assert post(f"{wrong}/v1/chat/completions", {"messages": []})[0] == 404
         # The budget of three is spent: the chat, the speech call, and this one is refused.
@@ -515,7 +515,7 @@ def test_without_a_provider_a_provider_call_is_501(upstream) -> None:
     gateway = ReefineGateway(ModelBinding(base_url=upstream.url, model="m"), StepCalls(0, []), no_tools(), None)
     gateway.start()
     try:
-        assert post(f"{gateway.base_url}/v1/images", {"model": "x", "prompt": "reef"})[0] == 501
+        assert post(f"{gateway.base_url}/v1/images", {"model": "x", "prompt": "aster"})[0] == 501
     finally:
         gateway.stop()
 
@@ -574,7 +574,7 @@ def test_the_agent_is_told_what_its_deployments_provider_serves() -> None:
     compatible = MultimodalProvider(PRESETS["openai-compatible"], "https://gateway.example", "k")
     rules = agent_rules(compatible)
     assert "openai-compatible (https://gateway.example)" in rules and "`/v1/decisions`" not in rules
-    assert "$REEF_AGENT_URL/models?modality=speech" in rules and "<!-- provider -->" not in rules
+    assert "$ASTER_AGENT_URL/models?modality=speech" in rules and "<!-- provider -->" not in rules
     assert "(or `image`, `embeddings`)." in rules
     openrouter = MultimodalProvider(PRESETS["openrouter"], "https://openrouter.ai/api", "k")
     assert "(or `image`, `embeddings`, `decisions`)." in agent_rules(openrouter)

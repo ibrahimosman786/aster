@@ -7,7 +7,7 @@ protocol — multipart submit, poll by submission id — which the deployment
 points at whichever judge service scores the task.
 
 Speaking that protocol directly keeps a benchmark's generation and
-cloud-runner dependencies out of the Reef actor environment; the privileged
+cloud-runner dependencies out of the Aster actor environment; the privileged
 judge stays external and authoritative.
 """
 
@@ -192,7 +192,7 @@ class JudgeScorer(Scorer):
 
 
 def _submit(judge_url: str, *, problem_id: str, language: str, code: str, timeout_s: float) -> str:
-    boundary = f"reef-guidance-{uuid4().hex}"
+    boundary = f"aster-guidance-{uuid4().hex}"
     body = b"".join(
         (
             _multipart_field(boundary, "pid", problem_id),

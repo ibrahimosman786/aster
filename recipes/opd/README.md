@@ -1,9 +1,9 @@
 # opd
 
-On-policy distillation from a separate frozen teacher as a Reef weight-training recipe on Slime. The student samples responses through Reef, the training component renders each response with the model's chat template, the teacher scores those exact prompt and response token ids, and the sampled-token reverse KL between the two updates the student once per batch. The package holds the method. Its report contract is `reef.core.reports.TeacherContextReport` with an empty `teacher_context`; a reported score is metadata, not training input.
+On-policy distillation from a separate frozen teacher as an Aster weight-training recipe on Slime. The student samples responses through Aster, the training component renders each response with the model's chat template, the teacher scores those exact prompt and response token ids, and the sampled-token reverse KL between the two updates the student once per batch. The package holds the method. Its report contract is `aster.core.reports.TeacherContextReport` with an empty `teacher_context`; a reported score is metadata, not training input.
 
 - Method: [Thinking Machines Lab, On-Policy Distillation](https://thinkingmachines.ai/blog/on-policy-distillation/).
-- Reference implementation: the [tinker-cookbook distillation recipe](https://github.com/thinking-machines-lab/tinker-cookbook/tree/dfe4d77e8e8c/tinker_cookbook/recipes/distillation) at `dfe4d77e8e8c`. The Reef implementation configures the Slime backend's distillation base (`reef/train/slime_backend/distill/`) and makes no Tinker API calls.
+- Reference implementation: the [tinker-cookbook distillation recipe](https://github.com/thinking-machines-lab/tinker-cookbook/tree/dfe4d77e8e8c/tinker_cookbook/recipes/distillation) at `dfe4d77e8e8c`. The Aster implementation configures the Slime backend's distillation base (`aster/train/slime_backend/distill/`) and makes no Tinker API calls.
 - Pins: `slime` pinned to `THUDM/slime@8a53b680e82932dabb48cbfcd34f749854400857` (via `pyproject.toml` `dependency-groups.runtime`).
 - Claim scope: the [math example](examples/math/README.md) distils Qwen3-32B into a Qwen3-8B OpenThoughts3-SFT student through the teacher engine and raises AIME'24 accuracy from 41.0% to about 50%.
 

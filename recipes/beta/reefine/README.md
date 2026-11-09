@@ -2,10 +2,10 @@
 
 **Status: beta.** Reefine remains under `recipes/beta/reefine/` until
 complete, reproducible results are published. It is not part of the
-`reef-infra` wheel, and it is not Reef's default harness method. The tests
+`aster-infra` wheel, and it is not Aster's default harness method. The tests
 validate the method, the agent, the scorer and the scripted example against
 stand-ins; they do not establish that a requested change works. See
-[RFC #938](https://github.com/Human-Agent-Society/reef/issues/938) for this
+[RFC #938](https://github.com/Human-Agent-Society/aster/issues/938) for this
 classification.
 
 Reefine refines a coding harness from plain-language instructions. It is a
@@ -40,15 +40,15 @@ beta/reefine/
 
 ## Start
 
-Reefine is not installed with `reef-infra`, so run it from a Reef checkout.
+Reefine is not installed with `aster-infra`, so run it from an Aster checkout.
 Set `PYTHONPATH` to the checkout, as the example's `run.sh` does, so that the
-service imports Reef and the recipe from this checkout. From the repository root, with the repository environment active, start
+service imports Aster and the recipe from this checkout. From the repository root, with the repository environment active, start
 [the example configuration](examples/configs/serve.yaml) with an
 OpenAI-compatible endpoint:
 
 ```bash
 export PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}"
-reef serve -c recipes/beta/reefine/examples/configs/serve.yaml \
+aster serve -c recipes/beta/reefine/examples/configs/serve.yaml \
   --inference.upstream-url http://127.0.0.1:11434 \
   --inference.upstream-model gemma4:26b \
   --inference.upstream-api-key dummy \
@@ -57,18 +57,18 @@ reef serve -c recipes/beta/reefine/examples/configs/serve.yaml \
 
 `--model ollama/gemma4:26b` is a short form of the three `--inference`
 lines for a local Ollama model. The configuration also reads
-`REEF_UPSTREAM_URL`, `REEF_UPSTREAM_MODEL` and `REEF_UPSTREAM_API_KEY` when
+`ASTER_UPSTREAM_URL`, `ASTER_UPSTREAM_MODEL` and `ASTER_UPSTREAM_API_KEY` when
 you do not pass the flags.
 
 For an OpenAI Responses or Anthropic endpoint, add
 `--inference.upstream-api responses` or `--inference.upstream-api anthropic`.
-The last line, an OpenRouter key (or `REEF_MULTIMODAL_API_KEY`), gives the
+The last line, an OpenRouter key (or `ASTER_MULTIMODAL_API_KEY`), gives the
 harness image, speech, embedding and decision models (see
 [Images, speech, embeddings and decisions](#images-speech-embeddings-and-decisions)).
 Leave it out to go without them, or when the upstream is OpenRouter.
 
 The service listens on `127.0.0.1:8901`. It requires no token unless
-`REEF_TOKEN` is set. It keeps state under `~/.reef/reefine/`, outside the
+`ASTER_TOKEN` is set. It keeps state under `~/.aster/reefine/`, outside the
 checkout: with `sandbox: none` the agent works in a step's directory there,
 and pi reads every `AGENTS.md` and `CLAUDE.md` in the directories above it
 (see [The agent](#the-agent)). Move that directory aside to start fresh. For
@@ -79,25 +79,25 @@ measurement of which requests passed the checks.
 
 ## How it works
 
-1. Ask. `POST /reef/train` files a plain-language request for one
+1. Ask. `POST /aster/train` files a plain-language request for one
    scenario. Create the scenario, then send the request:
 
    ```bash
    curl -sS -H "Content-Type: application/json" \
-     -d '{"name": "my-harness"}' http://127.0.0.1:8901/reef/scenarios
-   curl -sS -H "x-reef-scenario: my-harness" -H "Content-Type: application/json" \
+     -d '{"name": "my-harness"}' http://127.0.0.1:8901/aster/scenarios
+   curl -sS -H "x-aster-scenario: my-harness" -H "Content-Type: application/json" \
      -d '{"text": "when I ask you to fix a bug, reproduce it with a failing test first", "session": "me", "artifact_id": ""}' \
-     http://127.0.0.1:8901/reef/train
+     http://127.0.0.1:8901/aster/train
    ```
 
    `session` and `artifact_id` say where the request came from: the
    client's session and the snapshot it runs, empty when it runs none yet.
    The answer carries the training record id and `page_path`, the
-   request's page (`GET /reef/harness/requests/<id>/page`). The page
+   request's page (`GET /aster/harness/requests/<id>/page`). The page
    reloads every five seconds and names the step's state until the result
    is on it, with the step's summary: the design, how to use the change and
    the review.
-   `GET /reef/harness/requests/<id>/progress` gives the same state as
+   `GET /aster/harness/requests/<id>/progress` gives the same state as
    JSON. The [manual training API](../../../docs/reference/http-api.rst#manual-training)
    lists the fields a request carries.
 2. Step. In `training-mode: manual` the service runs one evolve step for
@@ -129,12 +129,12 @@ measurement of which requests passed the checks.
    and its summary says the review did not run, rather than reading like a
    step that had no review to give.
 3. Result. The request page and the step's page
-   (`GET /reef/harness/artifacts/<step>/page`) give the result: published
+   (`GET /aster/harness/artifacts/<step>/page`) give the result: published
    as a snapshot, inactive because it changes an extension, rejected by the
    evaluation, or skipped with the reason, followed by the step's summary.
    The request page also gives the next action: the activate route for an
-   inactive artifact, `GET /reef/harness` for an active one.
-4. Activate. A snapshot that touches an `extension` file is inactive: Reef
+   inactive artifact, `GET /aster/harness` for an active one.
+4. Activate. A snapshot that touches an `extension` file is inactive: Aster
    does not serve it, so it reaches no client on its own. Read its step page,
    which carries the step's summary (the design, how to use the change and
    the review) and the numbers, then activate it with the artifact id the
@@ -143,14 +143,14 @@ measurement of which requests passed the checks.
    ```bash
    curl -sS -X POST -H "Content-Type: application/json" \
      -d '{"artifact_id": "<the artifact id the page names>"}' \
-     http://127.0.0.1:8901/reef/scenarios/my-harness/activate
+     http://127.0.0.1:8901/aster/scenarios/my-harness/activate
    ```
 
-5. Use. `GET /reef/harness` serves the active selection rendered for the
-   deployment's adapter, and `GET /reef/harness?form=source` serves its
+5. Use. `GET /aster/harness` serves the active selection rendered for the
+   deployment's adapter, and `GET /aster/harness?form=source` serves its
    source tree.
    The served files carry no endpoint and no credential: a client binds its
-   agent's model to this Reef itself, as
+   agent's model to this Aster itself, as
    [Use a published tree](../../../docs/user-guide/evolve-your-harness.rst#use-a-published-tree)
    describes. The manifest's `requires` lists what the snapshot needs over
    its whole chain, and the client checks each item before it runs the
@@ -159,7 +159,7 @@ measurement of which requests passed the checks.
 ## Behavior and configuration
 
 * `training-mode: manual` runs one step for each accepted request on
-  `POST /reef/train`. Each step also reads the failing reports in the manual
+  `POST /aster/train`. Each step also reads the failing reports in the manual
   buffer, which a client fills
   ([Choose the samples that train](../../../docs/reference/http-api.rst#choose-the-samples-that-train));
   new reports do not join it by themselves. Use `auto` to learn from failing
@@ -201,8 +201,8 @@ measurement of which requests passed the checks.
 ## Adapters other than pi
 
 `evolution.adapter` runs the recipe on any bundled adapter. A request comes
-through `POST /reef/train` on every adapter, the pages are the same, and
-`GET /reef/harness` serves the snapshot rendered for that adapter. Serve the
+through `POST /aster/train` on every adapter, the pages are the same, and
+`GET /aster/harness` serves the snapshot rendered for that adapter. Serve the
 upstream in the dialect the adapter's model binding speaks:
 
 | Adapter | Serve with |
@@ -302,7 +302,7 @@ A behavior that requires changes to pi itself is recorded as a limitation
 in the design. The agent may also read provider documentation on the network
 and has three tools of its own:
 
-* `harness_check` runs the tree through Reef's validation, as the step
+* `harness_check` runs the tree through Aster's validation, as the step
   will.
 * `harness_trial` runs the changed harness for real, online, on a task the
   agent writes, and returns the session's final text, the tools it called,
@@ -319,7 +319,7 @@ and has three tools of its own:
   neither mode verifies an interactive dropdown.
 * `harness_progress` saves short working notes in `output/progress.md`:
   confirmed API behavior and source locations, implementation status, and
-  unresolved checks. Before each model call, Reef restores these notes, the
+  unresolved checks. Before each model call, Aster restores these notes, the
   latest check/trial observations and the remaining execution time into
   context.
 
@@ -348,10 +348,10 @@ see below), and the provider's
 model list (`GET /models?modality=`, fetched with its key), so the agent picks
 a model that exists without holding a key. Every call spends from
 `evolution.max_model_calls_per_step` and is recorded in the step's
-`calls.json`. Nothing else is reachable through it, Reef's own routes
+`calls.json`. Nothing else is reachable through it, Aster's own routes
 included.
 
-Isolation (`evolution.agent.sandbox`, or `REEF_AGENT_SANDBOX`):
+Isolation (`evolution.agent.sandbox`, or `ASTER_AGENT_SANDBOX`):
 
 * `bwrap` (the default where the host can): the agent and its trials run in
   a bubblewrap jail with an empty environment and a read-only system. The
@@ -363,21 +363,21 @@ Isolation (`evolution.agent.sandbox`, or `REEF_AGENT_SANDBOX`):
   needs `bwrap` and `pasta` (the `passt` package) and a service that
   runs as a non-root user with user namespaces allowed.
 * `e2b`: the agent and its trials run in an [E2B](https://e2b.dev)
-  cloud sandbox, a microVM with the internet and no route to the Reef host.
+  cloud sandbox, a microVM with the internet and no route to the Aster host.
   The gateway's port answers at the same loopback address inside it through
-  a tunnel Reef opens from its side (a relay in the sandbox that Reef polls
+  a tunnel Aster opens from its side (a relay in the sandbox that Aster polls
   over the sandbox's public address, with a per-run secret), so it works
   from a laptop as from a server, and no other host port is reachable. The
   agent's files are copied in, refreshed for each check and trial, and copied
-  back when it stops. It needs `pip install 'reef-infra[e2b]'` and an E2B
+  back when it stops. It needs `pip install 'aster-infra[e2b]'` and an E2B
   key (`e2b_api_key`, else `E2B_API_KEY`); `e2b_template` names the
-  sandbox image, else Reef builds `reef-pi-<version>-runs-v1` (the pinned
+  sandbox image, else Aster builds `aster-pi-<version>-runs-v1` (the pinned
   pi and bubblewrap on Node 22) on first use. A custom template must include
   bubblewrap. The agent runs with rendered inputs read-only and only its
   workspace and declared state writable; it cannot use sudo to remove that
-  restriction. Model credentials remain in Reef's gateway.
+  restriction. Model credentials remain in Aster's gateway.
 
-  If the command connection drops, Reef attempts to reconnect to the same
+  If the command connection drops, Aster attempts to reconnect to the same
   process twice within the original time limit; it does not rerun the command.
   The tunnel retries interrupted response transfers without duplicating chunks.
   A response that cannot be completed remains a failed stream. Failed steps
@@ -385,16 +385,16 @@ Isolation (`evolution.agent.sandbox`, or `REEF_AGENT_SANDBOX`):
   error, and publish no snapshot. After resolving the error, submit the request again.
 
   ```bash
-  E2B_API_KEY=e2b_... reef serve -c recipes/beta/reefine/examples/configs/serve.yaml \
+  E2B_API_KEY=e2b_... aster serve -c recipes/beta/reefine/examples/configs/serve.yaml \
     --inference.upstream-url https://openrouter.ai/api \
     --inference.upstream-model z-ai/glm-5.3 \
     --recipe.config.evolution.agent.sandbox e2b
   ```
 
 * `modal`: the same, in a [Modal](https://modal.com/docs/guide/sandboxes)
-  Sandbox instead of an E2B microVM. It needs `pip install 'reef-infra[modal]'`
+  Sandbox instead of an E2B microVM. It needs `pip install 'aster-infra[modal]'`
   and Modal's credentials (`MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`, or the
-  profile `modal setup` writes). Reef builds the image (the pinned pi,
+  profile `modal setup` writes). Aster builds the image (the pinned pi,
   bubblewrap, Python 3 and coreutils on Node 22) on first use, and Modal caches
   it; `modal_image` names another, `modal_app` the Modal app the sandboxes
   belong to. A Modal sandbox lives at most a day, and the command runs to its
@@ -405,7 +405,7 @@ Isolation (`evolution.agent.sandbox`, or `REEF_AGENT_SANDBOX`):
   under `evolution.state_dir`, and pi reads every `AGENTS.md` or
   `CLAUDE.md` in the directories above it, so keep the state directory
   outside a project that holds such files. The example configuration keeps
-  it in `~/.reef/reefine/harness`.
+  it in `~/.aster/reefine/harness`.
 * Left unset on a host that cannot isolate, the agent is off and the served
   model answers in text; the service logs why.
 
@@ -423,7 +423,7 @@ models before it settles on one.
 
 `evolution.multimodal` names one gateway that serves these modalities behind
 a single key. The agent and its trials reach it through their loopback
-gateway, in the provider's own format, and hold no provider key. Reef's HTTP
+gateway, in the provider's own format, and hold no provider key. Aster's HTTP
 service does not relay these modalities: a scenario's clients call only the
 chat model routes.
 
@@ -432,11 +432,11 @@ evolution:
   multimodal:
     preset: openrouter          # or openai-compatible (OrcaRouter, LiteLLM, ...)
     url: https://openrouter.ai/api   # the preset's address unless set; required for openai-compatible
-    api_key: ${REEF_MULTIMODAL_API_KEY}   # or api_key_env: NAME
+    api_key: ${ASTER_MULTIMODAL_API_KEY}   # or api_key_env: NAME
 ```
 
 `api_key` takes the key the way `inference.upstream_api_key` takes the chat
-key; the example configuration sets it to `${REEF_MULTIMODAL_API_KEY}`, and
+key; the example configuration sets it to `${ASTER_MULTIMODAL_API_KEY}`, and
 `--recipe.config.evolution.multimodal.api_key` sets it on the command line.
 Empty, the upstream key serves when the upstream is the same address, so a
 deployment that chats through OpenRouter needs nothing more. Without a key,
@@ -450,11 +450,11 @@ The example configuration's one evaluation task is a health check:
 ```yaml
 evaluation:
   tasks:
-    - '[health] Run the shell command `echo reef-ok` with your shell tool and reply with its exact output
+    - '[health] Run the shell command `echo aster-ok` with your shell tool and reply with its exact output
       as a plain word alone on the last line.'
 ```
 
-Reefine's evaluator ([`scorer.py`](scorer.py)) grades the reply's last line, `reef-ok` exactly. The
+Reefine's evaluator ([`scorer.py`](scorer.py)) grades the reply's last line, `aster-ok` exactly. The
 floor answers one question: does the tree still work after the change? The
 model binding answers, the shell tool runs, every extension loads. It says
 nothing about whether the change does what was asked; the step's design and
@@ -467,53 +467,53 @@ the training start on them instead.
 An adapter whose prompt is a Harbor task directory, `terminus`, cannot
 take this prompt. There the recipe runs the same check as the task
 directory [`health/`](health/) in its place: the agent writes the
-output of `echo reef-ok` to a file in the task container, and Reefine's
+output of `echo aster-ok` to a file in the task container, and Reefine's
 evaluator reads the task verifier's reward.
 
 ## Terminus
 
 `--recipe.config.evolution.adapter terminus` runs the recipe on
-Terminal-Bench's Terminus 2. Reef does not bundle that adapter: install the
+Terminal-Bench's Terminus 2. Aster does not bundle that adapter: install the
 Meta-Harness Terminal-Bench campaign first (`pip install -e
 recipes/meta_harness/examples/terminal_bench`), which registers it and its
-`reef-terminus` runner. Prepare a model endpoint with its API key, and
+`aster-terminus` runner. Prepare a model endpoint with its API key, and
 Docker or a remote Harbor environment (E2B or Modal) for the task container.
 With Docker, the default, prepare a working Docker installation on the service
-host. On macOS, Docker must share `~/.reef/runs` with the host. Other
+host. On macOS, Docker must share `~/.aster/runs` with the host. Other
 platforms use the temp directory; set `TMPDIR` for the service if Docker's VM
 does not share it. To run the task containers remotely instead, see
 [Docker or a remote environment](../../meta_harness/examples/terminal_bench/README.md#docker-or-a-remote-environment).
 
-Terminus runs one Harbor task at a time through `reef-terminus --task`, so
+Terminus runs one Harbor task at a time through `aster-terminus --task`, so
 there is no session to type in. Submit requests over HTTP and read their
 pages:
 
 ```bash
-export REEF_UPSTREAM_API_KEY=sk-or-...
-reef serve -c recipes/beta/reefine/examples/configs/serve.yaml \
+export ASTER_UPSTREAM_API_KEY=sk-or-...
+aster serve -c recipes/beta/reefine/examples/configs/serve.yaml \
   --inference.upstream-url https://openrouter.ai/api \
   --inference.upstream-model openai/gpt-4o-mini \
   --recipe.config.evolution.adapter terminus
 ```
 
 In another terminal, create a scenario, read its `artifact_id` from
-`GET /reef/harness`, and send a request to `POST /reef/train`. Replace
+`GET /aster/harness`, and send a request to `POST /aster/train`. Replace
 `<artifact_id>` and `<what it should do>` with those values. If the service
-requires authentication, set `REEF_TOKEN` to its token in this terminal:
+requires authentication, set `ASTER_TOKEN` to its token in this terminal:
 
 ```bash
-curl -sS http://127.0.0.1:8901/reef/scenarios -H "Authorization: Bearer $REEF_TOKEN" \
+curl -sS http://127.0.0.1:8901/aster/scenarios -H "Authorization: Bearer $ASTER_TOKEN" \
   -H "Content-Type: application/json" -d '{"name": "terminus-demo"}'
-curl -sS http://127.0.0.1:8901/reef/harness \
-  -H "Authorization: Bearer $REEF_TOKEN" -H "x-reef-scenario: terminus-demo"
-curl -sS http://127.0.0.1:8901/reef/train \
-  -H "Authorization: Bearer $REEF_TOKEN" -H "x-reef-scenario: terminus-demo" \
+curl -sS http://127.0.0.1:8901/aster/harness \
+  -H "Authorization: Bearer $ASTER_TOKEN" -H "x-aster-scenario: terminus-demo"
+curl -sS http://127.0.0.1:8901/aster/train \
+  -H "Authorization: Bearer $ASTER_TOKEN" -H "x-aster-scenario: terminus-demo" \
   -H "Content-Type: application/json" \
   -d '{"text": "<what it should do>", "session": "terminal-1", "artifact_id": "<artifact_id>"}'
 ```
 
 The answer carries the request's `agent_record_id`. Open
-`GET /reef/harness/requests/<id>/page` for that scenario to inspect the step:
+`GET /aster/harness/requests/<id>/page` for that scenario to inspect the step:
 accepting the request alone does not mean it passed evaluation. The
 health task should score 1; inspect the selection result and published snapshot
 on the page before using the new tree.
@@ -523,12 +523,12 @@ on the page before using the new tree.
 With local Docker, the run uses the Docker your shell uses: it keeps the
 service's `DOCKER_HOST`, `DOCKER_CONTEXT` and `DOCKER_CONFIG` (default
 `~/.docker`, where colima and Docker Desktop set the current context). On
-macOS its files live under `~/.reef/runs`, because colima does not
+macOS its files live under `~/.aster/runs`, because colima does not
 share `$TMPDIR` with its VM; on Linux, WSL and Windows they stay in the
 temp directory. A run on E2B gets none of these.
-`GET /reef/harness` serves the published tree;
+`GET /aster/harness` serves the published tree;
 [Harness adapters](../../../docs/developer-guide/harness-adapters.rst) shows the config that runs
-it through Reef yourself, including the `x-reef-scenario` header.
+it through Aster yourself, including the `x-aster-scenario` header.
 
 ## What the step records
 
@@ -536,7 +536,7 @@ Every step's catalog row carries the request under
 `metrics.training_request`, the method's plain-text summary under
 `metrics.method_summary` (why nothing changed, the design with its How to
 use paragraph, and the review) and its notes under `metrics.method_notes`;
-the step page (`GET /reef/harness/artifacts/<step>/page`) shows them:
+the step page (`GET /aster/harness/artifacts/<step>/page`) shows them:
 
 * `design`: the plan for the request, a few sentences ending with the How
   to use paragraph.
@@ -555,7 +555,7 @@ the step page (`GET /reef/harness/artifacts/<step>/page`) shows them:
 * `failure`: why a request step produced no change: the model call
   failed (how long it took, the reply budget and the endpoint's error; a
   reply without text adds that a thinking model may have spent the budget
-  on its reasoning and names `REEF_REEFINE_CALL_MAX_TOKENS`) or the reply
+  on its reasoning and names `ASTER_ASTERINE_CALL_MAX_TOKENS`) or the reply
   held no usable file. The summary starts with it.
 * `agent`: the agent's run, when the agent answered: its exit code, its
   seconds and its trials. `unread` names the files it left that the
@@ -565,7 +565,7 @@ Every `HarnessEvolutionRecipe` evolution setting remains available,
 including another method, seeds, execution settings, and the evaluation; see
 [Recipe configuration](../../../docs/reference/configuration.rst#recipe-configuration).
 
-`REEF_REEFINE_CALL_TIMEOUT_S` and `REEF_REEFINE_CALL_MAX_TOKENS` override the
+`ASTER_ASTERINE_CALL_TIMEOUT_S` and `ASTER_ASTERINE_CALL_MAX_TOKENS` override the
 time and reply token budgets of each model call the method makes itself; the
 agent's run has its own limit, `evolution.agent.timeout_s`. Defaults are 600
 seconds and 65536 reply tokens for the call that answers a request (a

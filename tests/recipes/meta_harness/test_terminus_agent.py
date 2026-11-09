@@ -21,13 +21,13 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from reef_terminus import instruction_paths, skill_roots
-from reef_terminus.runner import AGENT_NAME, agent_spec
+from aster_terminus import instruction_paths, skill_roots
+from aster_terminus.runner import AGENT_NAME, agent_spec
 
-from reef.harness.adapters import get_adapter
-from reef.harness.adapters.matchers import Each, IsIn, Key
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tree import HarnessTree, render_tree
+from aster.harness.adapters import get_adapter
+from aster.harness.adapters.matchers import Each, IsIn, Key
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tree import HarnessTree, render_tree
 
 pytest.importorskip("harbor", reason="harbor is not installed")
 
@@ -37,7 +37,7 @@ TREE = {
     "commands/summarize.md": "Summarize.",
     "config/primary.json": json.dumps({"max_turns": 12}),
 }
-#: The model comes from Reef's binding: a tree cannot set model_name.
+#: The model comes from Aster's binding: a tree cannot set model_name.
 BINDING = ModelBinding(base_url="http://127.0.0.1:9", model="openai/stub", api_key="k")
 
 
@@ -221,9 +221,9 @@ def test_terminus_2_reads_the_context_limit_under_the_served_name(tmp_path: Path
 
 @pytest.mark.unit
 def test_extension_must_remain_a_terminus_agent(monkeypatch) -> None:
-    from reef_terminus.tree import ENVIRONMENT_ENV, TerminusTreeError
+    from aster_terminus.tree import ENVIRONMENT_ENV, TerminusTreeError
 
-    from reef.execution.sandbox.process import ISOLATION_ENV
+    from aster.execution.sandbox.process import ISOLATION_ENV
 
     monkeypatch.setenv(ISOLATION_ENV, "bwrap")
     monkeypatch.setenv(ENVIRONMENT_ENV, "e2b")

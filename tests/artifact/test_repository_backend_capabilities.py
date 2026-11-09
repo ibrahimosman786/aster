@@ -4,7 +4,7 @@ from collections.abc import Mapping
 
 import pytest
 
-from reef.artifact import (
+from aster.artifact import (
     Artifact,
     ArtifactPublicationError,
     EnumerableRepositoryBackendFactory,
@@ -15,9 +15,9 @@ from reef.artifact import (
     SnapshotRef,
     StagedSnapshotRepositoryBackend,
 )
-from reef.dispatcher import build_default_dispatcher
-from reef.storage.sql_coordination import memory_coordination
-from reef.storage.sqlite import SQLiteScenarioStorage
+from aster.dispatcher import build_default_dispatcher
+from aster.storage.sql_coordination import memory_coordination
+from aster.storage.sqlite import SQLiteScenarioStorage
 
 
 class BasicBackend(RepositoryBackend):

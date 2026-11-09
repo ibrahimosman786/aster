@@ -1,10 +1,10 @@
-"""SDPO on SciKnowEval Chemistry, run inside the task's container: train the served model through Reef.
+"""SDPO on SciKnowEval Chemistry, run inside the task's container: train the served model through Aster.
 
 For each step, over the question order ``chemistry.question_schedule`` fixes
 from the seed:
 
     sample  — ``GROUPS_PER_STEP`` questions, each answered
-              ``ROLLOUTS_PER_GROUP`` times through Reef at temperature 1, all
+              ``ROLLOUTS_PER_GROUP`` times through Aster at temperature 1, all
               in one pool of requests: the student's on-policy grid,
               recorded with its tokens and log-probs
     report  — every rollout against its receipt, carrying its coordinates in
@@ -63,7 +63,7 @@ def main() -> None:
         schedule = schedule[:STEPS]
     client = chemistry.make_client(timeout_s=TRAIN_TIMEOUT_S)
     # The inference routes serve only a scenario that exists: create it before the first model call.
-    client.post("/reef/scenarios", chemistry.SCENARIO, {"name": chemistry.SCENARIO})
+    client.post("/aster/scenarios", chemistry.SCENARIO, {"name": chemistry.SCENARIO})
     print(
         f"[chemistry] {len(train)} training and {len(test)} test questions; {len(schedule)} steps of "
         f"{GROUPS_PER_STEP}x{ROLLOUTS_PER_GROUP} (seed {SEED}); service {chemistry.SERVICE_URL}, "

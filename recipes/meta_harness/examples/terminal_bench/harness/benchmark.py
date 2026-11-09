@@ -7,8 +7,8 @@ import math
 import subprocess
 from pathlib import Path
 
-from reef.evaluation.harness import TaskScorer
-from reef.harness import TaskResult
+from aster.evaluation.harness import TaskScorer
+from aster.harness import TaskResult
 
 MANIFEST = json.loads(Path(__file__).with_name("tasks.json").read_text(encoding="utf-8"))
 

@@ -24,7 +24,7 @@ from tests.contributing.test_example_entrypoints import EXAMPLE_DIRS, _load_harn
 EXAMPLE_DIR = EXAMPLE_DIRS["ceobench"]
 SCORE_PATH = EXAMPLE_DIR / "harbor" / "tests" / "score.py"
 ENGINE_PATH = EXAMPLE_DIR / "harbor" / "environment" / "engine.py"
-PACKAGE = "_reef_ceobench_example_harness"
+PACKAGE = "_aster_ceobench_example_harness"
 
 
 def load_modules(monkeypatch):
@@ -91,7 +91,7 @@ def response(
         {
             "id": "completion-test",
             "created": 0,
-            "model": "reef",
+            "model": "aster",
             "object": "chat.completion",
             "choices": [
                 {
@@ -303,19 +303,19 @@ def create_harness(monkeypatch, modules, tmp_path, *, env=None):
     """A Harbor agent with its service settings set, week reporting initialized from ``env``."""
     for key, value in {"CEOBENCH_CREDIT_WEEKS": "1", **(env or {})}.items():
         monkeypatch.setenv(key, value)
-    monkeypatch.setenv("REEF_SERVICE_URL", "http://10.0.0.7:28900")
-    monkeypatch.setenv("REEF_SCENARIO", "ceobench-host-test")
+    monkeypatch.setenv("ASTER_SERVICE_URL", "http://10.0.0.7:28900")
+    monkeypatch.setenv("ASTER_SCENARIO", "ceobench-host-test")
     monkeypatch.setenv("CEOBENCH_LLM_TIMEOUT_S", "30")
     monkeypatch.setenv("CEOBENCH_BASH_TIMEOUT_S", "60")
 
     def initialize_base(self):
-        self.model_name = "reef"
+        self.model_name = "aster"
         self.logs_dir = tmp_path / "agent"
         self.logs_dir.mkdir(parents=True, exist_ok=True)
         self.logger = logging.getLogger("ceobench-test")
 
     monkeypatch.setattr(modules.harbor_agent.BaseAgent, "__init__", initialize_base)
-    monkeypatch.setattr(modules.harbor_agent, "ReefClient", lambda *args, **kwargs: Client())
+    monkeypatch.setattr(modules.harbor_agent, "AsterClient", lambda *args, **kwargs: Client())
     return modules.harbor_agent.HarborAgent(seed=7, days=14)
 
 
@@ -362,7 +362,7 @@ def test_agent_starts_without_a_system_prompt_and_rebuilds_it_each_week(monkeypa
     )
     notes = Notes()
     agent = modules.agent.BashAgent(
-        model, "reef", "PROMPT", [{"name": "bash", "description": "d", "parameters": {}}], notes
+        model, "aster", "PROMPT", [{"name": "bash", "description": "d", "parameters": {}}], notes
     )
 
     first = agent.act(dashboard(0, 0, 1_000_000), {"day": 0, "cash": 1_000_000})
@@ -395,7 +395,7 @@ def test_agent_request_matches_the_benchmark_runner(monkeypatch) -> None:
     modules = load_modules(monkeypatch)
     tools = [{"name": "bash", "description": "Run bash", "parameters": {"type": "object", "properties": {}}}]
     model = Model([response(tool_call("c1", "bash", {"command": "ls"}), prompt_tokens=40, completion_tokens=5)])
-    agent = modules.agent.BashAgent(model, "reef", "PROMPT", tools, Notes())
+    agent = modules.agent.BashAgent(model, "aster", "PROMPT", tools, Notes())
 
     agent.act("dashboard", {"day": 0})
 
@@ -409,7 +409,7 @@ def test_agent_request_matches_the_benchmark_runner(monkeypatch) -> None:
         "temperature",
         "reasoning_effort",
     }
-    assert request["model"] == "reef" and request["tool_choice"] == "auto" and request["temperature"] == 1.0
+    assert request["model"] == "aster" and request["tool_choice"] == "auto" and request["temperature"] == 1.0
     assert request["max_completion_tokens"] == 16384 and request["reasoning_effort"] == "none"
     assert request["tools"] == [{"type": "function", "function": tools[0]}]
     assert (agent.total_input_tokens, agent.total_output_tokens) == (40, 5)
@@ -426,7 +426,7 @@ def test_agent_executes_the_first_tool_call_and_skips_the_rest(monkeypatch) -> N
             response(tool_call("c3", "bash", {"command": "ls"})),
         ]
     )
-    agent = modules.agent.BashAgent(model, "reef", "PROMPT", [], Notes())
+    agent = modules.agent.BashAgent(model, "aster", "PROMPT", [], Notes())
 
     action = agent.act("dashboard", {"day": 0})
     assert (action.tool, action.arguments) == ("read_file", {"path": "README.md"})
@@ -453,7 +453,7 @@ def test_agent_feeds_back_missing_tool_calls_and_invalid_json(monkeypatch) -> No
             response(tool_call("c2", "bash", {"command": "ls"})),
         ]
     )
-    agent = modules.agent.BashAgent(model, "reef", "PROMPT", [], Notes())
+    agent = modules.agent.BashAgent(model, "aster", "PROMPT", [], Notes())
 
     action = agent.act("dashboard", {"day": 0})
 
@@ -484,7 +484,7 @@ def test_agent_retries_retryable_errors_and_feeds_back_the_others(monkeypatch) -
             response(tool_call("c1", "bash", {"command": "ls"})),
         ]
     )
-    agent = modules.agent.BashAgent(model, "reef", "PROMPT", [], Notes())
+    agent = modules.agent.BashAgent(model, "aster", "PROMPT", [], Notes())
 
     action = agent.act("dashboard", {"day": 0})
 
@@ -500,14 +500,14 @@ def test_agent_retries_retryable_errors_and_feeds_back_the_others(monkeypatch) -
 @pytest.mark.unit
 def test_memory_is_appended_up_to_forty_thousand_characters(monkeypatch) -> None:
     modules = load_modules(monkeypatch)
-    agent = modules.agent.BashAgent(Model([]), "reef", "PROMPT", [], Notes("x" * 40_010))
+    agent = modules.agent.BashAgent(Model([]), "aster", "PROMPT", [], Notes("x" * 40_010))
     prompt = agent.system_prompt_with_memory()
     assert prompt.endswith(
         "--- MEMORY.md TRUNCATED ---\nShowing first 40,000 of 40,010 characters. "
         "Use the read_file tool to see the full contents if needed."
     )
     assert (
-        modules.agent.BashAgent(Model([]), "reef", "PROMPT", [], Notes("  \n")).system_prompt_with_memory() == "PROMPT"
+        modules.agent.BashAgent(Model([]), "aster", "PROMPT", [], Notes("  \n")).system_prompt_with_memory() == "PROMPT"
     )
 
 
@@ -663,11 +663,11 @@ def test_container_tools_run_the_script_as_the_agent_user(monkeypatch) -> None:
     finally:
         loop.call_soon_threadsafe(loop.stop)
 
-    assert calls[0][0] == "upload" and calls[0][2] == "/tmp/reef-ceobench-tools.py" and "tool executor" in calls[0][1]
-    assert calls[1] == ("exec", "chmod 644 /tmp/reef-ceobench-tools.py", None, None)
+    assert calls[0][0] == "upload" and calls[0][2] == "/tmp/aster-ceobench-tools.py" and "tool executor" in calls[0][1]
+    assert calls[1] == ("exec", "chmod 644 /tmp/aster-ceobench-tools.py", None, None)
     _kind, command, user, timeout = calls[2]
     assert command.startswith("printf %s ") and command.endswith(
-        " | base64 -d | /opt/ceobench/.venv/bin/python /tmp/reef-ceobench-tools.py"
+        " | base64 -d | /opt/ceobench/.venv/bin/python /tmp/aster-ceobench-tools.py"
     )
     assert user == "agent" and timeout == 180
 
@@ -714,10 +714,10 @@ def test_task_container_starts_the_engine_and_reads_it_over_http(monkeypatch) ->
         environ = {"SAAS_BENCH_SOCIAL_POST_LLM_PROVIDER": "openai", "OPENAI_API_KEY": "local", "HOME": "/home/x"}
         task = modules.harbor_agent.TaskContainer(Environment(), loop, environ=environ)
         session = task.start_engine(
-            seed=7, days=14, cash=1e6, model="reef", reasoning_effort="none", tool_user="agent"
+            seed=7, days=14, cash=1e6, model="aster", reasoning_effort="none", tool_user="agent"
         )
         assert session.port == 4242 and session.total_days == 14
-        assert task.contract(14, "reef").system_prompt == "P14"
+        assert task.contract(14, "aster").system_prompt == "P14"
         assert task.query("SELECT 1") == [{"mrr": 42.0}]
         assert task.dashboard() == "=== Week 0 Dashboard (Day 0) ==="
         assert task.status() == {"day": 0, "cash": 0, "subscribers": 0, "timed_out": False}  # the benchmark's fallback
@@ -727,7 +727,7 @@ def test_task_container_starts_the_engine_and_reads_it_over_http(monkeypatch) ->
     command, cwd, env, timeout = calls[0]
     assert command == (
         "/opt/ceobench/.venv/bin/python /opt/ceobench-engine.py start --runs-dir /workspace/ceobench-runs"
-        " --seed 7 --days 14 --cash 1000000.0 --model reef --reasoning-effort none --tool-user agent"
+        " --seed 7 --days 14 --cash 1000000.0 --model aster --reasoning-effort none --tool-user agent"
     )
     assert cwd == "/opt/ceobench" and timeout == 600
     assert env == {"SAAS_BENCH_SOCIAL_POST_LLM_PROVIDER": "openai", "OPENAI_API_KEY": "local"}
@@ -898,7 +898,7 @@ def test_training_pacer_forgives_a_batch_the_trainer_never_commits(monkeypatch) 
 
 
 @pytest.mark.unit
-def test_harness_plays_the_rollout_and_reports_each_week_to_reef(monkeypatch, tmp_path) -> None:
+def test_harness_plays_the_rollout_and_reports_each_week_to_aster(monkeypatch, tmp_path) -> None:
     modules = load_modules(monkeypatch)
     harness = create_harness(monkeypatch, modules, tmp_path)
     simulation = Simulation()
@@ -915,7 +915,7 @@ def test_harness_plays_the_rollout_and_reports_each_week_to_reef(monkeypatch, tm
         "seed": 7,
         "days": 14,
         "cash": 1e6,
-        "model": "reef",
+        "model": "aster",
         "reasoning_effort": "none",
         "tool_user": "agent",
     }
@@ -950,7 +950,7 @@ def test_harness_plays_the_rollout_and_reports_each_week_to_reef(monkeypatch, tm
         (0, 1_000_000.0, 0.0, 1),
         (1, 990_000.0, 50.0, 1),
     ]
-    assert context.metadata["reef"] == {
+    assert context.metadata["aster"] == {
         "agent_record_ids": ["r-1", "r-2", "r-3"],
         "agent_record_tokens": [110, 13, 13],
         "agent_record_weeks": [0, 0, 1],
@@ -1081,9 +1081,9 @@ def test_entrypoint_runs_one_rollout_and_drains_training(monkeypatch, capsys) ->
     reef_eval.Lab = Lab
     monkeypatch.setitem(sys.modules, "reef_eval", reef_eval)
     for key, value in {
-        "REEF_SERVICE_URL": "http://127.0.0.1:1/",  # nothing listens: the drain skips
-        "REEF_SCENARIO": "ceobench-host-test",
-        "REEF_TOKEN": "reef-local",
+        "ASTER_SERVICE_URL": "http://127.0.0.1:1/",  # nothing listens: the drain skips
+        "ASTER_SCENARIO": "ceobench-host-test",
+        "ASTER_TOKEN": "aster-local",
         "CEOBENCH_SEED": "43",
         "CEOBENCH_DAYS": "14",
     }.items():
@@ -1095,7 +1095,7 @@ def test_entrypoint_runs_one_rollout_and_drains_training(monkeypatch, capsys) ->
     (lab, task, agent, tags), *rest = calls
     assert not rest
     assert str(task.relative_to(EXAMPLE_DIR)) == "harbor"
-    assert agent == {"name": "harness:HarborAgent", "model_name": "reef", "kwargs": {"seed": 43, "days": 14}}
+    assert agent == {"name": "harness:HarborAgent", "model_name": "aster", "kwargs": {"seed": 43, "days": 14}}
     assert tags == {"seed": 43, "days": 14, "scenario": "ceobench-host-test"}
     assert lab == EXAMPLE_DIR / "work" / "lab"
     out = capsys.readouterr().out
@@ -1114,7 +1114,7 @@ def test_entrypoint_fails_when_harbor_reports_an_error(monkeypatch) -> None:
     reef_eval = ModuleType("reef_eval")
     reef_eval.Lab = Lab
     monkeypatch.setitem(sys.modules, "reef_eval", reef_eval)
-    monkeypatch.setenv("REEF_SERVICE_URL", "http://127.0.0.1:1/")
+    monkeypatch.setenv("ASTER_SERVICE_URL", "http://127.0.0.1:1/")
 
     with pytest.raises(RuntimeError, match="Harbor trial failed: environment failed"):
         runpy.run_path(str(EXAMPLE_DIR / "run.py"))
@@ -1125,7 +1125,7 @@ def test_task_pins_the_upstream_commit_and_ships_no_credentials() -> None:
     dockerfile = (EXAMPLE_DIR / "harbor" / "environment" / "Dockerfile").read_text(encoding="utf-8")
     assert "ARG CEOBENCH_COMMIT=d2b7b32e5301a571b77f5f68bd1032adbcd5b464" in dockerfile
     assert "COPY engine.py /opt/ceobench-engine.py" in dockerfile
-    patch = (EXAMPLE_DIR / "harbor" / "environment" / "reef.patch").read_text(encoding="utf-8")
+    patch = (EXAMPLE_DIR / "harbor" / "environment" / "aster.patch").read_text(encoding="utf-8")
     # The patch touches the engine only: the agent, its tools, and its runner live in harness/.
     assert "SAAS_BENCH_SIMULATOR_TIMEOUT_S" in patch and "agents/bash_agent" not in patch
     for path in EXAMPLE_DIR.rglob("*"):
@@ -1148,7 +1148,7 @@ def test_agent_preserves_provider_tool_fields_and_optional_sdk_usage(monkeypatch
     call.model_extra = {"extra_content": {"provider": {"signature": "opaque"}}}
     completion = response(call)
     completion.usage = None
-    agent = modules.agent.BashAgent(Model([completion]), "reef", "PROMPT", [], Notes())
+    agent = modules.agent.BashAgent(Model([completion]), "aster", "PROMPT", [], Notes())
 
     action = agent.act("dashboard", {"day": 0})
 
@@ -1161,7 +1161,7 @@ def test_agent_preserves_provider_tool_fields_and_optional_sdk_usage(monkeypatch
 @pytest.mark.unit
 def test_agent_propagates_programming_errors_instead_of_retrying(monkeypatch) -> None:
     modules = load_modules(monkeypatch)
-    agent = modules.agent.BashAgent(Model([AttributeError("broken client")]), "reef", "PROMPT", [], Notes())
+    agent = modules.agent.BashAgent(Model([AttributeError("broken client")]), "aster", "PROMPT", [], Notes())
 
     with pytest.raises(AttributeError, match="broken client"):
         agent.act("dashboard", {"day": 0})

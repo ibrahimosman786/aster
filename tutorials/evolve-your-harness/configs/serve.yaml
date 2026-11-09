@@ -1,24 +1,24 @@
-# The stack `run.sh` starts: one Reef service on port 8900, state under
+# The stack `run.sh` starts: one Aster service on port 8900, state under
 # the example's ./work directory.
 #
 # This file also carries the harness evolution recipe (the `recipe` section) and the
 # model binding it shares with the service (the `inference` section). The recipe
-# registry reads named recipe configs from REEF_RECIPE_CONFIG_DIR, so run.sh copies
+# registry reads named recipe configs from ASTER_RECIPE_CONFIG_DIR, so run.sh copies
 # those sections into work/recipes/harness_evolve.yaml, together with the optional
 # pipeline, execution and executors sections.
 
-reef:
+aster:
   host: 127.0.0.1
   port: 8900
   # Unset ASTER_TOKEN leaves this loopback demo without authentication; set it to require a Bearer token.
   token: ${ASTER_TOKEN}
   # The OpenAI-compatible provider (no /v1 suffix) and the model under test.
-  # Reef proxies recorded traffic here, the method's model calls go here, and
+  # Aster proxies recorded traffic here, the method's model calls go here, and
   # evaluation runs are pointed here - nothing else ever sees it.
   run-dir: work/stack
 
 recipe:
-  implementation: reef.recipe.harness:HarnessEvolutionRecipe
+  implementation: aster.recipe.harness:HarnessEvolutionRecipe
 
   config:
     evolution:
@@ -26,20 +26,20 @@ recipe:
       # The default pipeline stages batch every valid scored report, a passing one included.
       # The default job_samples of 1 makes each report one evolve step.
       # The method beside this file (harness/plugins.py): one call to the served
-      # model reads the step's failing traces and rewrites rules.md. The reef
+      # model reads the step's failing traces and rewrites rules.md. The aster
       # service resolves the dotted reference because run.sh starts it with
       # the repository root on PYTHONPATH.
       method: tutorials.evolve-your-harness.harness.plugins:RulesMethod
-      # No binary: at startup reef installs the descriptor's pinned pi under
-      # ~/.local/share/reef-harness/pi. Set evolution.binary to a path to use an install of your own instead.
-      # The first tree, a directory relative to the one run.sh starts Reef in:
-      # the starter rules.md the method rewrites. It carries no provider: Reef
+      # No binary: at startup aster installs the descriptor's pinned pi under
+      # ~/.local/share/aster-harness/pi. Set evolution.binary to a path to use an install of your own instead.
+      # The first tree, a directory relative to the one run.sh starts Aster in:
+      # the starter rules.md the method rewrites. It carries no provider: Aster
       # renders its own model binding (inference.upstream-url and
       # inference.upstream-model below) into each evaluation run, and the
       # published tree never names an endpoint.
       seed: seeds/pi
       # Each scenario's history (the score cache) and step records,
-      # relative to the directory run.sh starts Reef in, as every path in this file is.
+      # relative to the directory run.sh starts Aster in, as every path in this file is.
       state_dir: work/harness
       evaluation:
         # The grader beside this file: exact last-line answers (harness/evolution.py).

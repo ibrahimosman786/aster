@@ -1,4 +1,4 @@
-# OpenClaw-RL on Reef
+# OpenClaw-RL on Aster
 
 This example implements the harness side of
 [OpenClaw-RL](https://arxiv.org/abs/2603.10165)'s personal-agent experiment.
@@ -6,10 +6,10 @@ OpenClaw-RL trains an agent from its ordinary usage: each turn is scored by
 what the user did next, a follow-up that moves on counting as acceptance and
 a complaint as rejection, and the policy updates while it keeps serving. The
 method itself is the `openclawrl` recipe package (`recipes/openclawrl/`). Its
-processor rebuilds sessions from the traffic Reef already records, judges
+processor rebuilds sessions from the traffic Aster already records, judges
 every completed turn through an independently deployed PRM, and turns accepted
 hindsight hints into a training signal. No report call is required. The
-processor prefers a stable, conversation-unique `x-reef-tag-session` value
+processor prefers a stable, conversation-unique `x-aster-tag-session` value
 and otherwise falls back to matching transcripts; this example's header shim
 supplies the tag for the unmodified Hermes agent.
 
@@ -47,8 +47,8 @@ results/
   learning_curve.py              per-session accept and style metrics, logged to W&B during a stream or exported afterwards
   2026-08-27-gsm8k-stream-qwen3-4b-thinking/
                                  the learning curve of a complete run
-serve.yaml                       Reef/Slime configuration and the recipe's PRM endpoint
-docker-compose.yaml              Reef, PRM and student-model containers with separate GPUs
+serve.yaml                       Aster/Slime configuration and the recipe's PRM endpoint
+docker-compose.yaml              Aster, PRM and student-model containers with separate GPUs
 run.sh                           builds the student service image, starts the stack, runs the stream
 restamp.sh                       re-pins the 72 tasks to user_sim/'s content hash after a change there
 pyproject.toml                   makes harness/ importable
@@ -64,7 +64,7 @@ state mount. The one-shot `hermes -z` cannot be used for this: it accepts
 `--resume` but ignores it, so every turn would start a fresh conversation.
 Hermes reads
 its model endpoint from its own config and sends OpenAI-compatible chat
-requests; it knows nothing about Reef, scenarios, or training.
+requests; it knows nothing about Aster, scenarios, or training.
 
 The judge service plays the student. `student_server.py` runs the persona
 from `personas.py`, reacts to each reply, and records the session. The
@@ -79,7 +79,7 @@ save the file.
 
 The stream is a [reef-eval task stream](https://github.com/Human-Agent-Society/reef-eval):
 an ordered folder of ordinary Harbor tasks that reef-eval runs strictly in order,
-with one directory (`$REEF_EVAL_STATE_DIR`) mounted into every position. The
+with one directory (`$ASTER_EVAL_STATE_DIR`) mounted into every position. The
 agent carries state across sessions, so the sessions cannot be run as
 independent trials.
 
@@ -97,18 +97,18 @@ present.
 Weights and memory are two separate ways the agent can adapt. The paper's
 numbers are for weights only, so `hermes_memory` is off by default.
 
-## The changes needed for Reef
+## The changes needed for Aster
 
 `HermesStreamAgent` (`harness/agent.py`) owns one session per stream
 position. Around the unmodified agent it makes three changes:
 
 1. It runs a small header shim (`reef_client.serve`) on the host and points
-   hermes's model endpoint at it. Hermes cannot set the `x-reef-scenario`
-   or `x-reef-tag-session` header itself, so the shim attaches the scenario
-   and stable conversation tag, then forwards the request to Reef.
-2. It mints a Reef scenario id at position 0 and writes it to
-   `$REEF_EVAL_STATE_DIR`. One stream is one scenario, which is one chain of
-   artifacts in Reef.
+   hermes's model endpoint at it. Hermes cannot set the `x-aster-scenario`
+   or `x-aster-tag-session` header itself, so the shim attaches the scenario
+   and stable conversation tag, then forwards the request to Aster.
+2. It mints an Aster scenario id at position 0 and writes it to
+   `$ASTER_EVAL_STATE_DIR`. One stream is one scenario, which is one chain of
+   artifacts in Aster.
 3. It writes the hermes config at the start of every position, with context
    compression, reasoning display and the tirith scanner turned off (the
    reply on stdout must be the answer alone).
@@ -118,8 +118,8 @@ The runtime flow is:
 ```text
 reef-eval starts the task container and the judge service for the next session
   -> the harness reads the student's message from the student service
-  -> hermes runs one turn; its model calls go through the shim to Reef
-  -> Reef records the provider exchange and the artifact that answered, without tokens
+  -> hermes runs one turn; its model calls go through the shim to Aster
+  -> Aster records the provider exchange and the artifact that answered, without tokens
   -> the harness posts hermes's reply to the student service, and the student reacts
   -> on the next model call, the processor uses the session tag to bind the preceding call to its following tool result or user reaction
   -> the PRM judges that next state and may propose a hindsight hint
@@ -133,28 +133,28 @@ reef-eval starts the task container and the judge service for the next session
 
 You need a GPU host with seven available GPUs, Docker, and `uv` (for `uvx`,
 which runs reef-eval). The example's `docker-compose.yaml` assigns physical GPU 1
-to the PRM, GPU 2 to the student model, and GPUs 3–7 to Reef/Slime, leaving GPU 0
-free. Reef reserves four GPUs for the Megatron actor (tensor parallel 4), and
+to the PRM, GPU 2 to the student model, and GPUs 3–7 to Aster/Slime, leaving GPU 0
+free. Aster reserves four GPUs for the Megatron actor (tensor parallel 4), and
 its inference component takes one for the policy serving engine. Adjust
 Compose device assignments for your host; keep the three pools disjoint.
 This example is a single-host deployment.
 
 Compose starts and health-checks the independent model services, waits for PRM
-readiness before starting Reef, and waits for all three services before the
-harness runs. Reef starts a local Ray runtime for Slime and connects its HTTP
-service to the training-owned inference engine. Reef shutdown stops its own
+readiness before starting Aster, and waits for all three services before the
+harness runs. Aster starts a local Ray runtime for Slime and connects its HTTP
+service to the training-owned inference engine. Aster shutdown stops its own
 runtime; `docker compose down` stops the entire example, including PRM and the
 student model.
 
-Set `RAY_ADDRESS` only to connect Slime to an external cluster, which Reef leaves
-running. That cluster must exclude the PRM/student GPUs: the Reef container's
+Set `RAY_ADDRESS` only to connect Slime to an external cluster, which Aster leaves
+running. That cluster must exclude the PRM/student GPUs: the Aster container's
 GPU visibility does not constrain an external cluster. An unavailable external
-address is an error. To launch Reef directly, first start the independent PRM
-and student model, then restrict Reef's local pool, for example:
-`CUDA_VISIBLE_DEVICES=3,4,5,6,7 reef serve -c recipes/openclawrl/examples/openclawrl/serve.yaml`.
+address is an error. To launch Aster directly, first start the independent PRM
+and student model, then restrict Aster's local pool, for example:
+`CUDA_VISIBLE_DEVICES=3,4,5,6,7 aster serve -c recipes/openclawrl/examples/openclawrl/serve.yaml`.
 
 ```bash
-docker build -f docker/Dockerfile.reef -t reef-openclawrl .
+docker build -f docker/Dockerfile.aster -t aster-openclawrl .
 hf download Qwen/Qwen3-4B-Thinking-2507 --local-dir ~/models/Qwen3-4B-Thinking-2507   # policy and PRM
 hf download Qwen/Qwen3-32B --local-dir ~/models/Qwen3-32B                             # the student
 pip install uv
@@ -167,7 +167,7 @@ the policy is trained. Qwen3-32B plays the student.
 Two more things to check on a host you did not set up yourself. reef-eval needs
 Python 3.12 or newer; if `uvx` picks an older interpreter, set
 `UV_PYTHON=3.12`. And the repository root must not contain a stale
-`reef.egg-info`, because it is mounted into the container and shadows the
+`aster.egg-info`, because it is mounted into the container and shadows the
 installed package's entry points, which stops the sglang plugin from loading.
 
 ## Run
@@ -185,7 +185,7 @@ Re-running the same command resumes the stream where the lab left off and
 reuses the healthy stack.
 
 The paths and names are constants at the top of `run.sh`: the models under
-`~/models`, checkpoints under `~/reef-run`, and the task list (all 72 GSM8K
+`~/models`, checkpoints under `~/aster-run`, and the task list (all 72 GSM8K
 tasks). A few settings come from the environment, because the task
 environments and other processes read them:
 
@@ -218,7 +218,7 @@ may still need a one-time chown to your user.
 
 ### Reading a run
 
-The reef-eval lab is at `~/reef-run/lab`. Each session's verdict is in
+The reef-eval lab is at `~/aster-run/lab`. Each session's verdict is in
 `trials/gsm8k-sNNN__*/verifier/final.json`, with the reward, the list of
 violated rules, and the turn count. `results/learning_curve.py` turns those
 verdicts into the stream's learning curve: whether the first reply was
@@ -232,7 +232,7 @@ and draws the figure the README keeps:
 ```bash
 uv run --no-project --with matplotlib \
     recipes/openclawrl/examples/openclawrl/results/learning_curve.py \
-    --lab ~/reef-run/lab --csv results/<run>/learning_curve.csv --plot results/<run>/learning_curve.png
+    --lab ~/aster-run/lab --csv results/<run>/learning_curve.csv --plot results/<run>/learning_curve.png
 ```
 
 ## Results
@@ -262,20 +262,20 @@ A session passes when the agent's first solution reply already matches the stude
 ![A failing and a passing session replayed from the run](results/2026-08-27-gsm8k-stream-qwen3-4b-thinking/demo.gif)
 
 The demo above replays two sessions from this run. In session 1 the student
-rejects a formatted reply, reef keeps the training going, and by session 16
+rejects a formatted reply, aster keeps the training going, and by session 16
 the first reply passes directly.
 
 ## Configuration ownership
 
-The Reef YAML contains no `service` or `services` sections. HTTP settings use
-`reef.*`; Reef assembles inference and training. OpenClawRL's judging stage
+The Aster YAML contains no `service` or `services` sections. HTTP settings use
+`aster.*`; Aster assembles inference and training. OpenClawRL's judging stage
 consumes an independently deployed PRM through
 `pipeline.record2sample.config.prm_url` and
 `pipeline.record2sample.config.prm_tokenizer_path`. The tokenizer must match
 the served PRM. CLI overrides use the same paths, for example:
 
 ```bash
-reef serve -c recipes/openclawrl/examples/openclawrl/serve.yaml \
+aster serve -c recipes/openclawrl/examples/openclawrl/serve.yaml \
   --pipeline.record2sample.config.prm_url http://prm-host:23001 \
   --pipeline.record2sample.config.prm_tokenizer_path /models/prm-tokenizer
 ```
@@ -283,7 +283,7 @@ reef serve -c recipes/openclawrl/examples/openclawrl/serve.yaml \
 The example's Compose file owns PRM and student-model launch arguments, health
 checks and GPU assignments. Configure native SGLang options in those containers'
 commands. The student-model endpoint belongs to the user-simulation harness;
-Reef does not receive it. To use an existing PRM in the Compose example, remove
-the `prm` container and Reef's Compose `depends_on: prm` entry, then update the
+Aster does not receive it. To use an existing PRM in the Compose example, remove
+the `prm` container and Aster's Compose `depends_on: prm` entry, then update the
 two PRM fields under `pipeline.record2sample.config`. PRM request timeouts and
 scoring errors remain the OpenClawRL recipe's responsibility.

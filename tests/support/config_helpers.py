@@ -4,8 +4,8 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-from reef.service.deploy.config_utils import load_config
-from reef.service.deploy.orchestrator import resolve_deployment_config
+from aster.service.deploy.config_utils import load_config
+from aster.service.deploy.orchestrator import resolve_deployment_config
 
 
 def load_deployment(path):
@@ -13,8 +13,8 @@ def load_deployment(path):
     with patch.dict(
         os.environ,
         {
-            "GUIDANCE_MODEL_PATH": os.environ.get("GUIDANCE_MODEL_PATH") or "/tmp/reef-test-model",
-            "GUIDANCE_STATE_DIR": os.environ.get("GUIDANCE_STATE_DIR") or "/tmp/reef-test-guidance",
+            "GUIDANCE_MODEL_PATH": os.environ.get("GUIDANCE_MODEL_PATH") or "/tmp/aster-test-model",
+            "GUIDANCE_STATE_DIR": os.environ.get("GUIDANCE_STATE_DIR") or "/tmp/aster-test-guidance",
         },
     ):
         return resolve_deployment_config(load_config(path, interpolate_env=False), None, path)[0]
@@ -25,19 +25,19 @@ def deployment_layout(config):
     with patch.dict(
         os.environ,
         {
-            "REEF_UPSTREAM_URL": os.environ.get("REEF_UPSTREAM_URL") or "http://127.0.0.1:8000",
-            "REEF_UPSTREAM_MODEL": os.environ.get("REEF_UPSTREAM_MODEL") or "test-model",
+            "ASTER_UPSTREAM_URL": os.environ.get("ASTER_UPSTREAM_URL") or "http://127.0.0.1:8000",
+            "ASTER_UPSTREAM_MODEL": os.environ.get("ASTER_UPSTREAM_MODEL") or "test-model",
             # Examples that bind every address need a token to start.
-            "REEF_TOKEN": os.environ.get("REEF_TOKEN") or "test-token",
-            "GUIDANCE_MODEL_PATH": os.environ.get("GUIDANCE_MODEL_PATH") or "/tmp/reef-test-model",
-            "GUIDANCE_STATE_DIR": os.environ.get("GUIDANCE_STATE_DIR") or "/tmp/reef-test-guidance",
+            "ASTER_TOKEN": os.environ.get("ASTER_TOKEN") or "test-token",
+            "GUIDANCE_MODEL_PATH": os.environ.get("GUIDANCE_MODEL_PATH") or "/tmp/aster-test-model",
+            "GUIDANCE_STATE_DIR": os.environ.get("GUIDANCE_STATE_DIR") or "/tmp/aster-test-guidance",
         },
     ):
         return resolve_deployment_config(config, None, Path(__file__).resolve().parents[2] / "<example>")[0]
 
 
 def load_harness_deployment(path):
-    from reef.recipe.config import recipe_config_from_file_layout
+    from aster.recipe.config import recipe_config_from_file_layout
 
     raw = load_config(path)
     config = load_deployment(path)

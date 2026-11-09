@@ -12,8 +12,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
-from reef.harness.adapters.parts import Format, TreeLayout
-from reef.harness.tree import HarnessTree, TreePatch
+from aster.harness.adapters.parts import Format, TreeLayout
+from aster.harness.tree import HarnessTree, TreePatch
 
 #: The formats whose files are free text GEPA can rewrite. Config, code and
 #: native files are structure, not instructions: a reflection reply is prose,

@@ -6,21 +6,21 @@ extensions. This example asks for a change over HTTP, follows its step on the
 request page, activates a held snapshot, and pulls the result. The scripted
 demos then run the same path end to end and run a pi session on the new tree.
 
-## 1. Start Reef
+## 1. Start Aster
 
 Use the repository environment from the [development guide](../../../../docs/contributing/development.rst).
-The `python3` on your PATH must import `reef` and `reef_client`.
+The `python3` on your PATH must import `aster` and `reef_client`.
 Have Node.js, npm, `rg`, and `fd` available for pi.
 Start a model endpoint that supports tool calls. Keep port `8901` free.
 
-Reefine is not part of the `reef-infra` wheel. Set `PYTHONPATH` to the
-checkout, as `run.sh` does, so that the service imports Reef and the recipe
+Reefine is not part of the `aster-infra` wheel. Set `PYTHONPATH` to the
+checkout, as `run.sh` does, so that the service imports Aster and the recipe
 from this checkout. In a terminal at the repository root:
 
 ```bash
 source .venv/bin/activate
 export PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}"
-reef serve -c recipes/beta/reefine/examples/configs/serve.yaml \
+aster serve -c recipes/beta/reefine/examples/configs/serve.yaml \
   --inference.upstream-url http://127.0.0.1:11434 \
   --inference.upstream-model gemma4:26b \
   --inference.upstream-api-key dummy
@@ -28,13 +28,13 @@ reef serve -c recipes/beta/reefine/examples/configs/serve.yaml \
 
 This example uses a local Ollama model. Change the endpoint, model, and key
 for your provider. Leave the service running throughout the example.
-It listens on `127.0.0.1:8901` and stores state under `~/.reef/reefine/`,
+It listens on `127.0.0.1:8901` and stores state under `~/.aster/reefine/`,
 outside the checkout.
-At startup it installs the pinned pi under `~/.local/share/reef-harness/pi`.
+At startup it installs the pinned pi under `~/.local/share/aster-harness/pi`.
 
-The local service requires no token unless `REEF_TOKEN` is set.
+The local service requires no token unless `ASTER_TOKEN` is set.
 If you use a token, export it in both terminals and add
-`-H "Authorization: Bearer $REEF_TOKEN"` to each `curl` command below.
+`-H "Authorization: Bearer $ASTER_TOKEN"` to each `curl` command below.
 
 ## 2. Create a scenario
 
@@ -44,10 +44,10 @@ requests together, then read its first snapshot:
 ```bash
 curl -fsS -H 'Content-Type: application/json' \
   -d '{"name": "reefine-example"}' \
-  http://127.0.0.1:8901/reef/scenarios
+  http://127.0.0.1:8901/aster/scenarios
 
-curl -fsS -H 'x-reef-scenario: reefine-example' \
-  http://127.0.0.1:8901/reef/harness
+curl -fsS -H 'x-aster-scenario: reefine-example' \
+  http://127.0.0.1:8901/aster/harness
 ```
 
 The first snapshot is the recipe's seed, one starter skill, rendered for pi.
@@ -58,9 +58,9 @@ Note its `artifact_id`.
 Send the request, with the release id from the previous step:
 
 ```bash
-curl -fsS -H 'x-reef-scenario: reefine-example' -H 'Content-Type: application/json' \
+curl -fsS -H 'x-aster-scenario: reefine-example' -H 'Content-Type: application/json' \
   -d '{"text": "When I ask you to fix a bug, reproduce it with a failing test before editing the code.", "session": "example", "artifact_id": "<artifact_id>"}' \
-  http://127.0.0.1:8901/reef/train
+  http://127.0.0.1:8901/aster/train
 ```
 
 The answer carries the request's `agent_record_id` and its `page_path`. Open
@@ -68,7 +68,7 @@ The answer carries the request's `agent_record_id` and its `page_path`. Open
 step runs, the page names its state (queued, proposing, evaluating), lists
 what the method does, and reloads every five seconds. Local models can take
 several minutes per request. For a client without a browser,
-`GET /reef/harness/requests/<agent_record_id>/progress` gives the same state
+`GET /aster/harness/requests/<agent_record_id>/progress` gives the same state
 as JSON.
 
 Other requests work the same way, for example a research workflow:
@@ -83,7 +83,7 @@ These are example requests, not built-in Reefine modes.
 
 When the step settles, the page shows the result, the files the change wrote,
 the review, the design and its How to use section, and the next action. The
-default evaluation checks that the harness can run `echo reef-ok` and return
+default evaluation checks that the harness can run `echo aster-ok` and return
 its output. Passing this health task does not prove that your requested
 behavior works: read the design and the review. Rejected or skipped requests
 leave the active selection unchanged.
@@ -96,23 +96,23 @@ artifact id the page names:
 ```bash
 curl -fsS -H 'Content-Type: application/json' \
   -d '{"artifact_id": "<the artifact id the page names>"}' \
-  http://127.0.0.1:8901/reef/scenarios/reefine-example/activate
+  http://127.0.0.1:8901/aster/scenarios/reefine-example/activate
 ```
 
 ## 5. Pull the result
 
 ```bash
-curl -fsS -H 'x-reef-scenario: reefine-example' \
-  http://127.0.0.1:8901/reef/harness
+curl -fsS -H 'x-aster-scenario: reefine-example' \
+  http://127.0.0.1:8901/aster/harness
 ```
 
 `files` maps each path of the snapshot's pi package (`plugin/skills/<name>/SKILL.md`
 for a skill, `plugin/rules.md` for the rules, and so on) to its text.
 `requires` lists what the snapshot needs on your machine, each item with a
 `prompt` that says what to provide. The files carry no endpoint, key, or model: a client writes
-them where pi reads them and binds pi's model to this Reef, as
+them where pi reads them and binds pi's model to this Aster, as
 [Use a published tree](../../../../docs/user-guide/evolve-your-harness.rst#use-a-published-tree)
-describes. Reef ships no packaged pi client; the scripted demos below include
+describes. Aster ships no packaged pi client; the scripted demos below include
 one.
 
 ## Scripted demos
@@ -125,10 +125,10 @@ the service. Stop the manually started service first: both use port `8901`.
 # From the repository root, with .venv activated:
 cd recipes/beta/reefine/examples
 uv pip install -e .
-export REEF_UPSTREAM_URL=http://127.0.0.1:11434  # No /v1 suffix.
-export REEF_UPSTREAM_MODEL=gemma4:26b
-export REEF_UPSTREAM_API_KEY=dummy
-export REEF_TOKEN=reef-local                  # Matches configs/deployment.yaml.
+export ASTER_UPSTREAM_URL=http://127.0.0.1:11434  # No /v1 suffix.
+export ASTER_UPSTREAM_MODEL=gemma4:26b
+export ASTER_UPSTREAM_API_KEY=dummy
+export ASTER_TOKEN=aster-local                  # Matches configs/deployment.yaml.
 
 ./run.sh bugfix
 ./run.sh research
@@ -140,15 +140,15 @@ export REEF_TOKEN=reef-local                  # Matches configs/deployment.yaml.
 [demos/bugfix.md](demos/bugfix.md) and [demos/research.md](demos/research.md).
 A demo runs these steps in `run.py`:
 
-1. Ask: it sends the request to `POST /reef/train` and prints the request's
+1. Ask: it sends the request to `POST /aster/train` and prints the request's
    page link.
 2. Wait: it prints each new catalog row until the step for its request
    settles.
 3. Activate: it saves an inactive artifact's step page beside the run, then
    activates the snapshot.
 4. Install: it pulls the active selection's source tree
-   (`GET /reef/harness?form=source`), checks each `requires` item on this
-   machine, and renders the tree for pi with a model binding at this Reef
+   (`GET /aster/harness?form=source`), checks each `requires` item on this
+   machine, and renders the tree for pi with a model binding at this Aster
    into `work/harness`.
 5. Show: it runs one headless `pi -p` session on the installed tree and
    prints the session's tool calls in order and its final answer.
@@ -176,7 +176,7 @@ passes, published snapshots, and inactive artifacts. It does not install those
 updates or run a session after each request.
 
 Each run saves `work/<mode>-<timestamp>.json`. A demo's session and saved step
-pages are under `work/<mode>-<timestamp>/`; service logs are in `work/reef.log`.
+pages are under `work/<mode>-<timestamp>/`; service logs are in `work/aster.log`.
 Runs reuse `work/deployment/`. Move `work/` aside before a run to start fresh.
 
 ## Historical results

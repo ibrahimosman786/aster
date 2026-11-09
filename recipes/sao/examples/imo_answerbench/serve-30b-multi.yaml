@@ -6,10 +6,10 @@
 # fed by stream.py with SAO_IN_FLIGHT rollouts open. Each step's checkpoint
 # reaches the engines as weight files. Generation window 24k.
 
-reef:
+aster:
   host: 127.0.0.1
   port: 8900
-  token: reef-local
+  token: aster-local
   run-dir: work/stack
   ready-timeout: 3600
 
@@ -21,7 +21,7 @@ inference:
   timeout-s: 1800
   options:
     router-port: "30000"
-    # Required by Reef's SGLang inference backend (#432).
+    # Required by Aster's SGLang inference backend (#432).
     disable-radix-cache: true
     incremental-streaming-output: true
     # Eight concurrent 61k-token rollouts: the KV pool must leave room for the
@@ -61,7 +61,7 @@ training:
     rollout-batch-size: "${training.config.global_batch_size}"
     global-batch-size: "${training.config.global_batch_size}"
     micro-batch-size: "1"
-    # Qwen3-30B-A3B architecture flags Reef does not derive from the HF config.
+    # Qwen3-30B-A3B architecture flags Aster does not derive from the HF config.
     padded-vocab-size: "151936"
     position-embedding-type: "rope"
     swiglu: true
@@ -94,10 +94,10 @@ training:
     use-dynamic-batch-size: true
     max-tokens-per-gpu: "32768"
     log-probs-max-tokens-per-gpu: "32768"
-    # The Reef service reads the exports that the training nodes write, so
+    # The Aster service reads the exports that the training nodes write, so
     # the README runs kept SAO_CKPT_DIR on shared storage; keep its footprint
     # bounded by pruning old exports.
-    reef-checkpoint-max-storage: "1500GB"
+    aster-checkpoint-max-storage: "1500GB"
     lr: "1e-6"
     lr-decay-style: "constant"
     loss-type: "policy_loss"
@@ -125,7 +125,7 @@ storage:
 observability:
   wandb:
     enabled: false
-    project: reef
+    project: aster
     tags: []
     mode: online
     directory: work/wandb

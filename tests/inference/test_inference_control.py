@@ -6,14 +6,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from reef.execution.executor import ExecutorConfig, WorkerSpec
-from reef.execution.executor.delegating import DelegatingExecutor
-from reef.execution.executor.ray import RayExecutor
-from reef.execution.executor.uniproc import UniProcExecutor
-from reef.inference.sglang.config import SGLangConfig
-from reef.inference.sglang.control import SGLangControl
+from aster.execution.executor import ExecutorConfig, WorkerSpec
+from aster.execution.executor.delegating import DelegatingExecutor
+from aster.execution.executor.ray import RayExecutor
+from aster.execution.executor.uniproc import UniProcExecutor
+from aster.inference.sglang.config import SGLangConfig
+from aster.inference.sglang.control import SGLangControl
 
-pytestmark = pytest.mark.skipif(os.environ.get("REEF_TEST_RAY") != "1", reason="opt-in real Ray integration")
+pytestmark = pytest.mark.skipif(os.environ.get("ASTER_TEST_RAY") != "1", reason="opt-in real Ray integration")
 
 
 class CpuEngine:
@@ -128,7 +128,7 @@ def test_a_borrowed_control_connection_reaches_the_engines_and_leaves_them_to_th
 def test_real_ray_probe_timeout_does_not_wait_for_engine_response(monkeypatch):
     from threading import Event
 
-    from reef.inference.sglang.health import SGLangEngineHealthChecks
+    from aster.inference.sglang.health import SGLangEngineHealthChecks
 
     ray = pytest.importorskip("ray")
     monkeypatch.delenv("RAY_ADDRESS", raising=False)

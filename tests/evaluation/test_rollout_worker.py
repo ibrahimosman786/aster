@@ -10,9 +10,9 @@ from pathlib import Path
 import pytest
 from reef_client.serve import CapturedTurn
 
-from reef.core.evaluation import EvaluationCall, PolicyModel
-from reef.core.served_models import ServedArtifact
-from reef.evaluation.rollout_worker import (
+from aster.core.evaluation import EvaluationCall, PolicyModel
+from aster.core.served_models import ServedArtifact
+from aster.evaluation.rollout_worker import (
     EVALUATION_ROLLOUT_KIND,
     EVALUATIONS_QUEUE,
     CandidateEndpoint,
@@ -24,8 +24,8 @@ from reef.evaluation.rollout_worker import (
     reply_summary,
     rollout_item_id,
 )
-from reef.storage.sql_coordination import SQLiteCoordinationDatabase, SQLWorkQueue, memory_coordination
-from reef.storage.work_queue import NewWork
+from aster.storage.sql_coordination import SQLiteCoordinationDatabase, SQLWorkQueue, memory_coordination
+from aster.storage.work_queue import NewWork
 
 
 def rollout(repeat: int = 0) -> EvaluationRollout:

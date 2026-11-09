@@ -9,12 +9,12 @@ from pathlib import Path
 
 import pytest
 
-from reef.storage import durable_files as durable_io
-from reef.train.slime_backend.reef_adapters import preflight
-from reef.train.slime_backend.reef_adapters.arguments import SlimeArguments
-from reef.train.slime_backend.reef_adapters.preflight import prepare_checkpoint_storage
-from reef.train.slime_backend.reef_adapters.training_job import storage as checkpoint_storage
-from reef.train.slime_backend.reef_adapters.training_job.storage import (
+from aster.storage import durable_files as durable_io
+from aster.train.slime_backend.aster_adapters import preflight
+from aster.train.slime_backend.aster_adapters.arguments import SlimeArguments
+from aster.train.slime_backend.aster_adapters.preflight import prepare_checkpoint_storage
+from aster.train.slime_backend.aster_adapters.training_job import storage as checkpoint_storage
+from aster.train.slime_backend.aster_adapters.training_job.storage import (
     CheckpointStorage,
     CheckpointStorageError,
     RetentionConfig,
@@ -368,7 +368,7 @@ class TestCheckpointStorage:
         _write_bytes(target, 30)
         symlink = storage.megatron_root / "iter_0000009"
         symlink.symlink_to(target, target_is_directory=True)
-        orphan = storage.hf_root / ".reef-delete-4-unowned"
+        orphan = storage.hf_root / ".aster-delete-4-unowned"
         _write_bytes(orphan, 10)
 
         plan = _storage(tmp_path, cap=500).validate_capacity(active_rollouts={0})

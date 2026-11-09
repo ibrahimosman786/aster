@@ -1,12 +1,12 @@
-// Reefine's agent's own tools: its tree through Reef's validation, and the candidate harness run for real.
-// Both go to the gateway at REEF_AGENT_URL, which holds every credential; this file holds none.
+// Reefine's agent's own tools: its tree through Aster's validation, and the candidate harness run for real.
+// Both go to the gateway at ASTER_AGENT_URL, which holds every credential; this file holds none.
 import { Type } from "typebox";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 async function gateway(route, body, signal) {
-  const base = process.env.REEF_AGENT_URL;
-  if (!base) throw new Error("REEF_AGENT_URL is not set: these tools run only inside a Reefine agent run");
+  const base = process.env.ASTER_AGENT_URL;
+  if (!base) throw new Error("ASTER_AGENT_URL is not set: these tools run only inside a Reefine agent run");
   const response = await fetch(`${base}${route}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -24,10 +24,10 @@ function progressFile(cwd) {
 }
 
 export default function (pi) {
-  if (!process.env.REEF_AGENT_URL) return;
+  if (!process.env.ASTER_AGENT_URL) return;
   const observations = new Map();
-  const deadline = Number(process.env.REEF_AGENT_DEADLINE_MS);
-  const finishSeconds = Number(process.env.REEF_AGENT_FINISH_SECONDS ?? 60);
+  const deadline = Number(process.env.ASTER_AGENT_DEADLINE_MS);
+  const finishSeconds = Number(process.env.ASTER_AGENT_FINISH_SECONDS ?? 60);
 
   pi.on("context", async (event, ctx) => {
     let progress = "No progress recorded yet.";
@@ -66,10 +66,10 @@ export default function (pi) {
     name: "harness_check",
     label: "Check the harness",
     description:
-      "Read the tree (the current directory) back against the tree it started from and run Reef's validation on it, " +
+      "Read the tree (the current directory) back against the tree it started from and run Aster's validation on it, " +
       "exactly as the evolve step will: the files the patch changes, or every problem it has (a path off the " +
       "layout, a credential-shaped text, an extension that does not load). Takes no arguments.",
-    promptSnippet: "Check the tree against Reef's validation",
+    promptSnippet: "Check the tree against Aster's validation",
     promptGuidelines: ["Run harness_check after every change to the tree and fix what it refuses."],
     parameters: Type.Object({}),
     async execute(_toolCallId, _params, signal) {

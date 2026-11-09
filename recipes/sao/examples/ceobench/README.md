@@ -2,7 +2,7 @@
 
 This example runs [CEO-Bench](https://ceobench.com)
 ([paper](https://arxiv.org/abs/2606.18543),
-[code](https://github.com/zlab-princeton/ceobench-src)) through Reef and trains
+[code](https://github.com/zlab-princeton/ceobench-src)) through Aster and trains
 the [`sao` recipe](../../../../docs/user-guide/recipes/sao.rst) on it. CEO-Bench
 simulates an AI startup for 500 days starting from $1M in cash. The agent has
 34 tools and a 19-table database and sells into a simulated market with hidden
@@ -10,9 +10,9 @@ preferences, competitor pressure, and delayed consequences. The primary metric
 is final cash, with survival days and bankruptcy as secondary metrics. The
 benchmark's own bash agent plays the game. `harness/` is that agent, played
 from the host with its prompt, tools, and tool executor taken from the pinned
-checkout and with every model call served by Reef, so each call is recorded
+checkout and with every model call served by Aster, so each call is recorded
 and attributable. The two simulator roles (social posts and enterprise
-customers) stay outside Reef.
+customers) stay outside Aster.
 
 ```text
 harbor/                one CEO-Bench rollout as a Harbor task, the world and the verifier
@@ -20,19 +20,19 @@ harbor/                one CEO-Bench rollout as a Harbor task, the world and the
   instruction.md         the task for Harbor (the model never sees it, CEO-Bench owns its prompt)
   environment/
     Dockerfile           python:3.13 + uv + the pinned CEO-Bench checkout, patched and rebuilt
-    reef.patch           the changes the engine needs (described below)
+    aster.patch           the changes the engine needs (described below)
     engine.py            starts the rollout's session and engine and stops it for the verifier
   tests/
     test.sh              runs the verifier inside the task container
     score.py             decrypts the run's world.nmdb and writes reward, final cash, survival days, bankrupt
-harness/               the benchmark's bash agent (imports reef_client, not reef)
+harness/               the benchmark's bash agent (imports reef_client, not aster)
   __init__.py            lazily exports HarborAgent
   agent.py               the benchmark's agent loop with its conversation, feedback texts, and retries
   tools.py               its six tools, run in the agent's workspace inside the task container
-  harbor_agent.py        plays one trial with the agent served by Reef and its weeks credited
+  harbor_agent.py        plays one trial with the agent served by Aster and its weeks credited
   report.py              the reward, from weeks and valuation to scaled scores, posting, and the pacer
-serve.yaml             Reef + Ray + Slime/Megatron + SGLang, Qwen3.6-27B through LoRA, critic on the actor GPUs
-docker-compose.yaml    the stack in the reef image with host networking and six GPUs
+serve.yaml             Aster + Ray + Slime/Megatron + SGLang, Qwen3.6-27B through LoRA, critic on the actor GPUs
+docker-compose.yaml    the stack in the aster image with host networking and six GPUs
 run.py                 one rollout, trained while it is played
 run.sh                 brings the stack up and runs run.py through reef-eval
 pyproject.toml         makes the harness importable
@@ -72,14 +72,14 @@ credited, and how long the game waits for the trainer.
   rollout's engine session through `harbor/environment/engine.py`, reads the
   engine's status, dashboard, and books over its HTTP API, and serves every
   model call through a reef-client proxy on the host's loopback.
-  `reef_client.serve` replaces the `Authorization` header with the Reef
-  token, stamps `x-reef-scenario`, forwards the request body unchanged, and
-  keeps each exchange together with its `x-reef-agent-record-id` receipt.
+  `reef_client.serve` replaces the `Authorization` header with the Aster
+  token, stamps `x-aster-scenario`, forwards the request body unchanged, and
+  keeps each exchange together with its `x-aster-agent-record-id` receipt.
   The agent's OpenAI client only sees a plain base URL.
 - **`report.py`** is the reward. Every captured turn is filed under the
   simulated week it was played in, since the harness knows the engine's day
   at every call. A finished week is credited as described under "Reward
-  shaping" and its decision turns are posted to Reef while the rollout runs.
+  shaping" and its decision turns are posted to Aster while the rollout runs.
   The last weeks close with the final cash the engine reports when the
   rollout ends.
 
@@ -97,7 +97,7 @@ final cash divided by the starting balance, so 1.0 is break-even.
 
 ### The patch to CEO-Bench
 
-`reef.patch` is applied to the pinned checkout at image build time and
+`aster.patch` is applied to the pinned checkout at image build time and
 touches the engine only.
 
 - `server_entry.py` reads `SAAS_BENCH_<FIELD>` variables for the simulator
@@ -118,13 +118,13 @@ late-game `next-week` calls need.
 ### Simulator roles
 
 The two simulator roles, the customers who post on social media and the
-enterprise buyers, are LLM calls made inside the engine and outside Reef.
+enterprise buyers, are LLM calls made inside the engine and outside Aster.
 The rollouts recorded below run both on `Qwen3-4B-Instruct-2507`, served by
 SGLang on a spare GPU of the same node as an OpenAI-compatible endpoint, so
 no paid API is involved.
 
 ```bash
-docker run -d --name ceobench-sim --network host --gpus '"device=7"' -v ~/models:/root/models reef \
+docker run -d --name ceobench-sim --network host --gpus '"device=7"' -v ~/models:/root/models aster \
   python -m sglang.launch_server --model-path /root/models/Qwen3-4B-Instruct-2507 \
   --served-model-name Qwen3-4B-Instruct-2507 --host 0.0.0.0 --port 30100 --tp 1 \
   --mem-fraction-static 0.28 --context-length 32768
@@ -184,8 +184,8 @@ final cash over the starting balance and is used for evaluation only.
 
 ## Run
 
-You need Docker with the NVIDIA runtime, `uv`, the `reef` image (built with
-`docker build -f docker/Dockerfile.reef -t reef .` from the repository
+You need Docker with the NVIDIA runtime, `uv`, the `aster` image (built with
+`docker build -f docker/Dockerfile.aster -t aster .` from the repository
 root), the policy model, and credentials for the simulator roles.
 
 ```bash
@@ -195,8 +195,8 @@ export ANTHROPIC_API_KEY=...
 CEOBENCH_SEED=42 CEOBENCH_DAYS=500 ./run.sh
 ```
 
-`run.sh` reads `REEF_IMAGE` (default `reef`), `MODEL_DIR` (`~/models`),
-`RUN_DIR` (`./work`), and `REEF_GPU_0..5`. Those are the six devices the
+`run.sh` reads `ASTER_IMAGE` (default `aster`), `MODEL_DIR` (`~/models`),
+`RUN_DIR` (`./work`), and `ASTER_GPU_0..5`. Those are the six devices the
 stack uses, four actor GPUs at TP4 with the critic on the same GPUs and a two-GPU
 serving engine. The policy is `Qwen3.6-27B` trained through Megatron Bridge
 LoRA. The base stays frozen in the actor and in the SAO critic, the adapters
@@ -229,7 +229,7 @@ so the adapter on disk is the one the rollout ended with:
 
 ```bash
 curl -sS -H "Authorization: Bearer $(cat work/token)" \
-  http://$(hostname -I | awk '{print $1}'):28900/reef/scenarios/ceobench-sao/artifacts
+  http://$(hostname -I | awk '{print $1}'):28900/aster/scenarios/ceobench-sao/artifacts
 ```
 
 ## Results
@@ -240,7 +240,7 @@ number is comparable with the leaderboard, because both simulator roles are
 a local `Qwen3-4B-Instruct-2507` (see "Simulator roles") and each row is one
 rollout at temperature 1.0. Both rollouts were played by the previous form
 of this harness, which ran the benchmark's own runner inside the task
-container with its agent role redirected to Reef. The harness above plays
+container with its agent role redirected to Aster. The harness above plays
 the same agent from the host and is to be re-run.
 
 | Policy | Reward | Outcome | Final cash | `reward` |
@@ -273,7 +273,7 @@ model. It gets its own scenario and run directory:
 
 ```bash
 docker compose down
-RUN_DIR=$PWD/work-baseline REEF_SCENARIO=ceobench-baseline CEOBENCH_REPORTS=0 \
+RUN_DIR=$PWD/work-baseline ASTER_SCENARIO=ceobench-baseline CEOBENCH_REPORTS=0 \
   CEOBENCH_SEED=42 CEOBENCH_DAYS=500 ./run.sh
 ```
 

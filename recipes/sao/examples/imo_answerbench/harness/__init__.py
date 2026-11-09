@@ -1,6 +1,6 @@
 """Harbor agent harness for the SAO functional smoke.
 
-``harness.agent`` drives the scored rollouts through Reef; ``harness.report``
+``harness.agent`` drives the scored rollouts through Aster; ``harness.report``
 posts the verifier reward back once Harbor ends the trial. The export is lazy:
 importing this package must not require Harbor.
 """

@@ -16,15 +16,15 @@ from threading import Barrier, Event
 import pytest
 from tests.support.records import memory_records
 
-from reef.core.errors import ReefError
-from reef.core.records_types import AgentRecord, RequestType
-from reef.core.snapshot import SnapshotRef
-from reef.storage.commit_history import CommitHistoryScenarioStore
-from reef.storage.commits import CommitRecord
-from reef.storage.postgres import PostgresScenarioStorage
-from reef.storage.scenario import ScenarioStoreConflict
-from reef.storage.sqlite import SQLiteScenarioDatabase, SQLiteScenarioStorage
-from reef.storage.tasks import LocalTaskFileStore
+from aster.core.errors import AsterError
+from aster.core.records_types import AgentRecord, RequestType
+from aster.core.snapshot import SnapshotRef
+from aster.storage.commit_history import CommitHistoryScenarioStore
+from aster.storage.commits import CommitRecord
+from aster.storage.postgres import PostgresScenarioStorage
+from aster.storage.scenario import ScenarioStoreConflict
+from aster.storage.sqlite import SQLiteScenarioDatabase, SQLiteScenarioStorage
+from aster.storage.tasks import LocalTaskFileStore
 
 
 def record(record_id: str, *, scenario: str = "math") -> AgentRecord:
@@ -167,12 +167,12 @@ def test_recover_keeps_unverified_checkpoint_operation(store):
 
 def test_recovery_at_creation_is_empty_and_foreign_checkpoint_is_rejected(store):
     assert store.recover(checkpoint=None) is None
-    with pytest.raises(ReefError, match="checkpoint belongs to scenario 'code'"):
+    with pytest.raises(AsterError, match="checkpoint belongs to scenario 'code'"):
         store.recover(checkpoint=commit(scenario="code"))
 
 
 def test_recovery_rejects_a_commit_that_is_not_a_checkpoint(store):
-    with pytest.raises(ReefError, match="requires a checkpoint commit"):
+    with pytest.raises(AsterError, match="requires a checkpoint commit"):
         store.recover(checkpoint=replace(commit(), checkpoint=False))
     assert store.history() == ()
 
@@ -286,14 +286,14 @@ def test_recovery_rejects_gaps_after_checkpoint(steps, checkpoint_step, message)
     with closing(sqlite_session()) as session:
         for step in steps:
             session.commit_history.append(commit(step))
-        with pytest.raises(ReefError, match=message):
+        with pytest.raises(AsterError, match=message):
             session.recover(checkpoint=None if checkpoint_step == 0 else commit(checkpoint_step))
 
 
 def test_recovery_rejects_journal_for_another_scenario():
     with closing(sqlite_session()) as session:
         session.commit_history.append(commit(scenario="code"))
-        with pytest.raises(ReefError, match="holds records for 'code'"):
+        with pytest.raises(AsterError, match="holds records for 'code'"):
             session.recover(checkpoint=None)
 
 
@@ -444,7 +444,7 @@ def test_an_archive_skips_a_wal_file_that_sqlite_removed_while_it_moved_the_file
     commit."""
     import sqlite3
 
-    import reef.storage.sqlite as sqlite_module
+    import aster.storage.sqlite as sqlite_module
 
     factory = SQLiteScenarioStorage(tmp_path)
     reader = factory.open("math")
@@ -491,8 +491,8 @@ def test_sqlite_storage_does_not_require_posix_locks(tmp_path):
         from pathlib import Path
 
         sys.modules['fcntl'] = None
-        import reef
-        from reef.storage.sqlite import SQLiteScenarioStorage
+        import aster
+        from aster.storage.sqlite import SQLiteScenarioStorage
 
         with closing(SQLiteScenarioStorage()) as factory:
             with closing(factory.open('math')) as store:

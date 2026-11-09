@@ -1,8 +1,8 @@
-"""ASGI middleware stamping Reef correlation headers onto CORAL gateway traffic.
+"""ASGI middleware stamping Aster correlation headers onto CORAL gateway traffic.
 
-Maps CORAL identity headers to ``x-reef-scenario`` + ``x-reef-tag-*`` (headers
+Maps CORAL identity headers to ``x-aster-scenario`` + ``x-aster-tag-*`` (headers
 only; provider-native bodies are mirrored into ``extra_headers`` for proxy
-hops), captures Reef receipts from the response, and journals one
+hops), captures Aster receipts from the response, and journals one
 :class:`CallRecord` per call. One discovery problem = one scenario; agent and
 worktree identity stay in tags.
 """
@@ -18,18 +18,18 @@ from datetime import UTC, datetime
 from typing import Any
 
 from recipes.beta.coral.journal import CallJournal, CallRecord
-from reef.inference.provider_protocol import response_events
+from aster.inference.provider_protocol import response_events
 
 logger = logging.getLogger(__name__)
 
-SCENARIO_HEADER = b"x-reef-scenario"
-RECORD_ID_RESPONSE_HEADER = b"x-reef-agent-record-id"
-ARTIFACT_ID_RESPONSE_HEADER = b"x-reef-artifact-id"
+SCENARIO_HEADER = b"x-aster-scenario"
+RECORD_ID_RESPONSE_HEADER = b"x-aster-agent-record-id"
+ARTIFACT_ID_RESPONSE_HEADER = b"x-aster-artifact-id"
 
 #: CORAL identity headers (stamped upstream by CoralGatewayMiddleware) and the
-#: reef tag names they map to. Tag values are opaque to reef; these names are
+#: aster tag names they map to. Tag values are opaque to aster; these names are
 #: this example's contract with its reporter.
-CORAL_TO_REEF_TAGS: dict[bytes, str] = {
+CORAL_TO_ASTER_TAGS: dict[bytes, str] = {
     b"x-coral-agent-id": "coral-agent",
     b"x-coral-session-id": "coral-commit",
 }
@@ -59,7 +59,7 @@ class ExternalAsgiApp(AsgiApp):
     """Adapt the ASGI callable supplied by LiteLLM or its middleware stack.
 
     The external ASGI standard accepts functions and application objects. Keep
-    its dynamic invocation at this boundary; Reef middleware uses AsgiApp.
+    its dynamic invocation at this boundary; Aster middleware uses AsgiApp.
     """
 
     def __init__(self, app: object) -> None:
@@ -71,7 +71,7 @@ class ExternalAsgiApp(AsgiApp):
         return await self._app(scope, receive, send)
 
 
-class ReefGatewayMiddleware(AsgiApp):
+class AsterGatewayMiddleware(AsgiApp):
     """See module docstring.
 
     ``extra_tags`` lets the launcher attach run-level parent links (e.g.
@@ -97,7 +97,7 @@ class ReefGatewayMiddleware(AsgiApp):
         #: ``extra_headers`` — LiteLLM's own per-request mechanism for
         #: carrying headers to the upstream. A proxy hop builds a fresh
         #: upstream request and drops inbound headers, so headers alone
-        #: only reach reef on direct deployments.
+        #: only reach aster on direct deployments.
         self.body_extra_headers = body_extra_headers
 
     async def __call__(self, scope: dict, receive: Any, send: Any) -> Any:
@@ -106,34 +106,34 @@ class ReefGatewayMiddleware(AsgiApp):
 
         request_id = uuid.uuid4().hex[:12]
 
-        # -- request side: read CORAL identity, stamp reef headers ----------
+        # -- request side: read CORAL identity, stamp aster headers ----------
         coral: dict[str, str] = {}
         new_headers: list[tuple[bytes, bytes]] = []
         for raw_name, raw_value in scope.get("headers", []):
             name = bytes(raw_name).lower()
-            tag = CORAL_TO_REEF_TAGS.get(name)
+            tag = CORAL_TO_ASTER_TAGS.get(name)
             if tag is not None:
                 coral[tag] = bytes(raw_value).decode("latin-1")
-            # Drop any inbound reef headers: the adapter owns this channel,
+            # Drop any inbound aster headers: the adapter owns this channel,
             # and a client must not be able to redirect its own scenario.
-            if name == SCENARIO_HEADER or name.startswith(b"x-reef-tag-"):
+            if name == SCENARIO_HEADER or name.startswith(b"x-aster-tag-"):
                 continue
             new_headers.append((raw_name, raw_value))
 
         tags = {**self.extra_tags, **coral}
         new_headers.append((SCENARIO_HEADER, self.scenario.encode("latin-1")))
         for tag_name, tag_value in tags.items():
-            new_headers.append((b"x-reef-tag-" + tag_name.encode("latin-1"), tag_value.encode("latin-1")))
+            new_headers.append((b"x-aster-tag-" + tag_name.encode("latin-1"), tag_value.encode("latin-1")))
         scope = dict(scope)
         scope["headers"] = new_headers
 
-        reef_headers = {SCENARIO_HEADER.decode("latin-1"): self.scenario}
+        aster_headers = {SCENARIO_HEADER.decode("latin-1"): self.scenario}
         for tag_name, tag_value in tags.items():
-            reef_headers[f"x-reef-tag-{tag_name}"] = tag_value
+            aster_headers[f"x-aster-tag-{tag_name}"] = tag_value
         if self.body_extra_headers:
-            receive = _extra_headers_receive(receive, reef_headers, scope)
+            receive = _extra_headers_receive(receive, aster_headers, scope)
 
-        # -- response side: capture the reef receipt ------------------------
+        # -- response side: capture the aster receipt ------------------------
         status_code = 0
         record_id: str | None = None
         artifact_id: str | None = None
@@ -147,7 +147,7 @@ class ReefGatewayMiddleware(AsgiApp):
                     lowered = bytes(raw_name).lower()
                     # Suffix match: a proxy hop that does forward provider
                     # headers usually prefixes them (e.g. LiteLLM's
-                    # llm_provider-x-reef-agent-record-id).
+                    # llm_provider-x-aster-agent-record-id).
                     if lowered.endswith(RECORD_ID_RESPONSE_HEADER):
                         record_id = bytes(raw_value).decode("latin-1")
                     elif lowered.endswith(ARTIFACT_ID_RESPONSE_HEADER):
@@ -185,17 +185,17 @@ class ReefGatewayMiddleware(AsgiApp):
 
 
 def _receipt_from_body(body: bytes) -> str | None:
-    """Extract ``agent_record_id`` from a response body, if reef's receipt survived.
+    """Extract ``agent_record_id`` from a response body, if aster's receipt survived.
 
     Handles the streaming shape (an SSE frame whose JSON payload carries a
-    top-level ``"reef"`` object) and the JSON-body shape. Returns ``None``
+    top-level ``"aster"`` object) and the JSON-body shape. Returns ``None``
     when the provider hop stripped the receipt — correlation then rests on
-    the tags reef stored with the INFERENCE record.
+    the tags aster stored with the INFERENCE record.
     """
     for payload in response_events(body.decode("utf-8", errors="replace")):
-        reef = payload.get("reef")
-        if isinstance(reef, dict) and isinstance(reef.get("agent_record_id"), str):
-            return reef["agent_record_id"]
+        aster = payload.get("aster")
+        if isinstance(aster, dict) and isinstance(aster.get("agent_record_id"), str):
+            return aster["agent_record_id"]
     return None
 
 
@@ -219,10 +219,10 @@ def _usage_from_body(body: bytes) -> dict:
     return usage
 
 
-def _extra_headers_receive(receive: Any, reef_headers: Mapping[str, str], scope: dict) -> Any:
+def _extra_headers_receive(receive: Any, aster_headers: Mapping[str, str], scope: dict) -> Any:
     """Wrap ``receive`` so the JSON body carries ``extra_headers``.
 
-    Buffers the request body, merges the reef headers into the body's
+    Buffers the request body, merges the aster headers into the body's
     ``extra_headers`` (caller-provided entries win nothing — the adapter
     owns this channel, same rule as the header path), and replays it as a
     single message with a corrected ``content-length``. Non-JSON bodies
@@ -255,7 +255,7 @@ def _extra_headers_receive(receive: Any, reef_headers: Mapping[str, str], scope:
             payload = None
         if isinstance(payload, dict):
             merged = dict(payload.get("extra_headers") or {})
-            merged.update(reef_headers)
+            merged.update(aster_headers)
             payload["extra_headers"] = merged
             body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
             new_headers = []

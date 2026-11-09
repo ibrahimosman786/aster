@@ -150,7 +150,7 @@ Declare each method setting once with ``config_field``:
 .. code:: python
 
    from dataclasses import dataclass
-   from reef.recipe import WeightTrainingRecipe, config_field
+   from aster.recipe import WeightTrainingRecipe, config_field
 
    @dataclass(frozen=True)
    class MyMethodRecipe(WeightTrainingRecipe):
@@ -193,7 +193,7 @@ name it.
 
 .. code:: python
 
-   from reef.recipe import WeightTrainingRecipe
+   from aster.recipe import WeightTrainingRecipe
 
 
    class MyMethodRecipe(WeightTrainingRecipe):
@@ -219,7 +219,7 @@ name it.
   parameters. Override ``configured_parameters`` when ``job_parameters`` should
   reach only some kinds.
 - To train again from the base weights with no training state, call
-  ``POST /reef/scenarios/{scenario}/train-from`` with the scenario's root
+  ``POST /aster/scenarios/{scenario}/train-from`` with the scenario's root
   snapshot, when it holds the default start.
 - The parameters can also give the optional ``scheduling`` parameter, an object
   of ``epochs`` (a positive int, default 1), ``shuffle`` (default ``false``),
@@ -269,14 +269,14 @@ Name the rule in the top-level ``activation`` section:
 
 The built-in rules are ``always`` (the default), ``never`` and
 ``evaluated``. A rule of your own is an ``ActivationRule`` subclass
-(``reef.core.activation``) named by ``package.module:ClassName``. Aster
+(``aster.core.activation``) named by ``package.module:ClassName``. Aster
 imports and checks the class when it loads the deployment config. It builds
 the rule with the class method ``from_config``, which receives the opaque
 ``config``:
 
 .. code:: python
 
-   from reef import ActivationRule
+   from aster import ActivationRule
 
 
    class ComponentRule(ActivationRule):
@@ -310,7 +310,7 @@ External method services
 
 A configuration file describes components and their parameters. It does not
 accept ``service``, ``services`` or ``execution.services``. HTTP settings belong
-in ``reef``. Aster assembles its HTTP process and supported inference/training
+in ``aster``. Aster assembles its HTTP process and supported inference/training
 backends. Additional method services run independently of Aster's orchestrator.
 
 Declare a recipe field for the external endpoint and implement the client in
@@ -328,7 +328,7 @@ can be substituted without changing Aster's process topology. Aster shutdown or 
 training startup failure leaves independently deployed services running.
 
 Backend environment defaults belong to their integration; Slime's defaults
-live in ``reef/train/slime_backend/launch.py`` and honor explicit environment
+live in ``aster/train/slime_backend/launch.py`` and honor explicit environment
 overrides.
 
 
@@ -336,7 +336,7 @@ Training backend deployment
 ---------------------------
 
 ``training.backend`` selects one ``TrainingDeployment`` from
-``reef.train.deployment``. The built-in names are ``slime`` (the default) and
+``aster.train.deployment``. The built-in names are ``slime`` (the default) and
 ``tinker``. A definition lives under its integration. It describes the
 deployment and does not allocate model resources:
 
@@ -347,7 +347,7 @@ deployment and does not allocate model resources:
   in-process backend, none. It must not download models, allocate devices or
   construct a component.
 * ``component_config(settings, *, default_parameters)`` returns the config that
-  ``reef.train.component.build_training_component`` builds in the HTTP
+  ``aster.train.component.build_training_component`` builds in the HTTP
   process. Its ``type`` is the dotted reference of the component's
   ``TrainingComponentFactory``. ``default_parameters`` is the recipe's parameters
   by sample kind, or empty before a recipe is selected. A backend that starts its
@@ -378,7 +378,7 @@ component contract, and `Serving saved weights
 the engines.
 
 The built-in components derive from
-``reef.train.local_jobs.LocalJobComponent``. It keeps each job in its own
+``aster.train.local_jobs.LocalJobComponent``. It keeps each job in its own
 directory (``job.json``, ``checkpoints.json`` and ``result.json``). It runs
 one job at a time in a worker thread, and it resumes unfinished jobs after a
 restart. A subclass implements these methods:
@@ -399,7 +399,7 @@ An in-process integration can reuse the supplied definition:
 
 .. code:: python
 
-   from reef.train.deployment import InProcessTrainingDeployment
+   from aster.train.deployment import InProcessTrainingDeployment
 
    class Deployment(InProcessTrainingDeployment):
        component_type = "my_backend.runtime:factory"
@@ -416,7 +416,7 @@ an installed name in the integration distribution:
 
 .. code:: toml
 
-   [project.entry-points."reef.training_backends"]
+   [project.entry-points."aster.training_backends"]
    my-backend = "my_backend.launch:Deployment"
 
 This enables ``--training.backend my-backend``. Only the selected definition

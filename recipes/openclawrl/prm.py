@@ -26,7 +26,7 @@ import threading
 from dataclasses import dataclass
 from typing import Any
 
-from reef.core.chat_rendering import flatten_content
+from aster.core.chat_rendering import flatten_content
 
 logger = logging.getLogger(__name__)
 
@@ -240,7 +240,7 @@ def load_tokenizer(path: str):
     """The shared judge/teacher tokenizer.
 
     Imported inside the function because transformers must not tax
-    ``import reef``; every load happens on the worker thread, off the
+    ``import aster``; every load happens on the worker thread, off the
     trainer's.
 
     The import is serialized. ``transformers`` is a large lazy-import

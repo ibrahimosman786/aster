@@ -1,9 +1,9 @@
-"""A CPU stand-in for the SGLang engines: the control surface Reef drives, as Ray actors.
+"""A CPU stand-in for the SGLang engines: the control surface Aster drives, as Ray actors.
 
 Selected with ``inference.backend: tests.support._stub_engine:create_inference``.
-It borrows the deployment's reservation like SGLang does, accepts Reef's
+It borrows the deployment's reservation like SGLang does, accepts Aster's
 adapter files, and records every adapter it was asked to load so a test can
-check what Reef served.
+check what Aster served.
 """
 
 from __future__ import annotations
@@ -12,15 +12,15 @@ import os
 from collections.abc import Mapping
 from typing import Any
 
-from reef.execution.executor import ExecutorConfig, WorkerSpec
-from reef.execution.executor.placement import DeploymentResources
-from reef.execution.executor.ray import RayExecutor
-from reef.inference.deployment import InferenceConnection, InferenceResources, InferenceService
-from reef.inference.interfaces import InferenceBackend
-from reef.inference.sglang.backend import SGLangInferenceBackend
+from aster.execution.executor import ExecutorConfig, WorkerSpec
+from aster.execution.executor.placement import DeploymentResources
+from aster.execution.executor.ray import RayExecutor
+from aster.inference.deployment import InferenceConnection, InferenceResources, InferenceService
+from aster.inference.interfaces import InferenceBackend
+from aster.inference.sglang.backend import SGLangInferenceBackend
 
-PROTOCOL = "reef-test-engine-v1"
-CONTROL_NAME = "reef-test-engine"
+PROTOCOL = "aster-test-engine-v1"
+CONTROL_NAME = "aster-test-engine"
 
 
 class StubEngine:

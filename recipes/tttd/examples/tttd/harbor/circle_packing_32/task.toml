@@ -8,9 +8,9 @@ description = "Pack 32 non-overlapping circles inside the unit square to maximiz
 
 [metadata]
 category = "autoresearch"
-author_name = "Reef"
+author_name = "Aster"
 difficulty = "hard"
-tags = ["reef", "tttd", "circle-packing", "discovery"]
+tags = ["aster", "tttd", "circle-packing", "discovery"]
 
 [agent]
 # One Harbor trial owns the complete multi-step TTT trajectory.

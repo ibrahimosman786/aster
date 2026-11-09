@@ -9,14 +9,14 @@ import pytest
 from sqlalchemy import func, select
 from tests.support.conversations import conversation
 
-from reef.service.assembly import build_dispatcher
-from reef.service.deploy.service_config import ServiceConfig
-from reef.storage import sql_data
-from reef.storage.data import NewItem
-from reef.storage.record_items import record_item
-from reef.storage.segments import LocalSegmentStore, SegmentLine, SegmentNotFound, SegmentPartition, segment_lines
-from reef.storage.sql_data import PostgresDataStore, SQLiteDataStore
-from reef.storage.tasks import LocalTaskFileStore
+from aster.service.assembly import build_dispatcher
+from aster.service.deploy.service_config import ServiceConfig
+from aster.storage import sql_data
+from aster.storage.data import NewItem
+from aster.storage.record_items import record_item
+from aster.storage.segments import LocalSegmentStore, SegmentLine, SegmentNotFound, SegmentPartition, segment_lines
+from aster.storage.sql_data import PostgresDataStore, SQLiteDataStore
+from aster.storage.tasks import LocalTaskFileStore
 
 ATIF = {"schema_version": "ATIF-v1.4", "agent": {"name": "fixture"}}
 
@@ -156,7 +156,7 @@ def test_a_store_without_segments_refuses_to_guess_moved_content(open_store):
         store.create("acme", [trajectory("t1", "one")])
     with closing(open_store(segments=False)) as store:
         assert store.query("acme", content=False)[0].item_id == "t1"
-        with pytest.raises(sql_data.ReefError, match="segment"):
+        with pytest.raises(sql_data.AsterError, match="segment"):
             store.read("acme", "t1")
 
 

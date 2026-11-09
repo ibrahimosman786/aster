@@ -25,20 +25,20 @@ from tests.support.chat_templates import CharTemplate
 from tests.support.job_data import job_data_ref
 from tests.support.slime_component import FakeTrainGroup, RecordingBatchProcessor, checkpoint_storage, finished
 
-from reef.artifact import Artifact, ModelDirectory
-from reef.core.job_data import TaskSample, TrajectorySample
-from reef.core.snapshot import RootSource
-from reef.core.trajectories import trajectory_reward
-from reef.core.weight_layout import ADAPTER_DIR, ArtifactFormat
-from reef.execution.executor import ExecutorFuture, base
-from reef.storage.durable_files import write_json
-from reef.train.algos.helpers import next_steps
-from reef.train.algos.signals import TrainingSignal
-from reef.train.component import JobStatus, ScenarioRoot, TrainingJob
-from reef.train.learning_rate import LearningRateSchedule, LearningRateScheduleState
-from reef.train.slime_backend import component as slime_component
-from reef.train.slime_backend.algorithm import SlimeAlgorithm, TrainResult
-from reef.train.slime_backend.component import (
+from aster.artifact import Artifact, ModelDirectory
+from aster.core.job_data import TaskSample, TrajectorySample
+from aster.core.snapshot import RootSource
+from aster.core.trajectories import trajectory_reward
+from aster.core.weight_layout import ADAPTER_DIR, ArtifactFormat
+from aster.execution.executor import ExecutorFuture, base
+from aster.storage.durable_files import write_json
+from aster.train.algos.helpers import next_steps
+from aster.train.algos.signals import TrainingSignal
+from aster.train.component import JobStatus, ScenarioRoot, TrainingJob
+from aster.train.learning_rate import LearningRateSchedule, LearningRateScheduleState
+from aster.train.slime_backend import component as slime_component
+from aster.train.slime_backend.algorithm import SlimeAlgorithm, TrainResult
+from aster.train.slime_backend.component import (
     ROLLOUT_FILE,
     START_STATE,
     SlimeJobRunner,
@@ -48,19 +48,19 @@ from reef.train.slime_backend.component import (
     WorkerTrainingSettings,
     start_slime_runner,
 )
-from reef.train.slime_backend.loss_families import register_loss_family, resolve_loss_family, unregister_loss_family
-from reef.train.slime_backend.objectives import SlimeObjective
-from reef.train.slime_backend.reef_adapters import startup
-from reef.train.slime_backend.reef_adapters.arguments import SlimeArguments
-from reef.train.slime_backend.reef_adapters.batches import WORKER_SWITCH_KEY, TrainingBatchProcessor
-from reef.train.slime_backend.reef_adapters.preflight import prepare_checkpoint_storage, validate_slime_args
-from reef.train.slime_backend.reef_adapters.training_job.storage import (
+from aster.train.slime_backend.loss_families import register_loss_family, resolve_loss_family, unregister_loss_family
+from aster.train.slime_backend.objectives import SlimeObjective
+from aster.train.slime_backend.aster_adapters import startup
+from aster.train.slime_backend.aster_adapters.arguments import SlimeArguments
+from aster.train.slime_backend.aster_adapters.batches import WORKER_SWITCH_KEY, TrainingBatchProcessor
+from aster.train.slime_backend.aster_adapters.preflight import prepare_checkpoint_storage, validate_slime_args
+from aster.train.slime_backend.aster_adapters.training_job.storage import (
     CheckpointStorage,
     RetentionConfig,
     _allocated_bytes,
     retention_options,
 )
-from reef.train.types import JobData, trajectories
+from aster.train.types import JobData, trajectories
 
 #: A policy objective over the suite's ``pg`` family, named by dotted reference like a cookbook method's.
 REWARD_OBJECTIVE = "tests.slime_backend.test_slime_component:RewardObjective"
@@ -154,9 +154,9 @@ def worker_args(tmp_path: Path, **overrides: object) -> SlimeArguments:
         "compute_advantages_and_returns": False,
         "use_rollout_logprobs": False,
         "custom_rollout_data_keys": ("producing_artifact_ids",),
-        "reef_rollout_tensor_dtypes": {},
-        "reef_external_batch_keys": (),
-        "reef_rollout_log_skip_keys": (),
+        "aster_rollout_tensor_dtypes": {},
+        "aster_external_batch_keys": (),
+        "aster_rollout_log_skip_keys": (),
         "score_centering": False,
         "global_batch_size": 1,
         "num_steps_per_rollout": 1,
@@ -202,7 +202,7 @@ def parameters(objective: str, schedule: LearningRateSchedule | None = None) -> 
 class Stack:
     """A Slime component over fake groups whose workers started with the supervised family.
 
-    ``start`` follows the component's checkpoints the way Reef's job loop
+    ``start`` follows the component's checkpoints the way Aster's job loop
     does: each job starts from the last checkpoint the previous job saved.
     """
 
@@ -245,7 +245,7 @@ class Stack:
         self.start = (
             self.component.base_start
             if start_rollout_id == 0
-            else str(self.root / "reef-starts" / f"rollout_{start_rollout_id - 1}")
+            else str(self.root / "aster-starts" / f"rollout_{start_rollout_id - 1}")
         )
 
     def run(
@@ -298,8 +298,8 @@ def test_a_job_trains_one_rollout_and_saves_it_as_the_start_of_the_next_job(tmp_
 
     assert (first.state, first.metrics["rollout_id"]) == ("finished", 0)
     (checkpoint,) = first.checkpoints
-    start = tmp_path / "reef-starts" / "rollout_0"
-    # The checkpoint, after the job's two optimizer steps, is the job's start directory; Reef publishes the
+    start = tmp_path / "aster-starts" / "rollout_0"
+    # The checkpoint, after the job's two optimizer steps, is the job's start directory; Aster publishes the
     # rollout's Hugging Face export.
     assert (checkpoint.step, checkpoint.path, checkpoint.artifact_path) == (2, str(start), str(tmp_path / "hf" / "0"))
     assert checkpoint.metrics["train/loss"] == 0.5
@@ -323,7 +323,7 @@ def test_a_job_trains_one_rollout_and_saves_it_as_the_start_of_the_next_job(tmp_
 
     second = stack.run("sft", step=1)
 
-    assert second.checkpoints[0].path == str(tmp_path / "reef-starts" / "rollout_1")
+    assert second.checkpoints[0].path == str(tmp_path / "aster-starts" / "rollout_1")
     # The objective's state continues from the start the job named.
     assert SlimeStart.read(Path(second.checkpoints[0].path)).algorithm_state == {"steps": 2}
     assert [rollout_id for rollout_id, _ in stack.group.train_calls] == [0, 1]
@@ -343,7 +343,7 @@ def test_a_save_interval_trains_each_run_of_steps_as_its_own_rollout_and_checkpo
     stack.component.submit(job)
     status = finished(stack.component, "job-0")
 
-    starts = tmp_path / "reef-starts"
+    starts = tmp_path / "aster-starts"
     assert [(checkpoint.step, checkpoint.path) for checkpoint in status.checkpoints] == [
         (1, str(starts / "rollout_0")),
         (2, str(starts / "rollout_1")),
@@ -381,19 +381,19 @@ def test_each_rollout_of_a_job_records_the_schedule_progress_up_to_it(tmp_path, 
 
 @pytest.mark.unit
 def test_a_restarted_job_continues_after_its_last_saved_rollout(tmp_path, stacks) -> None:
-    jobs = tmp_path / "reef-jobs" / "job-0"
+    jobs = tmp_path / "aster-jobs" / "job-0"
     job_parameters = {**parameters("sft"), "save_interval": 1}
     write_json(
         jobs / "job.json",
         {
             "scenario": "s",
-            "start": str(tmp_path / "reef-starts" / "base"),
+            "start": str(tmp_path / "aster-starts" / "base"),
             "data": submitted_data(batch_for(0)),
             "parameters": job_parameters,
         },
     )
     # The job saved and recorded its first rollout before the restart; the restarted workers loaded it.
-    first = tmp_path / "reef-starts" / "rollout_0"
+    first = tmp_path / "aster-starts" / "rollout_0"
     SlimeStart(0, None, {}, None).write(first)
     (tmp_path / "hf" / "0").mkdir(parents=True)
     (tmp_path / "megatron" / "iter_0000000").mkdir(parents=True)
@@ -420,7 +420,7 @@ def test_a_restarted_job_continues_after_its_last_saved_rollout(tmp_path, stacks
 
     assert [checkpoint.step for checkpoint in status.checkpoints] == [1, 2]
     assert [rollout_id for rollout_id, _ in stack.group.train_calls] == [1]
-    assert status.checkpoints[1].path == str(tmp_path / "reef-starts" / "rollout_1")
+    assert status.checkpoints[1].path == str(tmp_path / "aster-starts" / "rollout_1")
     assert SlimeStart.read(Path(status.checkpoints[1].path)) == SlimeStart(1, "sft", {"steps": 1}, None)
 
 
@@ -499,12 +499,12 @@ def test_restarted_workers_continue_from_the_checkpoint_they_loaded_and_refuse_t
         with pytest.raises(ValueError, match="continues the weights of rollout 2"):
             stack.component.submit(job)
 
-    assert stack.start == str(tmp_path / "reef-starts" / "rollout_2")
+    assert stack.start == str(tmp_path / "aster-starts" / "rollout_2")
     SlimeStart(2, None, {}, None).write(Path(stack.start))
     status = stack.run("sft", step=3)
 
     assert status.state == "finished" and status.metrics["rollout_id"] == 3
-    assert status.checkpoints[0].path == str(tmp_path / "reef-starts" / "rollout_3")
+    assert status.checkpoints[0].path == str(tmp_path / "aster-starts" / "rollout_3")
     assert stack.component.loaded_rollout_id == 3
 
 
@@ -667,13 +667,13 @@ def test_a_symlinked_checkpoint_fails_the_job(tmp_path, stacks, monkeypatch) -> 
 def test_a_restarted_component_resumes_its_unfinished_job_without_training_a_saved_rollout(
     tmp_path, stacks, progress
 ) -> None:
-    jobs = tmp_path / "reef-jobs" / "job-0"
+    jobs = tmp_path / "aster-jobs" / "job-0"
     data = batch_for(0)
     write_json(
         jobs / "job.json",
         {
             "scenario": "s",
-            "start": str(tmp_path / "reef-starts" / "base"),
+            "start": str(tmp_path / "aster-starts" / "base"),
             "data": submitted_data(data),
             "parameters": parameters("sft"),
         },
@@ -686,7 +686,7 @@ def test_a_restarted_component_resumes_its_unfinished_job_without_training_a_sav
         (tmp_path / "hf" / "0").mkdir(parents=True)
         (tmp_path / "megatron" / "iter_0000000").mkdir(parents=True)
         start_rollout_id = 1
-    saved_start = tmp_path / "reef-starts" / "rollout_0"
+    saved_start = tmp_path / "aster-starts" / "rollout_0"
     if progress == "recorded":
         SlimeStart(0, "sft", {"steps": 1}, None).write(saved_start)
         write_json(
@@ -712,11 +712,11 @@ def test_a_restarted_component_resumes_its_unfinished_job_without_training_a_sav
     if progress == "before_save":
         # Nothing was saved: the job trains its rollout again.
         assert stack.group.train_calls == [(0, ["packed"])]
-        assert checkpoint.path == str(tmp_path / "reef-starts" / "rollout_0")
+        assert checkpoint.path == str(tmp_path / "aster-starts" / "rollout_0")
     elif progress == "after_save":
         assert stack.group.train_calls == []
         assert (status.metrics["rollout_id"], status.metrics["resumed"]) == (0, 1)
-        assert checkpoint.path == str(tmp_path / "reef-starts" / "rollout_0")
+        assert checkpoint.path == str(tmp_path / "aster-starts" / "rollout_0")
         assert SlimeStart.read(Path(checkpoint.path)).algorithm_state == {"steps": 1}
         # The storage records the rollout, so the next admission does not see unowned assets.
         stored = json.loads(stack.storage._record_path(0).read_text())
@@ -834,11 +834,11 @@ def test_a_critic_only_step_leaves_the_actor_schedule_where_it_was(tmp_path, sta
 
 @pytest.mark.unit
 def test_a_job_family_brings_its_loss_type_and_advantage_routing_and_keeps_the_startup_options(tmp_path) -> None:
-    from reef.train.slime_backend.reef_adapters.slime_arguments import loss_family_job_args
+    from aster.train.slime_backend.aster_adapters.slime_arguments import loss_family_job_args
 
     # Workers that started with a pg-primitive family: Slime's estimator was routed to cispo.
     startup = worker_args(
-        tmp_path, advantage_estimator="cispo", reef_configured_advantage_estimator="grpo", kl_coef=0.1
+        tmp_path, advantage_estimator="cispo", aster_configured_advantage_estimator="grpo", kl_coef=0.1
     )
     policy = loss_family_job_args(startup, resolve_loss_family("pg"))
     assert (policy.loss_family, policy.loss_type, policy.advantage_estimator) == ("pg", "policy_loss", "grpo")
@@ -903,7 +903,7 @@ def test_a_recorded_trajectory_renders_with_the_models_chat_template(tmp_path, s
     stack.component.template = CharTemplate()
     steps = [{"step_id": 1, "source": "user", "message": "q"}, {"step_id": 2, "source": "agent", "message": "ab"}]
     recorded = TrajectorySample(
-        {"schema_version": "ATIF-v1.7", "agent": {"name": "a"}, "steps": steps, "extra": {"reef": {"reward": 1.0}}}
+        {"schema_version": "ATIF-v1.7", "agent": {"name": "a"}, "steps": steps, "extra": {"aster": {"reward": 1.0}}}
     )
     stack.run("sft", step=0, batch=JobData("recorded", (*batch_for(0).samples[:1], recorded)))
     (data,) = stack.processor.calls
@@ -919,7 +919,7 @@ def test_sft_trains_a_demonstration_that_records_no_reward(tmp_path, stacks) -> 
     demonstration = TrajectorySample({"schema_version": "ATIF-v1.7", "agent": {"name": "a"}, "steps": steps})
     # A trajectory from records holds a null reward when no one reported one.
     recorded = TrajectorySample(
-        {"schema_version": "ATIF-v1.7", "agent": {"name": "a"}, "steps": steps, "extra": {"reef": {"reward": None}}}
+        {"schema_version": "ATIF-v1.7", "agent": {"name": "a"}, "steps": steps, "extra": {"aster": {"reward": None}}}
     )
     stack.run("sft", step=0, batch=JobData("uploaded", (*batch_for(0).samples[:1], demonstration, recorded)))
     (data,) = stack.processor.calls
@@ -1064,7 +1064,7 @@ def build_calls(tmp_path, monkeypatch):
         rollout_num_gpus=0,
         actor_num_nodes=1,
         actor_num_gpus_per_node=2,
-        reef_executor_backend="ray",
+        aster_executor_backend="ray",
         custom_megatron_init_path=None,
         custom_critic_args_hook_path=None,
         megatron_lora_rank=0,
@@ -1096,7 +1096,7 @@ def build_calls(tmp_path, monkeypatch):
         def close(self):
             calls["events"].append("close")
 
-    worker_class = type("ReefMegatronTrainRayActor", (), {})
+    worker_class = type("AsterMegatronTrainRayActor", (), {})
 
     def create_groups(received, placement_groups, *, actor_cls, train_timeout_s):
         assert received is args and actor_cls is worker_class
@@ -1111,7 +1111,7 @@ def build_calls(tmp_path, monkeypatch):
         calls["retention"] = retention
         return checkpoint_storage(tmp_path, critic_root=tmp_path / "megatron-critic")
 
-    from reef.train.slime_backend.reef_adapters import slime_arguments
+    from aster.train.slime_backend.aster_adapters import slime_arguments
 
     monkeypatch.setattr(startup, "parse_slime_args", parse)
     monkeypatch.setattr(
@@ -1124,10 +1124,10 @@ def build_calls(tmp_path, monkeypatch):
     calls["resources_class"] = Resources
     monkeypatch.setattr(slime_component, "create_train_groups", create_groups)
     monkeypatch.setattr(slime_component, "prepare_checkpoint_storage", storage)
-    monkeypatch.setattr(slime_arguments, "configure_reef_loss_args", lambda received: None)
+    monkeypatch.setattr(slime_arguments, "configure_aster_loss_args", lambda received: None)
     # The worker class loads torch, Megatron and Slime's Ray actor; the fake groups never start it.
-    worker_module = types.ModuleType("reef.train.slime_backend.reef_adapters.megatron.train_actor")
-    worker_module.ReefMegatronTrainRayActor = worker_class  # type: ignore[attr-defined]
+    worker_module = types.ModuleType("aster.train.slime_backend.aster_adapters.megatron.train_actor")
+    worker_module.AsterMegatronTrainRayActor = worker_class  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, worker_module.__name__, worker_module)
     monkeypatch.setenv("PYTHONPATH", "/repo")
     monkeypatch.delenv("CUDA_DEVICE_MAX_CONNECTIONS", raising=False)
@@ -1138,7 +1138,7 @@ def build_calls(tmp_path, monkeypatch):
 
 def settings(loss_family: str = "sft") -> SlimeSettings:
     return SlimeSettings(
-        arguments=("--reef-checkpoint-policy=best_reward", "--reef-checkpoint-max-storage=100GiB", "--lr=1e-06"),
+        arguments=("--aster-checkpoint-policy=best_reward", "--aster-checkpoint-max-storage=100GiB", "--lr=1e-06"),
         loss_family=loss_family,
         recipe="recipes.test:Recipe",
         execution={"execution": {"training": "ray"}},
@@ -1212,7 +1212,7 @@ def test_a_slime_rollout_checks_its_values(values, error, message) -> None:
 
 @pytest.mark.unit
 def test_the_batch_processor_registers_a_familys_keys_and_refuses_another_dtype() -> None:
-    args = SlimeArguments(custom_rollout_data_keys=("a",), reef_rollout_tensor_dtypes={"a": "int"})
+    args = SlimeArguments(custom_rollout_data_keys=("a",), aster_rollout_tensor_dtypes={"a": "int"})
     processor = TrainingBatchProcessor(args, {"dp_size": 2})
     processor.register_keys(("b", "a"), {"b": "float32", "a": "int"})
     assert (processor.rollout_data_keys, processor.tensor_dtypes) == (("a", "b"), {"a": "int", "b": "float32"})
@@ -1220,7 +1220,7 @@ def test_the_batch_processor_registers_a_familys_keys_and_refuses_another_dtype(
         processor.register_keys(("c",), {"c": "int", "b": "long"})
     # A refused family changes nothing, and the startup arguments stay as the workers started with them.
     assert (processor.rollout_data_keys, processor.tensor_dtypes) == (("a", "b"), {"a": "int", "b": "float32"})
-    assert (args.custom_rollout_data_keys, args.reef_rollout_tensor_dtypes) == (("a",), {"a": "int"})
+    assert (args.custom_rollout_data_keys, args.aster_rollout_tensor_dtypes) == (("a",), {"a": "int"})
     with pytest.raises(ValueError, match="positive dp_size"):
         TrainingBatchProcessor(args, {"dp_size": 0})
 
@@ -1229,7 +1229,7 @@ def test_the_batch_processor_registers_a_familys_keys_and_refuses_another_dtype(
 def test_the_component_starts_its_workers_on_the_training_gpus_without_rollout_engines(build_calls) -> None:
     component = start_slime_runner(settings())
     try:
-        # Reef's retention options never reach Slime's parser.
+        # Aster's retention options never reach Slime's parser.
         assert build_calls["arguments"] == ["--lr=1e-06"]
         assert build_calls["retention"] == RetentionConfig(policy="best_reward", max_storage_bytes=100 * 1024**3)
         assert build_calls["resources"] == {
@@ -1277,8 +1277,8 @@ def test_the_rollout_group_starts_before_the_workers_and_they_train_on_its_gpus(
         assert build_calls["resources"]["place"] is False
         assert events == ["start", "rollout-start:session-lease", "adopt:session-bundles"]
         assert build_calls["placement_groups"] == RolloutGroup.placements
-        # The engines load Reef's SGLang plugin, which opens the weight-update session Slime's transfer needs.
-        assert build_calls["resources"]["runtime_env"]["env_vars"]["SGLANG_REEF_PLUGIN"] == "1"
+        # The engines load Aster's SGLang plugin, which opens the weight-update session Slime's transfer needs.
+        assert build_calls["resources"]["runtime_env"]["env_vars"]["SGLANG_ASTER_PLUGIN"] == "1"
         assert build_calls["groups"][0].events == ["set_rollout_manager:manager"]
         assert isinstance(component.rollout_group, RolloutGroup)
     finally:
@@ -1299,7 +1299,7 @@ def test_a_job_without_the_serving_session_places_itself_and_starts_no_engines(b
     component = start_slime_runner(settings())
     try:
         assert build_calls["resources"]["place"] is True and component.rollout_group is None
-        assert "SGLANG_REEF_PLUGIN" not in build_calls["resources"]["runtime_env"]["env_vars"]
+        assert "SGLANG_ASTER_PLUGIN" not in build_calls["resources"]["runtime_env"]["env_vars"]
     finally:
         component.close()
 
@@ -1372,12 +1372,12 @@ def test_the_workers_runtime_env_carries_the_cuda_defaults_and_this_processs_pyt
 
 @pytest.mark.unit
 def test_retention_options_are_parsed_with_units() -> None:
-    retention, remaining = retention_options(["--reef-checkpoint-min-free-space=10GB", "--loss-type", "sft_loss"])
+    retention, remaining = retention_options(["--aster-checkpoint-min-free-space=10GB", "--loss-type", "sft_loss"])
     assert retention == RetentionConfig(min_free_space_bytes=10 * 1000**3)
     assert remaining == ["--loss-type", "sft_loss"]
     for size in ("100", "0GB"):
         with pytest.raises(SystemExit):
-            retention_options([f"--reef-checkpoint-max-storage={size}"])
+            retention_options([f"--aster-checkpoint-max-storage={size}"])
 
 
 @pytest.mark.unit
@@ -1471,7 +1471,7 @@ def test_a_restart_without_a_saved_optimizer_does_not_load_one(
         ("pg", "policy_loss", True, "remove --use-rollout-logprobs"),
     ],
 )
-def test_reef_and_slime_objectives_must_match(loss_family, loss_type, use_rollout_logprobs, message) -> None:
+def test_aster_and_slime_objectives_must_match(loss_family, loss_type, use_rollout_logprobs, message) -> None:
     args = SimpleNamespace(loss_type=loss_type, use_rollout_logprobs=use_rollout_logprobs)
     if message is None:
         resolve_loss_family(loss_family).validate_backend_args(args)

@@ -26,7 +26,7 @@ any failure — a judging outage must not wedge the session.
 
 The scripted reactions are deliberately decisive (clear negative on style
 violations, clear positive on a clean reply) so the PRM judging the next
-state inside reef gets clear feedback on the reply.
+state inside aster gets clear feedback on the reply.
 """
 
 from __future__ import annotations

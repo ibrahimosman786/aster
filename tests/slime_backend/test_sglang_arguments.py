@@ -29,7 +29,7 @@ def _load_arguments_module(monkeypatch: pytest.MonkeyPatch):
 
     installed = importlib.util.find_spec("slime.backends.sglang_utils.arguments")
     assert installed is not None and installed.origin is not None
-    spec = importlib.util.spec_from_file_location("_reef_test_sglang_arguments", Path(installed.origin))
+    spec = importlib.util.spec_from_file_location("_aster_test_sglang_arguments", Path(installed.origin))
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

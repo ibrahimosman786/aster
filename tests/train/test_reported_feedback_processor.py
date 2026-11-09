@@ -7,13 +7,13 @@ from dataclasses import replace
 import pytest
 from tests.support.samples import made_task
 
-from reef.core import AgentRecord, RequestType
-from reef.core.reports import ReportBase, ReportValidationError
-from reef.pipeline_context import PipelineContext
-from reef.record2sample import GroupDecision, ReportContext, ReportGrouping, ReportSamples
-from reef.sample2job import Sample2Job
-from reef.train.pipeline import TrainingPipeline
-from reef.train.types import JobData, Sample, TrajectorySample
+from aster.core import AgentRecord, RequestType
+from aster.core.reports import ReportBase, ReportValidationError
+from aster.pipeline_context import PipelineContext
+from aster.record2sample import GroupDecision, ReportContext, ReportGrouping, ReportSamples
+from aster.sample2job import Sample2Job
+from aster.train.pipeline import TrainingPipeline
+from aster.train.types import JobData, Sample, TrajectorySample
 
 
 def inference(record_id: str) -> AgentRecord:
@@ -119,8 +119,8 @@ class GroupPipeline(SamplePipeline):
 def test_a_report_shaped_for_another_component_is_released_not_raised() -> None:
     """Ingress of a scenario with several components admits what any accepts; this trainer keeps only its own."""
     from recipes.tttd.report import TTTDGroupedRolloutReport
-    from reef.core.reports import ScoredRolloutReport
-    from reef.recipe.composite import any_component_report
+    from aster.core.reports import ScoredRolloutReport
+    from aster.recipe.composite import any_component_report
 
     processor = SamplePipeline(report_type=TTTDGroupedRolloutReport)
     processor.push(inference("i1"))

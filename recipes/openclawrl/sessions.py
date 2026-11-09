@@ -1,6 +1,6 @@
 """Session reconstruction from harness tags or trace matching.
 
-A stable, conversation-unique ``x-reef-tag-session`` value identifies a
+A stable, conversation-unique ``x-aster-tag-session`` value identifies a
 conversation directly and binds its turns in arrival order. Without one, a
 session is inferred from how each main-turn request's message list relates to
 the ones seen before it. :class:`SessionIndex` is the whole mechanism; a
@@ -20,7 +20,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from reef.core.chat_rendering import flatten_content
+from aster.core.chat_rendering import flatten_content
 
 #: Ceiling on live sessions. The fallback opens one session per unmatched
 #: request, so without a ceiling a client it never matches grows the table
@@ -106,7 +106,7 @@ class SessionIndex:
     session's final turn has no next state and never trains — ``expire``
     drops it after the TTL.
 
-    A harness that stamps ``x-reef-tag-session`` skips all of that: the tag
+    A harness that stamps ``x-aster-tag-session`` skips all of that: the tag
     names the conversation outright, so turns bind in arrival order within it
     and nothing depends on the client resending its transcript. That matters
     for agents that keep history locally or run each turn as a fresh process
@@ -123,7 +123,7 @@ class SessionIndex:
     must never be judged against its own reply.
 
     Everything here runs on the trainer thread, which must not block
-    (``reef/train/pipeline.py``), once per record: the untagged path
+    (``aster/train/pipeline.py``), once per record: the untagged path
     walks the live sessions and the tagged path is a single lookup, and
     ``max_sessions`` is what bounds the first of those.
     """

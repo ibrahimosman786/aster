@@ -7,14 +7,14 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from reef.core.job_data import TaskSample
-from reef.service.task_import import DataScenarioStorage
-from reef.storage.samples import SampleStore
-from reef.storage.scenario import ScenarioStore
-from reef.storage.sqlite import SQLiteScenarioStorage
+from aster.core.job_data import TaskSample
+from aster.service.task_import import DataScenarioStorage
+from aster.storage.samples import SampleStore
+from aster.storage.scenario import ScenarioStore
+from aster.storage.sqlite import SQLiteScenarioStorage
 
 #: The directories of ``made_task``; they last as long as the test process.
-TASKS = tempfile.TemporaryDirectory(prefix="reef-test-tasks-")
+TASKS = tempfile.TemporaryDirectory(prefix="aster-test-tasks-")
 
 
 def data_storage(directory: Path | None = None) -> DataScenarioStorage:

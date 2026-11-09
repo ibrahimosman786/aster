@@ -10,9 +10,9 @@ import pytest
 from aiohttp import web
 from aiohttp.test_utils import TestServer
 
-from reef.core.errors import UpstreamStatusError
-from reef.inference.http import HttpInferenceHandler
-from reef.inference.interfaces import InferenceArtifact
+from aster.core.errors import UpstreamStatusError
+from aster.inference.http import HttpInferenceHandler
+from aster.inference.interfaces import InferenceArtifact
 
 pytestmark = pytest.mark.unit
 ARTIFACT = InferenceArtifact("test-content")

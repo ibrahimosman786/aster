@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from reef.train.slime_backend.reef_adapters.megatron.bridges import qwen3_5 as bridge_module
+from aster.train.slime_backend.aster_adapters.megatron.bridges import qwen3_5 as bridge_module
 
 # Parameter names of the Megatron actor slime_plugins.models.qwen3_5 builds for
 # Qwen3.5-0.8B (24 layers, full attention every 4th), as the actor reports
@@ -42,7 +42,7 @@ SLIME_QWEN35_PARAMS = [
     "decoder.layers.3.mlp.linear_fc2.weight",
 ]
 
-# The adapter bases Bridge LoRA wraps for the default Reef target modules.
+# The adapter bases Bridge LoRA wraps for the default Aster target modules.
 LORA_BASES = [
     "decoder.layers.3.self_attention.linear_qkv.weight",
     "decoder.layers.3.self_attention.linear_proj.weight",
@@ -212,7 +212,7 @@ class _Registry:
 
 def test_megatron_name_resolver_maps_adapters_tied_heads_and_unknowns():
     pytest.importorskip("torch")  # hf_export imports the LoRA helpers, which need torch
-    from reef.train.slime_backend.reef_adapters.megatron.hf_export import _MegatronNameResolver
+    from aster.train.slime_backend.aster_adapters.megatron.hf_export import _MegatronNameResolver
 
     registry = _Registry(
         {

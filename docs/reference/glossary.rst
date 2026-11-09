@@ -8,8 +8,8 @@ Scenario
 --------
 
 One workload: its records, training state, and snapshot chain, isolated from
-every other scenario. ``POST /reef/scenarios``, a harness install, or the
-first report or imported record carrying a new ``x-reef-scenario`` creates it
+every other scenario. ``POST /aster/scenarios``, a harness install, or the
+first report or imported record carrying a new ``x-aster-scenario`` creates it
 and permanently binds its recipe. An inference request never creates a scenario. The creating
 request may also bind a starting artifact, whose content becomes the scenario's
 creation artifact.
@@ -31,15 +31,15 @@ A record is a record item of the scenario's owner in the data store (RFC #1219).
 Receipt
 -------
 
-The id of a stored inference record, returned in ``x-reef-agent-record-id`` or,
-for a stream, as ``reef.agent_record_id`` in the terminal SSE metadata. It names
+The id of a stored inference record, returned in ``x-aster-agent-record-id`` or,
+for a stream, as ``aster.agent_record_id`` in the terminal SSE metadata. It names
 the exchange *and* the snapshot that produced it. Reports quote receipts
 in ``references``.
 
 Report
 ------
 
-A ``POST /reef/report`` request carrying feedback about one or more exchanges.
+A ``POST /aster/report`` request carrying feedback about one or more exchanges.
 Aster consumes each report at most once, including when it arrives late or is
 retried.
 
@@ -64,7 +64,7 @@ Recipe reference
 What ``recipe.implementation`` selects. ``recipe`` is the core record-only implementation;
 a dotted ``package.module:ClassName`` selects an installed method class; any
 other bare name resolves only to a YAML preset under
-``REEF_RECIPE_CONFIG_DIR``. Aster has no global recipe-implementation registry.
+``ASTER_RECIPE_CONFIG_DIR``. Aster has no global recipe-implementation registry.
 
 Artifact
 --------
@@ -108,7 +108,7 @@ Active selection
 A scenario's serving selection: a mapping from each
 component name to its selected ``artifact_id``. Inference answers from the
 selection that completed startup; harness routes read the selected tree.
-``POST /reef/scenarios/{scenario}/activate`` updates one component in the
+``POST /aster/scenarios/{scenario}/activate`` updates one component in the
 mapping and records the complete selection atomically. By default Aster activates each new artifact that passes its checks.
 Every other artifact is inactive. An artifact that a training step made and
 that was never active waits for activation. See `Operate a deployment
@@ -129,7 +129,7 @@ Training start
 The artifact that a trainer's next job or evolve step starts from. It is the
 creation artifact until the trainer first trains. After each job or step the
 trainer moves its start to its own newest output.
-``POST /reef/scenarios/{scenario}/train-from`` sets it to an existing
+``POST /aster/scenarios/{scenario}/train-from`` sets it to an existing
 artifact. The training start and the active selection change independently. See
 `Train from an artifact <../user-guide/operate.rst#train-from-an-artifact>`__.
 
@@ -188,7 +188,7 @@ consumption, and retention.
 Sample
 ------
 
-One item of job data, a ``Sample`` (``reef.core.job_data``): a
+One item of job data, a ``Sample`` (``aster.core.job_data``): a
 ``TrajectorySample`` that trains as it is, or a ``TaskSample``, a Harbor task that
 the training component rolls out. The record-to-sample stage makes samples;
 ``job_samples`` and ``buffer_size`` count them. A sample is not a sampling
@@ -230,7 +230,7 @@ agents and loop code. A tree is one directory of text files, and each snapshot
 stores one as its source tree. The adapter decides which parts a tree may
 hold: the ``evolve`` section of its ``adapter.yaml`` declares each part's tree path, format and render
 path, and a path that no part takes is refused. Aster serves the tree
-over ``GET /reef/harness``, rendered for the adapter or as source. An adapter
+over ``GET /aster/harness``, rendered for the adapter or as source. An adapter
 combines the rendered tree with a harness executable; that harness and its
 configured model form the running agent.
 
@@ -311,7 +311,7 @@ OpenClaw-RL
 The cookbook `openclawrl <../user-guide/recipes/openclawrl.rst>`__ recipe (`arXiv:2603.10165
 <https://arxiv.org/abs/2603.10165>`__). It trains an unmodified agent from live
 conversation traffic using a next-state binary reward, with no external
-grader or training report. A harness-provided ``x-reef-tag-session`` value is
+grader or training report. A harness-provided ``x-aster-tag-session`` value is
 the supported way to correlate a conversation; it stays stable within that
 conversation and is not reused for another one in the same scenario.
 Transcript matching is the fallback when the tag is absent.
@@ -342,7 +342,7 @@ Reported and computed feedback
 ------------------------------
 
 Two ways a signal reaches a processor. **Reported** feedback arrives explicitly,
-in a ``POST /reef/report``. **Computed** feedback is reconstructed by the
+in a ``POST /aster/report``. **Computed** feedback is reconstructed by the
 processor from recorded traffic alone, with no report on the wire. The choice
 picks the processor engine.
 
@@ -428,6 +428,6 @@ activates it.
 Preset
 ------
 
-A recipe configuration file, ``<name>.yaml`` under ``REEF_RECIPE_CONFIG_DIR``,
+A recipe configuration file, ``<name>.yaml`` under ``ASTER_RECIPE_CONFIG_DIR``,
 named by ``recipe.implementation``. It carries the recipe's own sections; it is not a
 deployment config and ``aster serve -c`` cannot read it.

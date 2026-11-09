@@ -43,40 +43,40 @@ from tests.support.runtime_stubs import StubInferenceRuntime
 from tests.support.samples_service import make_samples
 from tests.support.serving import wait_for_serving
 
-from reef.artifact import Artifact, ArtifactNotFound, DefaultStart, SnapshotRef
-from reef.artifact.components import ComponentSpec, ScenarioComponents, TextFileTree
-from reef.artifact.snapshot_chain import ArtifactSnapshotChain
-from reef.core import AgentRecord, RequestType
-from reef.core.components import RECORDS_COMPONENT
-from reef.core.errors import ReefError
-from reef.core.requirements import required_by
-from reef.core.snapshot import RootSource
-from reef.dispatcher import Dispatcher
-from reef.execution.jobs import SupportsReceipt
-from reef.pipeline_context import PipelineContext
-from reef.recipe import Recipe
-from reef.record2sample import GroupDecision, JudgedSamples, RecordJudging, ReportContext, ReportGrouping
-from reef.record2sample.service import SAMPLES_QUEUE
-from reef.sample2job import Sample2Job
-from reef.scenario import Scenario
-from reef.scenario.scenario import validate_component_trainers
-from reef.service.app import create_app
-from reef.service.request_service import RequestService
-from reef.storage.commits import (
+from aster.artifact import Artifact, ArtifactNotFound, DefaultStart, SnapshotRef
+from aster.artifact.components import ComponentSpec, ScenarioComponents, TextFileTree
+from aster.artifact.snapshot_chain import ArtifactSnapshotChain
+from aster.core import AgentRecord, RequestType
+from aster.core.components import RECORDS_COMPONENT
+from aster.core.errors import AsterError
+from aster.core.requirements import required_by
+from aster.core.snapshot import RootSource
+from aster.dispatcher import Dispatcher
+from aster.execution.jobs import SupportsReceipt
+from aster.pipeline_context import PipelineContext
+from aster.recipe import Recipe
+from aster.record2sample import GroupDecision, JudgedSamples, RecordJudging, ReportContext, ReportGrouping
+from aster.record2sample.service import SAMPLES_QUEUE
+from aster.sample2job import Sample2Job
+from aster.scenario import Scenario
+from aster.scenario.scenario import validate_component_trainers
+from aster.service.app import create_app
+from aster.service.request_service import RequestService
+from aster.storage.commits import (
     SCENARIO_METADATA_KEY,
     CommitHistoryError,
     CommitRecord,
     parse_scenario_metadata,
     scenario_metadata_for,
 )
-from reef.storage.job_data import read_job_data
-from reef.storage.samples import consumed_sample_id, stage_item_id
-from reef.train import ComponentTrainer, Trainer
-from reef.train.component import JobStatus, TrainingJob
-from reef.train.job_queue import JOBS_QUEUE
-from reef.train.jobs import JobLoop, JobLoopState
-from reef.train.pipeline import TrainingPipeline
-from reef.train.types import JobData, Sample
+from aster.storage.job_data import read_job_data
+from aster.storage.samples import consumed_sample_id, stage_item_id
+from aster.train import ComponentTrainer, Trainer
+from aster.train.component import JobStatus, TrainingJob
+from aster.train.job_queue import JOBS_QUEUE
+from aster.train.jobs import JobLoop, JobLoopState
+from aster.train.pipeline import TrainingPipeline
+from aster.train.types import JobData, Sample
 
 
 class _SlowBackend(ComponentJobs):
@@ -714,7 +714,7 @@ def test_a_recipe_serving_fewer_components_than_registered_is_refused(
         recipe=_NamedComponentsRecipe(names=("weights", "harness"), artifact_dir=tmp_path / "candidates"),
         backend_factory=factory,
     )
-    with pytest.raises(ReefError, match=r"does not serve \['config'\]"):
+    with pytest.raises(AsterError, match=r"does not serve \['config'\]"):
         second.get_or_create_scenario("agent")
 
 
@@ -1125,7 +1125,7 @@ def test_composite_registration_refuses_files_outside_its_components(
     tmp_path: Path, dispatchers: _Dispatchers, layout: dict[str, str], outside: str
 ) -> None:
     dispatcher, _ = dispatchers.open(start=DefaultStart(files=layout))
-    with pytest.raises(ReefError, match=rf"keeps \['{outside}'\] outside its components"):
+    with pytest.raises(AsterError, match=rf"keeps \['{outside}'\] outside its components"):
         dispatcher.get_or_create_scenario("agent")
     # A refused root registers nothing.
     assert not dispatcher.has_scenario("agent")
@@ -1161,7 +1161,7 @@ def test_composite_recovery_refuses_a_registration_without_a_component_manifest(
         metadata={SCENARIO_METADATA_KEY: scenario_metadata_for(name="agent", source=RootSource("default"))},
     )
     dispatcher, _ = dispatchers.open(backend_factory=backend_factory)
-    with pytest.raises(ReefError, match="registered without a component manifest"):
+    with pytest.raises(AsterError, match="registered without a component manifest"):
         dispatcher.get_or_create_scenario("agent")
 
 
@@ -1224,7 +1224,7 @@ def test_a_weights_step_is_no_new_harness_head(dispatchers: _Dispatchers) -> Non
     dispatcher, _ = dispatchers.open(hold_local_cycles=True)
     scenario = _loaded(dispatcher, 1)
     service = RequestService(dispatcher)
-    headers = {"x-reef-scenario": "agent"}
+    headers = {"x-aster-scenario": "agent"}
     assert _commit_step(scenario, HARNESS) is not None
     harness_snapshot = scenario.current_snapshot().revision
     assert _commit_step(scenario, WEIGHTS) is not None
@@ -1268,7 +1268,7 @@ def test_the_harness_catalog_is_one_lineage_of_trees(dispatchers: _Dispatchers) 
     dispatcher, backends = dispatchers.open(hold_local_cycles=True)
     scenario = _loaded(dispatcher)
     service = RequestService(dispatcher)
-    headers = {"x-reef-scenario": "agent"}
+    headers = {"x-aster-scenario": "agent"}
     creation = scenario.current_snapshot().revision
     _append_records(scenario, 1)
     requires = {"training_request": {"id": "r1", "requires": [{"name": "TOKEN", "kind": "env"}]}}
@@ -1371,21 +1371,21 @@ def test_the_composite_harness_catalog_marks_one_active_row_and_a_client_activat
     assert _commit_step(scenario, WEIGHTS) is not None
     _append_records(scenario, 2)
     assert _commit_step(scenario, HARNESS) is not None
-    headers = {"x-reef-scenario": "agent"}
+    headers = {"x-aster-scenario": "agent"}
 
     async def run() -> None:
         client = TestClient(TestServer(create_app(dispatcher)))
         await client.start_server()
         try:
-            rows = (await (await client.get("/reef/harness/artifacts", headers=headers)).json())["artifacts"]
+            rows = (await (await client.get("/aster/harness/artifacts", headers=headers)).json())["artifacts"]
             assert [row["active"] for row in rows] == [False, False, True]
             assert all(row["component"] == HARNESS and row["activated"] for row in rows)
             first = rows[1]
             body = {"artifact_id": first["artifact_id"], "component": first["component"]}
-            answer = await client.post("/reef/scenarios/agent/activate", json=body)
+            answer = await client.post("/aster/scenarios/agent/activate", json=body)
             assert answer.status == 200, await answer.text()
             assert (await answer.json())["artifact_id"] == first["artifact_id"]
-            rows = (await (await client.get("/reef/harness/artifacts", headers=headers)).json())["artifacts"]
+            rows = (await (await client.get("/aster/harness/artifacts", headers=headers)).json())["artifacts"]
             assert [row["artifact_id"] for row in rows if row["active"]] == [first["artifact_id"]]
         finally:
             await client.close()
@@ -1426,7 +1426,7 @@ def test_an_activation_of_weights_held_at_step_one_is_no_harness_release(dispatc
     backends[WEIGHTS].hold_next = True
     scenario = _loaded(dispatcher)
     service = RequestService(dispatcher)
-    headers = {"x-reef-scenario": "agent"}
+    headers = {"x-aster-scenario": "agent"}
     creation = scenario.current_snapshot().revision
     _append_records(scenario, 1)
     assert _commit_step(scenario, WEIGHTS) is not None
@@ -1446,7 +1446,7 @@ def test_an_activation_under_the_same_tree_is_no_new_harness_head(dispatchers: _
     dispatcher, _ = dispatchers.open(hold_local_cycles=True)
     scenario = _loaded(dispatcher)
     service = RequestService(dispatcher)
-    headers = {"x-reef-scenario": "agent"}
+    headers = {"x-aster-scenario": "agent"}
     base = scenario.current_snapshot().revision
     _append_records(scenario, 1)
     assert _commit_step(scenario, HARNESS) is not None
@@ -1593,13 +1593,13 @@ def test_component_trainers_must_match_the_components() -> None:
     assert validate_component_trainers(named, composed) == named
     records_only = (ComponentTrainer(RECORDS_COMPONENT, trainer()),)
     assert validate_component_trainers(records_only, ScenarioComponents()) == records_only
-    with pytest.raises(ReefError, match="serving no component"):
+    with pytest.raises(AsterError, match="serving no component"):
         validate_component_trainers(harness_only, ScenarioComponents())
     with pytest.raises(ValueError, match="non-empty"):
         ComponentTrainer("", trainer())
-    with pytest.raises(ReefError, match="does not serve"):
+    with pytest.raises(AsterError, match="does not serve"):
         validate_component_trainers((ComponentTrainer("config", trainer()),), composed)
-    with pytest.raises(ReefError, match="distinct"):
+    with pytest.raises(AsterError, match="distinct"):
         validate_component_trainers(
             (ComponentTrainer(HARNESS, trainer()), ComponentTrainer(HARNESS, trainer())), composed
         )

@@ -4,7 +4,7 @@
 variant's. A step of either one shows the served model the step's failing
 traces in one call and writes the change the model answers into the step's
 workspace. The scorers grade a run's final answer with the grader of
-``evolution.py``. These classes import Reef, so they live apart from
+``evolution.py``. These classes import Aster, so they live apart from
 ``evolution.py``, which ``run.py`` imports with only reef-client installed.
 """
 
@@ -16,12 +16,12 @@ from collections.abc import Sequence
 from pathlib import Path
 from string import Template
 
-from reef.core.prompts import untrusted_text
-from reef.evaluation.harness import TaskScorer
-from reef.harness.tasks.model_binding import ModelBindingError
-from reef.harness.tasks.run import TaskResult
-from reef.harness.tree import TreePatch
-from reef.train.harness_backend import Method, StepContext, Trace
+from aster.core.prompts import untrusted_text
+from aster.evaluation.harness import TaskScorer
+from aster.harness.tasks.model_binding import ModelBindingError
+from aster.harness.tasks.run import TaskResult
+from aster.harness.tree import TreePatch
+from aster.train.harness_backend import Method, StepContext, Trace
 
 from . import evolution, native_evolution
 

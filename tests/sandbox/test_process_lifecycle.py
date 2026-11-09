@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from reef.execution.processes import ProcessRequest, ProcessScope, ProcessScopeClosed
+from aster.execution.processes import ProcessRequest, ProcessScope, ProcessScopeClosed
 
 pytestmark = pytest.mark.unit
 
@@ -155,10 +155,10 @@ def test_request_rejects_invalid_values(tmp_path: Path, changes: dict[str, objec
 def test_execution_contract_controls_different_owners(tmp_path: Path) -> None:
     import asyncio
 
-    from reef.execution.jobs import JobContext
-    from reef.execution.lifecycle import Execution
-    from reef.execution.sandbox.environment import ExecutorEnvironment, ProgramExecution
-    from reef.execution.sandbox.process import LocalExecutor, ProgramLaunchError
+    from aster.execution.jobs import JobContext
+    from aster.execution.lifecycle import Execution
+    from aster.execution.sandbox.environment import ExecutorEnvironment, ProgramExecution
+    from aster.execution.sandbox.process import LocalExecutor, ProgramLaunchError
 
     context = JobContext()
     program = ProgramExecution(ExecutorEnvironment(LocalExecutor(), root=tmp_path, workspace=tmp_path), ["true"])

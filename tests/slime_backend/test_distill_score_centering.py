@@ -11,8 +11,8 @@ import pytest
 torch = pytest.importorskip("torch")
 
 from recipes.sdft.slime import SdftAlgorithm, SdftSettings
-from reef.train.slime_backend.distill.objective import distill_loss
-from reef.train.slime_backend.score_centering import TOPK_INDICES_KEY, TOPK_LOG_PROBS_KEY
+from aster.train.slime_backend.distill.objective import distill_loss
+from aster.train.slime_backend.score_centering import TOPK_INDICES_KEY, TOPK_LOG_PROBS_KEY
 
 
 @pytest.fixture

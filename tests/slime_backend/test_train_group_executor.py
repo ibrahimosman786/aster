@@ -6,10 +6,10 @@ from types import SimpleNamespace
 import pytest
 from tests.support.executor_helpers import AttachedTestGroup
 
-from reef.execution.executor import Executor, ExecutorFuture, resolve
-from reef.execution.executor.failure import ExecutorFailureListener
-from reef.train.slime_backend.reef_adapters import train_groups
-from reef.train.slime_backend.reef_adapters.train_groups import SlimeTrainGroup
+from aster.execution.executor import Executor, ExecutorFuture, resolve
+from aster.execution.executor.failure import ExecutorFailureListener
+from aster.train.slime_backend.aster_adapters import train_groups
+from aster.train.slime_backend.aster_adapters.train_groups import SlimeTrainGroup
 
 
 class _Worker:
@@ -80,8 +80,8 @@ def make_group():
 
     def make(*, role="actor", train_timeout_s=14400, **overrides):
         values = {
-            "reef_executor_backend": f"{__name__}:CpuSlimeExecutor",
-            "reef_train_executor_options": {},
+            "aster_executor_backend": f"{__name__}:CpuSlimeExecutor",
+            "aster_train_executor_options": {},
             "save": "checkpoint-root",
             "load": "initial-checkpoint",
             "ckpt_step": 3,

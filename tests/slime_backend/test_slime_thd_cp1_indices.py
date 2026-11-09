@@ -1,6 +1,6 @@
 """Slime's THD context-parallel index map with context parallel size 1.
 
-``docker/Dockerfile.reef`` applies ``docker/patch/slime_thd_cp1_indices.patch`` to Slime's
+``docker/Dockerfile.aster`` applies ``docker/patch/slime_thd_cp1_indices.patch`` to Slime's
 ``slime_plugins/models/qwen3_5_vl_utils.py`` (THUDM/slime#2376). These tests apply the patch to a copy of the
 installed file, or read the installed file when the image build already applied it. They skip when Slime is
 missing.

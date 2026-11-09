@@ -1,4 +1,4 @@
-# Reef GEPA method, seed 1 (2026-09-02)
+# Aster GEPA method, seed 1 (2026-09-02)
 
 The second seed of the method through this example, the same protocol as
 [`../method-seed-0-2026-09-02/`](../method-seed-0-2026-09-02/README.md): same

@@ -2,12 +2,12 @@
 # Qwen3-32B teacher engine on eight GPUs: the TP2 actor on two, four single-GPU rollout engines on
 # four, and the TP2 teacher engine on the other two. Mount model and experiment directories at
 # /work. See README.md.
-reef:
+aster:
   ready-timeout: 3600
   host: 127.0.0.1
   port: 8900
   run-dir: ${OPD_RUN_DIR:?}/runtime
-  token: ${REEF_TOKEN}
+  token: ${ASTER_TOKEN}
 inference:
   model-path: ${OPD_MODEL_PATH:?}
   # A 30720-token evaluation response can wait over an hour behind the other requests when the KV
@@ -26,7 +26,7 @@ inference:
     mem-fraction-static: 0.80
     disable-cuda-graph: true
     enable-deterministic-inference: true
-  handler-factory: reef.inference.sglang.chat.SGLangInferenceHandler
+  handler-factory: aster.inference.sglang.chat.SGLangInferenceHandler
   handler-config:
     sampling_defaults:
       top_p: 1.0
@@ -48,7 +48,7 @@ training:
   backend: slime
   ready-timeout: 1800
   ray-address: local
-  ray-namespace: reef-opd-engine
+  ray-namespace: aster-opd-engine
   timeout-s: 7200
   config:
     checkpoint_dir: ${OPD_RUN_DIR:?}/checkpoints
@@ -59,10 +59,10 @@ training:
       policy: latest
     global_batch_size: 256             # run.py's prompts per step times samples per prompt; one batch, one step
   options:
-    reef-checkpoint-max-storage: ${training.config.checkpoint_retention.max_storage}
-    reef-checkpoint-max-storage-fraction: ${training.config.checkpoint_retention.max_storage_fraction}
-    reef-checkpoint-min-free-space: ${training.config.checkpoint_retention.min_free_space}
-    reef-checkpoint-policy: ${training.config.checkpoint_retention.policy}
+    aster-checkpoint-max-storage: ${training.config.checkpoint_retention.max_storage}
+    aster-checkpoint-max-storage-fraction: ${training.config.checkpoint_retention.max_storage_fraction}
+    aster-checkpoint-min-free-space: ${training.config.checkpoint_retention.min_free_space}
+    aster-checkpoint-policy: ${training.config.checkpoint_retention.policy}
     megatron-to-hf-mode: bridge
     hf-checkpoint: ${inference.model-path}
     # Qwen3 checkpoints pad the embedding to 151936 rows beyond the tokenizer's 151669 ids.

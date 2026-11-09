@@ -6,22 +6,22 @@ import copy
 from pathlib import Path
 
 import pytest
-from reef_terminus.runner import trial_record
+from aster_terminus.runner import trial_record
 from tests.support.harness_steps import build_harness_backend
 
 from recipes.beta.reefine import ReefineMethod, ReefineRecipe
 from recipes.beta.reefine.recipe import SEED_DIRECTORY
 from recipes.beta.reefine.scorer import HEALTH_TASK_DIRECTORY, AnswerScorer
-from reef.core.config import config_arguments
-from reef.evaluation.activation import AlwaysActivate, NeverActivate
-from reef.execution.sandbox.process import LocalExecutor
-from reef.harness.tasks.run import TaskResult
-from reef.harness.tree import HarnessTree
-from reef.inference.http import InferenceProxyRuntime
-from reef.recipe.errors import RecipeConfigError
-from reef.recipe.registry import build_recipe, recipe_class_for
+from aster.core.config import config_arguments
+from aster.evaluation.activation import AlwaysActivate, NeverActivate
+from aster.execution.sandbox.process import LocalExecutor
+from aster.harness.tasks.run import TaskResult
+from aster.harness.tree import HarnessTree
+from aster.inference.http import InferenceProxyRuntime
+from aster.recipe.errors import RecipeConfigError
+from aster.recipe.registry import build_recipe, recipe_class_for
 
-HEALTH = "[health] Run `echo reef-ok` and reply with its output."
+HEALTH = "[health] Run `echo aster-ok` and reply with its output."
 
 
 def evolution(**section: object) -> dict[str, object]:
@@ -101,7 +101,7 @@ def test_a_seed_that_fails_validation_is_refused_at_startup(tmp_path: Path) -> N
 
 
 def test_on_terminus_the_health_task_runs_as_the_shipped_task_directory(tmp_path: Path) -> None:
-    """reef-terminus runs a Harbor task directory, not a prompt: the profile's health prompt becomes the same check
+    """aster-terminus runs a Harbor task directory, not a prompt: the profile's health prompt becomes the same check
     as the directory beside the recipe, and the bundled scorer reads that directory's verifier reward."""
     section = {"adapter": "terminus", "evaluation": {"tasks": [HEALTH, "/tasks/own-task"]}}
     built = ReefineRecipe.from_environment({}, config={"evolution": section})
@@ -110,7 +110,7 @@ def test_on_terminus_the_health_task_runs_as_the_shipped_task_directory(tmp_path
     health = Path(HEALTH_TASK_DIRECTORY)
     for name in ("instruction.md", "task.toml", "tests/test.sh", "environment/Dockerfile"):
         assert (health / name).is_file(), name
-    assert "reef-ok" in (health / "tests/test.sh").read_text()
+    assert "aster-ok" in (health / "tests/test.sh").read_text()
     # A prompt adapter keeps the prompt.
     pi = ReefineRecipe.from_environment({}, config={"evolution": {**section, "adapter": "pi", "agent": None}})
     assert isinstance(pi, ReefineRecipe) and pi.evaluation.tasks[0] == HEALTH
@@ -138,12 +138,12 @@ def test_off_pi_no_agent_is_built_or_warned_about(caplog) -> None:
     neither warns nor needs a sandbox there, while pi still warns."""
     with caplog.at_level("WARNING"):
         built = ReefineRecipe.from_environment(
-            {"REEF_AGENT_SANDBOX": "none"}, config={"evolution": evolution(adapter="dsh")}
+            {"ASTER_AGENT_SANDBOX": "none"}, config={"evolution": evolution(adapter="dsh")}
         )
     assert isinstance(built, ReefineRecipe) and built.agent is None
     assert "sandbox is none" not in caplog.text
     with caplog.at_level("WARNING"):
-        pi = ReefineRecipe.from_environment({"REEF_AGENT_SANDBOX": "none"}, config={"evolution": evolution()})
+        pi = ReefineRecipe.from_environment({"ASTER_AGENT_SANDBOX": "none"}, config={"evolution": evolution()})
     assert isinstance(pi, ReefineRecipe) and pi.agent is not None and isinstance(pi.agent.executor, LocalExecutor)
     assert "sandbox is none" in caplog.text
 
@@ -168,7 +168,7 @@ def test_each_scenarios_backend_runs_the_agent_on_the_bound_binary_with_the_gate
     )
     upstream = InferenceProxyRuntime(base_url="https://openrouter.ai/api", api_key="sk-upstream", model_path="m")
     built = ReefineRecipe.from_environment(
-        {"REEF_AGENT_SANDBOX": "none"}, config={"evolution": section}, runtime=upstream
+        {"ASTER_AGENT_SANDBOX": "none"}, config={"evolution": section}, runtime=upstream
     )
     assert isinstance(built, ReefineRecipe) and isinstance(built.method, ReefineMethod)
     assert built.method.agent is None
@@ -189,5 +189,5 @@ def test_harbor_loads_the_reefine_health_task_directory() -> None:
 
     assert Task.is_valid_dir(HEALTH_TASK_DIRECTORY)
     task = Task(HEALTH_TASK_DIRECTORY)
-    assert "echo reef-ok" in task.instruction
+    assert "echo aster-ok" in task.instruction
     assert task.paths.test_path.is_file() and (task.paths.environment_dir / "Dockerfile").is_file()

@@ -25,7 +25,7 @@ Search trajectories record evaluation results during optimization. Final results
 - **TriMul:** lower latency is better. Search-time latency and final repeated measurements describe different evaluation runs.
 
 Baseline entries retain their source models and budgets, as recorded in `results.json`.
-The [earlier Reef runs](../README.md) use different configurations and remain separate from these paper results.
+The [earlier Aster runs](../README.md) use different configurations and remain separate from these paper results.
 
 ## Source Records
 

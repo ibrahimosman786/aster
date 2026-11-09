@@ -5,9 +5,9 @@ archive of candidate prompts, Pareto-sample a parent from it, evaluate that
 parent on a small training minibatch, ask a stronger model to rewrite one
 component in light of what went wrong, keep the child only if it beats its
 parent on that minibatch, then score it on the whole validation set and serve
-the best. `recipes/gepa/` is that algorithm written as a Reef harness evolution
+the best. `recipes/gepa/` is that algorithm written as an Aster harness evolution
 method - `recipes.gepa:GEPA` under the `evolution:` contract, with the archive
-in the method's `state/archive.json`, which Reef commits with each step - and
+in the method's `state/archive.json`, which Aster commits with each step - and
 this example is what validates it. The benchmark is the upstream AIME
 quickstart: 45 training problems, 45 validation problems, a sealed 150-problem
 AIME-2025 test split, a 150-call search budget, seed 0. Nothing here imports `gepa`; the two places the example
@@ -16,7 +16,7 @@ minibatch order) say so in `harness/aime.py`.
 
 ## What maps to what
 
-| GEPA | Reef |
+| GEPA | Aster |
 | --- | --- |
 | Candidate prompt | a harness tree; the evolvable file here is `rules.md`, rendered into Pi's package as `plugin/rules.md` |
 | Pareto-sample a parent from the archive | `Archive.select_parent` over per-problem fronts, dominated candidates pruned |
@@ -24,11 +24,11 @@ minibatch order) say so in `harness/aime.py`.
 | Reflect on one component and propose a rewrite | `models["reflection"]` (gpt-5) with GEPA's own prompt, over `Inputs` / `Generated Outputs` / `Feedback` records |
 | Accept the child iff it beats the parent on the minibatch | the method runs the child through `services.evaluate` and leaves `harness/` unchanged on a reject, so the step publishes nothing and commits the archive |
 | Full validation pass, then Pareto update | `evolution.evaluation.tasks` is the validation set: the step's evaluation scores the child on it, and the next step reads the per-task scores from the history into the archive |
-| Serve the argmax-mean candidate | the `compare` policy with `statistic: mean` publishes a strict mean improvement over the served tree's validation scores, which the score cache keeps, so the served tree stays the archive's best; it publishes the tree for `GET /reef/harness` |
+| Serve the argmax-mean candidate | the `compare` policy with `statistic: mean` publishes a strict mean improvement over the served tree's validation scores, which the score cache keeps, so the served tree stays the archive's best; it publishes the tree for `GET /aster/harness` |
 
 The request envelope is reproduced by seed files rather than by a custom Pi
-command line: `seed/config/primary.json` sets `defaultTools: []`, which Reef's own
-extension applies, and the fixed extension `seed/extensions/reef-quickstart-system.ts`
+command line: `seed/config/primary.json` sets `defaultTools: []`, which Aster's own
+extension applies, and the fixed extension `seed/extensions/aster-quickstart-system.ts`
 makes the rendered rules text Pi's entire system prompt at
 `before_agent_start` and flattens a single-part user message to the plain
 string upstream sends. Neither is evolvable (`components: [rules]`). The
@@ -39,7 +39,7 @@ underneath it can evolve freely.
 
 ```bash
 pip install -e .                       # datasets, reef-client
-REEF_PI_BINARY=/path/to/pi ./run.sh --dry-run
+ASTER_PI_BINARY=/path/to/pi ./run.sh --dry-run
 ```
 
 A dry run verifies the Pi binary is `0.84.2`, loads and hash-checks the pinned
@@ -48,15 +48,15 @@ and prints the plan. It makes no model call. Git LFS is not needed: the
 embedded service keeps its artifacts in memory under `./work`.
 
 ```bash
-OPENAI_API_KEY=... REEF_PI_BINARY=/path/to/pi ./run.sh
+OPENAI_API_KEY=... ASTER_PI_BINARY=/path/to/pi ./run.sh
 ```
 
 A live run is roughly 150 search runs plus the evaluation's validation
-passes, then 300 test runs. Runs are independent, so `REEF_GEPA_WORKERS`
+passes, then 300 test runs. Runs are independent, so `ASTER_GEPA_WORKERS`
 (default 128) run at once everywhere: the evaluation's validation pass through
 `execution.evolution.workers`, the driver's minibatch, and the test passes. It
 changes wall time only. `--budget` lowers the search budget for a
-shorter run. `REEF_GEPA_MULTI=1` adds an `aime-solver` skill to the seed tree
+shorter run. `ASTER_GEPA_MULTI=1` adds an `aime-solver` skill to the seed tree
 and evolves it alongside `rules.md`, which is the extension case, not the
 comparison. The credential is read once, handed to the embedded service as its
 upstream, and never written into a candidate, a checkpoint, or a published
@@ -66,9 +66,9 @@ The validation pool defaults to `auto`: one worker selects `uni`, multiple
 workers select `mp` (or Ray in an existing multi-worker placement group).
 The former `local` thread-pool executor has been removed. The retained
 concurrency default of 128 now means 128 persistent Python worker processes;
-reduce `REEF_GEPA_WORKERS` to fit host memory and provider rate limits, for
-example `REEF_GEPA_WORKERS=4 ./run.sh`. Set `REEF_GEPA_EXECUTOR=ray` for Ray
-actors, or `REEF_GEPA_EXECUTOR=uni REEF_GEPA_WORKERS=1` for one in-process
+reduce `ASTER_GEPA_WORKERS` to fit host memory and provider rate limits, for
+example `ASTER_GEPA_WORKERS=4 ./run.sh`. Set `ASTER_GEPA_EXECUTOR=ray` for Ray
+actors, or `ASTER_GEPA_EXECUTOR=uni ASTER_GEPA_WORKERS=1` for one in-process
 worker. After it builds the recipe,
 the driver replaces the configured scorer and feedback classes with one
 `AIMEScorer` built from a serializable snapshot of the answer and context
@@ -82,13 +82,13 @@ For example, a two-worker local Ray run:
 
 ```bash
 pip install 'ray[default]'
-REEF_GEPA_EXECUTOR=ray REEF_GEPA_WORKERS=2 ./run.sh
+ASTER_GEPA_EXECUTOR=ray ASTER_GEPA_WORKERS=2 ./run.sh
 ```
 
 To use an existing cluster, also set `RAY_ADDRESS` to its connection address
 (for example `ray://head-node:10001`). Use compatible Python/Ray versions and
-install the same Reef revision, Node.js, and Pi `0.84.2` on every worker node.
-`REEF_PI_BINARY` must resolve on every node (use `pi` on PATH or a common
+install the same Aster revision, Node.js, and Pi `0.84.2` on every worker node.
+`ASTER_PI_BINARY` must resolve on every node (use `pi` on PATH or a common
 absolute installation path). The driver uploads only this example's
 `harness/` Python package through Ray's runtime environment, not the work
 directory or credentials. If embedding the driver in an already initialized
@@ -113,7 +113,7 @@ The driver still forwards top-level `execution` and `executors`, including
 named profiles and Ray actor options such as `runtime_env`. `--dry-run`
 validates the recipe but does not launch workers or check remote dependencies.
 
-One round is: pull the served source tree (`GET /reef/harness?form=source`),
+One round is: pull the served source tree (`GET /aster/harness?form=source`),
 read the archive from the latest commit, settle it from the history, and draw
 the iteration's plan as the method will (its parent choice and its three
 training problems), render the tree with a model binding pointed back at the
@@ -128,7 +128,7 @@ budget.
 
 Everything under `./work`, and a rerun resumes from it:
 
-- `reef-data/` - the scenario's records and commit history. Each commit
+- `aster-data/` - the scenario's records and commit history. Each commit
   carries the method's `archive.json`: candidates and their texts, parents,
   per-problem validation vectors, the round-robin cursors, the metric-call
   count, each reflection's minibatch scores and result, and the seeded

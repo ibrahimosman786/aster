@@ -6,14 +6,14 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Self
 
-from reef.core.chat_rendering import TeacherRequest
-from reef.core.config import config_option
-from reef.core.job_data import TrajectorySample
-from reef.core.reports import TeacherContextReport
-from reef.pipeline_context import PipelineContext
-from reef.record2sample import ReportContext, ReportSamples
-from reef.record2sample.assembly import SampleAssembly, SampleAssemblySettings
-from reef.record2sample.distill import student_sample
+from aster.core.chat_rendering import TeacherRequest
+from aster.core.config import config_option
+from aster.core.job_data import TrajectorySample
+from aster.core.reports import TeacherContextReport
+from aster.pipeline_context import PipelineContext
+from aster.record2sample import ReportContext, ReportSamples
+from aster.record2sample.assembly import SampleAssembly, SampleAssemblySettings
+from aster.record2sample.distill import student_sample
 
 
 @dataclass(frozen=True)

@@ -1,4 +1,4 @@
-"""What AutoEnvScaling rebuilds tasks from: recorded coding-agent sessions on Reef, and the repository each one changed.
+"""What AutoEnvScaling rebuilds tasks from: recorded coding-agent sessions on Aster, and the repository each one changed.
 
 A sources file is a JSON list; each entry names one session record and the repository it worked on::
 
@@ -48,7 +48,7 @@ class Repository:
 
 @dataclass(frozen=True)
 class SessionSource:
-    """One recorded session to rebuild: its inference record on Reef and the repository it changed."""
+    """One recorded session to rebuild: its inference record on Aster and the repository it changed."""
 
     record_id: str
     scenario: str

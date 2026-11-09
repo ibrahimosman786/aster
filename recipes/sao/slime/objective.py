@@ -16,7 +16,7 @@ from typing import Any
 
 import torch
 
-from reef.train.slime_backend.algorithm import objective
+from aster.train.slime_backend.algorithm import objective
 
 
 @torch.compile(dynamic=True)

@@ -63,7 +63,7 @@ another rollout appended, in the reference implementation's words. An attempt wh
 request and a sample weight of 0. It stays in the step's mean and has no
 target. A grid whose attempts came from different policy versions is dropped
 and listed in the pipeline's status. Each sample carries its teacher's
-request in ``extra.reef.teacher``. The training component renders the
+request in ``extra.aster.teacher``. The training component renders the
 teacher sequence with the model's chat template: the teacher prompt, cut to
 ``max_teacher_prompt_tokens``, followed by the attempt's response tokens. It
 leaves out a sample whose teacher sequence is longer than

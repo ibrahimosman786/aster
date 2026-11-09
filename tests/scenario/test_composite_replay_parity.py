@@ -34,18 +34,18 @@ from tests.support.samples import data_storage
 from tests.support.samples_service import make_samples
 
 from recipes.tttd import TTTDGroupedRolloutReport, TTTDJobData, TTTDSamples, TTTDSettings
-from reef.artifact import InMemoryRepositoryBackend
-from reef.core import AgentRecord, RequestType
-from reef.dispatcher import Dispatcher
-from reef.execution.jobs import SupportsReceipt
-from reef.pipeline_context import PipelineContext
-from reef.record2sample import GroupDecision, JudgedSamples, RecordJudging, ReportContext, ReportGrouping
-from reef.sample2job import Sample2Job
-from reef.storage.sql_coordination import memory_coordination
-from reef.train import ComponentTrainer, Trainer
-from reef.train.jobs import JobLoop
-from reef.train.pipeline import TrainingPipeline
-from reef.train.types import JobData, Sample
+from aster.artifact import InMemoryRepositoryBackend
+from aster.core import AgentRecord, RequestType
+from aster.dispatcher import Dispatcher
+from aster.execution.jobs import SupportsReceipt
+from aster.pipeline_context import PipelineContext
+from aster.record2sample import GroupDecision, JudgedSamples, RecordJudging, ReportContext, ReportGrouping
+from aster.sample2job import Sample2Job
+from aster.storage.sql_coordination import memory_coordination
+from aster.train import ComponentTrainer, Trainer
+from aster.train.jobs import JobLoop
+from aster.train.pipeline import TrainingPipeline
+from aster.train.types import JobData, Sample
 
 
 class _SessionJudging(RecordJudging):

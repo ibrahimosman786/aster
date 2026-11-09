@@ -1,11 +1,11 @@
 version = "1.0"
 
 [metadata]
-author_name = "Reef"
+author_name = "Aster"
 benchmark = "ceobench"
 difficulty = "hard"
 category = "long-horizon"
-tags = ["reef", "harbor", "ceobench"]
+tags = ["aster", "harbor", "ceobench"]
 license_note = "zlab-princeton/ceobench-src carries no license file; the image clones a pinned commit at build time and ships none of it"
 
 [verifier]

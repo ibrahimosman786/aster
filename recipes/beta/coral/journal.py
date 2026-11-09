@@ -1,7 +1,7 @@
-"""Append-only JSONL journal: which Reef records belong to which CORAL attempt.
+"""Append-only JSONL journal: which Aster records belong to which CORAL attempt.
 
 A crash loses at most the in-flight request; torn lines are skipped on read.
-When a receipt did not survive the proxy hop, the tags Reef stored with the
+When a receipt did not survive the proxy hop, the tags Aster stored with the
 INFERENCE record remain the correlation key.
 """
 
@@ -30,7 +30,7 @@ class CallRecord:
     path: str
     status_code: int
     agent_record_id: str | None = None
-    #: ``x-reef-artifact-id`` from the response: which serving revision answered.
+    #: ``x-aster-artifact-id`` from the response: which serving revision answered.
     artifact_id: str | None = None
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
@@ -122,7 +122,7 @@ def commit_matches(recorded: str, wanted: str) -> bool:
 def deterministic_report_id(scenario: str, agent_id: str, commit_hash: str) -> str:
     """Client-supplied ``agent_record_id`` for the attempt's report.
 
-    Reef dedups identical resends of the same client-supplied id, so a
+    Aster dedups identical resends of the same client-supplied id, so a
     reporter that crashes after POST and runs again does not double-count
     the attempt (and a changed payload under the same id is rejected loudly
     rather than silently duplicated).

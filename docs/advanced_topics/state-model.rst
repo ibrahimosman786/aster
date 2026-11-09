@@ -77,7 +77,7 @@ provide the complete selection needed for recovery. Rejected or skipped
 training steps remain operations even when they create no artifact.
 
 The built-in repository stores durable bytes in Git with LFS patterns for
-weight files and a ``reef-artifact.json`` manifest. Backend interfaces use ``SnapshotRef`` with ``revision`` and ``parent_revision``.
+weight files and a ``aster-artifact.json`` manifest. Backend interfaces use ``SnapshotRef`` with ``revision`` and ``parent_revision``.
 These fields locate stored bytes; component IDs remain independent of storage.
 The publication head orders new snapshots independently of the active
 selection. Publication checks its expected parent and uses a Git push lease;
@@ -188,7 +188,7 @@ therefore rejects the step before its records are consumed. In-memory commit his
 only for the lifetime of that session.
 
 Artifact metadata stores scenario registration and checkpoint commit data
-under ``scenario_commit_record`` (format ``reef-scenario/7``): the root's
+under ``scenario_commit_record`` (format ``aster-scenario/7``): the root's
 ``source``, and after step zero the root snapshot as ``start_artifact``.
 Recovery refuses other formats. It decodes the metadata into a ``CommitRecord`` and
 reconciles it with the store before restoring the trainer. Initial registration

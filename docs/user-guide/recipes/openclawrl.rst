@@ -29,7 +29,7 @@ The learning signal comes from the conversation itself: when the user
 accepts a reply and moves on, the turn counts as positive, and when the user complains, it counts as
 negative. Aster reads this from the traffic it already records, so the agent
 does not send training reports. For reliable correlation, the harness should
-send a stable ``x-reef-tag-session`` value, unique to the conversation within
+send a stable ``x-aster-tag-session`` value, unique to the conversation within
 its scenario, on every inference in that conversation. Aster stores this opaque
 tag with each record and the judging stage uses it to bind turns in arrival order,
 so one tag must not be shared by concurrent or distinct conversations. Without
@@ -56,7 +56,7 @@ How Aster implements it
 ----------------------
 
 The judging stage rebuilds sessions from the recorded traffic. It prefers the
-``x-reef-tag-session`` value supplied by the harness, which also supports
+``x-aster-tag-session`` value supplied by the harness, which also supports
 agents that keep or rewrite their history locally. If the tag is absent, a
 chat agent must resend an extending transcript so each request can be matched
 to its session by trace. Identical histories can be ambiguous, while history
@@ -204,7 +204,7 @@ student's preferences.
 
 .. code:: bash
 
-   docker build -f docker/Dockerfile.reef -t reef-openclawrl .
+   docker build -f docker/Dockerfile.aster -t aster-openclawrl .
    hf download Qwen/Qwen3-4B-Thinking-2507 --local-dir ~/models/Qwen3-4B-Thinking-2507   # policy and PRM
    hf download Qwen/Qwen3-32B --local-dir ~/models/Qwen3-32B                             # the student
 
@@ -236,7 +236,7 @@ training goes on, and the run reaches the paper's adaptation criterion
    :alt: A failing and a passing session replayed from the run, with the student's ask, the agent's reply, and the student's reaction
 
 The demo above replays two sessions from the same run. In session 1 the
-student rejects a formatted reply, reef keeps the training going, and by
+student rejects a formatted reply, aster keeps the training going, and by
 session 16 the first reply passes directly.
 
 Related guides

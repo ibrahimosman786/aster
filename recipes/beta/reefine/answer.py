@@ -28,16 +28,16 @@ from typing import Any
 
 from recipes.beta.reefine.harness_facts import harness_facts
 from recipes.beta.reefine.prompts import prompt, prompt_words
-from reef.core.job_data import TrajectorySample
-from reef.core.prompts import untrusted_text
-from reef.core.requirements import parse_requires
-from reef.core.training_request import TrainingRequest
-from reef.core.trajectories import recorded_payload
-from reef.harness.adapters import get_adapter
-from reef.harness.adapters.parts import Format, TreeLayout
-from reef.harness.tasks.model_binding import ModelBindings
-from reef.harness.tree import HarnessTree, TreePatch
-from reef.train.harness_backend import ModelCalls, Services, Trace
+from aster.core.job_data import TrajectorySample
+from aster.core.prompts import untrusted_text
+from aster.core.requirements import parse_requires
+from aster.core.training_request import TrainingRequest
+from aster.core.trajectories import recorded_payload
+from aster.harness.adapters import get_adapter
+from aster.harness.adapters.parts import Format, TreeLayout
+from aster.harness.tasks.model_binding import ModelBindings
+from aster.harness.tree import HarnessTree, TreePatch
+from aster.train.harness_backend import ModelCalls, Services, Trace
 
 #: The one adapter whose extension API Reefine knows; the others take rules, skills and commands from it.
 EXTENSION_ADAPTER = "pi"
@@ -909,7 +909,7 @@ def kept_design(design: str) -> str:
 
 def undeclared_env(patch: TreePatch, requires: Sequence[Mapping[str, Any]], layout: TreeLayout) -> list[str]:
     """The variables the patch's extensions read through ``process.env`` that no requires item names, in reading
-    order; the ones pi and the shell set, and reef's own, are not needs of the user's."""
+    order; the ones pi and the shell set, and aster's own, are not needs of the user's."""
     declared = {str(item.get(key)) for item in requires for key in ("name", "check")}
     found: list[str] = []
     for path, text in patch.changes.items():
@@ -918,7 +918,7 @@ def undeclared_env(patch: TreePatch, requires: Sequence[Mapping[str, Any]], layo
             continue
         for dotted, bracketed in ENV_READ.findall(text):
             variable = dotted or bracketed
-            if variable in declared or variable in found or variable in SESSION_ENV or variable.startswith("REEF_"):
+            if variable in declared or variable in found or variable in SESSION_ENV or variable.startswith("ASTER_"):
                 continue
             found.append(variable)
     return found
@@ -949,25 +949,25 @@ def tool_steps(models: ModelBindings, request_text: str, files_text: str, tools:
 
 
 def timeout_s(default: float) -> float:
-    """The budget of one model call: ``REEF_REEFINE_CALL_TIMEOUT_S`` when set, else the caller's default."""
-    raw = os.environ.get("REEF_REEFINE_CALL_TIMEOUT_S", "").strip()
+    """The budget of one model call: ``ASTER_ASTERINE_CALL_TIMEOUT_S`` when set, else the caller's default."""
+    raw = os.environ.get("ASTER_ASTERINE_CALL_TIMEOUT_S", "").strip()
     try:
         return float(raw) if raw else default
     except ValueError:
-        logging.getLogger(__name__).warning("REEF_REEFINE_CALL_TIMEOUT_S=%r is not a number; using %s", raw, default)
+        logging.getLogger(__name__).warning("ASTER_ASTERINE_CALL_TIMEOUT_S=%r is not a number; using %s", raw, default)
         return default
 
 
 def max_tokens(default: int) -> int:
-    """The reply budget of one model call: ``REEF_REEFINE_CALL_MAX_TOKENS`` when set, else the caller's default.
+    """The reply budget of one model call: ``ASTER_ASTERINE_CALL_MAX_TOKENS`` when set, else the caller's default.
 
     A thinking model spends the budget on its reasoning first, and a reply cut there has no text: the defaults are
     sized for that, and a local model may still need more."""
-    raw = os.environ.get("REEF_REEFINE_CALL_MAX_TOKENS", "").strip()
+    raw = os.environ.get("ASTER_ASTERINE_CALL_MAX_TOKENS", "").strip()
     try:
         return int(raw) if raw else default
     except ValueError:
-        logging.getLogger(__name__).warning("REEF_REEFINE_CALL_MAX_TOKENS=%r is not a number; using %s", raw, default)
+        logging.getLogger(__name__).warning("ASTER_ASTERINE_CALL_MAX_TOKENS=%r is not a number; using %s", raw, default)
         return default
 
 
@@ -985,7 +985,7 @@ def failures_text(traces: Sequence[Trace]) -> str:
 
 #: What to add when the binding got a reply without text: a thinking model's reasoning took the budget.
 NO_TEXT_HINT = (
-    "; a thinking model may have spent the reply budget on its reasoning, raise REEF_REEFINE_CALL_MAX_TOKENS"
+    "; a thinking model may have spent the reply budget on its reasoning, raise ASTER_ASTERINE_CALL_MAX_TOKENS"
 )
 
 

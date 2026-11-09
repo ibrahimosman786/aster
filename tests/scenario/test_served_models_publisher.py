@@ -6,12 +6,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from reef.core.artifact_selection import ArtifactSelection
-from reef.core.served_models import CACHE_SECONDS, ScheduledStop, ServedArtifact
-from reef.dispatcher.served import ControlInstance, ServedModelsPublisher, retry_delay_seconds, wait_for_control_lease
-from reef.storage.coordination import Coordination
-from reef.storage.served_models import AUTOMATIC_RETRIES, SERVING_KIND, SERVING_QUEUE
-from reef.storage.sql_coordination import SQLControlLease, SQLiteCoordinationDatabase, SQLServedModels, SQLWorkQueue
+from aster.core.artifact_selection import ArtifactSelection
+from aster.core.served_models import CACHE_SECONDS, ScheduledStop, ServedArtifact
+from aster.dispatcher.served import ControlInstance, ServedModelsPublisher, retry_delay_seconds, wait_for_control_lease
+from aster.storage.coordination import Coordination
+from aster.storage.served_models import AUTOMATIC_RETRIES, SERVING_KIND, SERVING_QUEUE
+from aster.storage.sql_coordination import SQLControlLease, SQLiteCoordinationDatabase, SQLServedModels, SQLWorkQueue
 
 
 class Runtime:

@@ -8,13 +8,13 @@ import pytest
 from tests.support.runtime_stubs import StubTrainingComponent
 
 import recipes.sao  # noqa: F401  (registers the sao objective and family)
-from reef.core.errors import DeployConfigError, RuntimeConfigError
-from reef.core.weight_layout import ArtifactFormat
-from reef.service.deploy.orchestrator import resolve_deployment_config
-from reef.service.deploy.service_config import service_config_from_mapping
-from reef.service.deploy.serving import serving_runtime_config
-from reef.train.slime_backend import component as slime_component
-from reef.train.slime_backend.launch import SlimeDeployment, component_factory, slime_arguments
+from aster.core.errors import DeployConfigError, RuntimeConfigError
+from aster.core.weight_layout import ArtifactFormat
+from aster.service.deploy.orchestrator import resolve_deployment_config
+from aster.service.deploy.service_config import service_config_from_mapping
+from aster.service.deploy.serving import serving_runtime_config
+from aster.train.slime_backend import component as slime_component
+from aster.train.slime_backend.launch import SlimeDeployment, component_factory, slime_arguments
 
 SAO = {"trajectory": {"objective": "sao"}}
 
@@ -43,7 +43,7 @@ def settings_of(config: dict) -> dict:
 
 def test_native_training_options_become_slime_flags_unread():
     settings = {
-        # Slime's own engine and placement options reach Slime as they are; Reef reads none of them.
+        # Slime's own engine and placement options reach Slime as they are; Aster reads none of them.
         "training_backend_options": {
             "lr": 1e-6,
             "use-critic": True,
@@ -65,12 +65,12 @@ def test_native_training_options_become_slime_flags_unread():
 
 def test_slime_trains_and_the_inference_section_serves_its_checkpoints_on_an_inference_component(tmp_path):
     config = deployment_config(tmp_path)
-    assert [service["name"] for service in config["services"]] == ["inference", "reef"]
+    assert [service["name"] for service in config["services"]] == ["inference", "aster"]
     settings = settings_of(config)
     assert SlimeDeployment().http_environment(settings) == {}
     runtime = SlimeDeployment().component_config(settings, default_parameters=SAO)
     assert (runtime["type"], runtime["loss_family"], runtime["ray_address"]) == (
-        "reef.train.slime_backend.launch:component_factory",
+        "aster.train.slime_backend.launch:component_factory",
         "sao",
         "ray://head:10001",
     )
@@ -84,18 +84,18 @@ def test_slime_trains_and_the_inference_section_serves_its_checkpoints_on_an_inf
     }
     assert not {"serving", "inference_timeout_s"} & runtime.keys()
     serving = serving_runtime_config(service_config_from_mapping(config), SlimeDeployment(), ArtifactFormat("full"))
-    assert serving["remote"] == config["reef"]["inference_remote"]
+    assert serving["remote"] == config["aster"]["inference_remote"]
     assert (serving["type"], serving["engine"], serving["num_gpus"]) == ("remote_serving", "sglang", 2)
 
     none = deployment_config(tmp_path, inference={"backend": "none", "num-gpus": None})
-    assert [service["name"] for service in none["services"]] == ["reef"]
+    assert [service["name"] for service in none["services"]] == ["aster"]
     assert serving_runtime_config(service_config_from_mapping(none), SlimeDeployment(), None)["type"] == "none"
 
 
 @pytest.mark.parametrize(
     ("inference", "training", "message"),
     [
-        # Reef's serving shares no GPUs with training: colocation is Slime's own, for its rollout engines.
+        # Aster's serving shares no GPUs with training: colocation is Slime's own, for its rollout engines.
         ({}, {"colocate": True}, "unknown config fields: training.colocate"),
         ({"backend": "vllm", "num-gpus": 2, "tensor-parallel-size": 1}, {}, "vllm serves one engine"),
         ({}, {"options": {"global-batch-size": 4, "hf-checkpoint": "/models/other"}}, "must match"),
@@ -147,7 +147,7 @@ def test_the_factory_hands_the_drivers_a_family_that_a_recipe_registered_by_name
         settings_of(deployment_config(tmp_path)), default_parameters={"trajectory": {"objective": "sft"}}
     )
     component_factory(runtime, MODEL, {})
-    assert created_components["settings"][0].loss_family == "reef.train.slime_backend.sft:SftAlgorithm"
+    assert created_components["settings"][0].loss_family == "aster.train.slime_backend.sft:SftAlgorithm"
 
 
 @pytest.mark.parametrize("value", [0, -1])

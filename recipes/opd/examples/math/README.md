@@ -4,7 +4,7 @@ This example distils `Qwen/Qwen3-32B` into a Qwen3-8B-Base student that was
 fine-tuned on OpenThoughts3 math with the `opd` recipe (`recipes/opd/`), and
 evaluates on AIME'24. The teacher is four times the student's size and shares
 only its tokenizer, so it runs on the recipe's teacher engine instead of inside
-the actor. Each update samples 64 prompts four times through Reef, the teacher
+the actor. Each update samples 64 prompts four times through Aster, the teacher
 scores every token the student generated, and one optimizer step moves the
 student toward the teacher. Every five updates the served student is scored on
 AIME'24 and that series is the learning curve.
@@ -16,7 +16,7 @@ and reported AIME'24 moving from about 60% to 70%. This example starts from a
 published SFT checkpoint instead of training one.
 
 ```text
-run.sh                          starts the Reef stack and runs the campaign
+run.sh                          starts the Aster stack and runs the campaign
 run.py                          samples, reports and evaluates against the live service
 prepare.py                      pins the datasets and writes the prompts and the evaluation set
 serve.yaml                      the stack: TP2 actor, four serving engines and the TP2 teacher engine on eight GPUs
@@ -85,12 +85,12 @@ export OPD_RUN_DIR=/work/opd
 recipes/opd/examples/math/run.sh
 ```
 
-`run.sh` mints the service token, starts `reef serve` with `serve.yaml`, waits
+`run.sh` mints the service token, starts `aster serve` with `serve.yaml`, waits
 for `/healthz` and runs the campaign, whose output goes to
 `$OPD_RUN_DIR/results`. `OPD_DATA` names `prepare.py`'s output (default
 `/work/data`). `OPD_STEPS`, `OPD_EVAL_EVERY`, `OPD_EVAL_TOKENS` and
-`OPD_EVAL_REPEATS` change the schedule and budgets, and `REEF_PORT` and
-`REEF_SCENARIO` must belong to this experiment.
+`OPD_EVAL_REPEATS` change the schedule and budgets, and `ASTER_PORT` and
+`ASTER_SCENARIO` must belong to this experiment.
 
 The driver collects a complete job's responses before submitting any training report,
 checks that every response came from one snapshot, then waits for exactly one

@@ -1,4 +1,4 @@
-"""Run the pinned Terminal-Bench search: one Reef training request per step, each step a durable scenario commit."""
+"""Run the pinned Terminal-Bench search: one Aster training request per step, each step a durable scenario commit."""
 
 from __future__ import annotations
 
@@ -15,22 +15,22 @@ from typing import Any
 from harness import benchmark
 from recipes.meta_harness import MetaHarness
 from recipes.meta_harness.method import search_population
-from reef.artifact import GitLFSRepositoryBackend
-from reef.dispatcher import Dispatcher
-from reef.evaluation.harness import History
-from reef.harness.adapters import get_adapter
-from reef.harness.tree import HarnessTree, render_tree
-from reef.inference.http import InferenceProxyRuntime
-from reef.recipe.config import recipe_config_from_file_layout
-from reef.recipe.harness import HarnessEvolutionRecipe
-from reef.recipe.registry import build_recipe
-from reef.scenario.scenario import Scenario
-from reef.scenario.snapshot_files import component_files
-from reef.service.deploy.config_utils import load_config
-from reef.storage.sql_coordination import open_coordination
-from reef.storage.sqlite import SQLiteScenarioStorage
-from reef.train.harness_backend.component import HISTORY_DIR
-from reef.train.jobs import JobLoopState
+from aster.artifact import GitLFSRepositoryBackend
+from aster.dispatcher import Dispatcher
+from aster.evaluation.harness import History
+from aster.harness.adapters import get_adapter
+from aster.harness.tree import HarnessTree, render_tree
+from aster.inference.http import InferenceProxyRuntime
+from aster.recipe.config import recipe_config_from_file_layout
+from aster.recipe.harness import HarnessEvolutionRecipe
+from aster.recipe.registry import build_recipe
+from aster.scenario.scenario import Scenario
+from aster.scenario.snapshot_files import component_files
+from aster.service.deploy.config_utils import load_config
+from aster.storage.sql_coordination import open_coordination
+from aster.storage.sqlite import SQLiteScenarioStorage
+from aster.train.harness_backend.component import HISTORY_DIR
+from aster.train.jobs import JobLoopState
 
 HERE = Path(__file__).resolve().parent
 SCENARIO = "terminal-bench"
@@ -57,8 +57,8 @@ def campaign_id(sections: Mapping[str, Any]) -> str:
     """Different tasks, models, seeds, or search settings must never share search state; more steps continue one."""
     identity = json.loads(json.dumps(sections))
     identity["evolution"]["seed"] = HarnessTree.read(SEED).checksum()
-    identity["target_url"] = os.environ["REEF_UPSTREAM_URL"]
-    identity["target_model"] = os.environ["REEF_MODEL"]
+    identity["target_url"] = os.environ["ASTER_UPSTREAM_URL"]
+    identity["target_model"] = os.environ["ASTER_MODEL"]
     identity["dataset_revision"] = benchmark.MANIFEST["revision"]
     return hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
 
@@ -68,9 +68,9 @@ def load_recipe(sections: Mapping[str, Any], directory: Path) -> HarnessEvolutio
     config = json.loads(json.dumps(sections))
     config["evolution"]["state_dir"] = str(directory / "harness")
     runtime = InferenceProxyRuntime(
-        model_path=os.environ["REEF_MODEL"],
-        base_url=os.environ["REEF_UPSTREAM_URL"],
-        api_key=os.environ.get("REEF_UPSTREAM_API_KEY") or None,
+        model_path=os.environ["ASTER_MODEL"],
+        base_url=os.environ["ASTER_UPSTREAM_URL"],
+        api_key=os.environ.get("ASTER_UPSTREAM_API_KEY") or None,
         inference_timeout_s=config["evolution"]["evaluation"]["task_timeout_s"],
     )
     recipe = build_recipe(config["implementation"], config=config, runtime=runtime)
@@ -94,11 +94,11 @@ def open_campaign(recipe: HarnessEvolutionRecipe, directory: Path) -> Dispatcher
             work_dir=directory / "artifact-work",
             cache_dir=directory / "artifact-cache",
         ),
-        scenario_storage=SQLiteScenarioStorage(directory / "reef-data"),
+        scenario_storage=SQLiteScenarioStorage(directory / "aster-data"),
         hold_local_cycles=True,
         # The jobs queue is on disk, so a restarted campaign finds the job of its step.
         coordination=open_coordination(
-            "sqlite", agent_record_dir=str(directory / "reef-data"), record_database_url=None
+            "sqlite", agent_record_dir=str(directory / "aster-data"), record_database_url=None
         ),
     )
 
@@ -206,7 +206,7 @@ def positive_int(value: str) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--tasks-root", type=Path, default=Path(os.environ.get("REEF_TERMINAL_BENCH_DIR", "/opt/terminal-bench-2"))
+        "--tasks-root", type=Path, default=Path(os.environ.get("ASTER_TERMINAL_BENCH_DIR", "/opt/terminal-bench-2"))
     )
     parser.add_argument("--task", action="append", help="run a smaller suite using names from the pinned manifest")
     parser.add_argument(
@@ -219,7 +219,7 @@ def main() -> None:
     args = parser.parse_args()
     tasks = benchmark.task_paths(args.tasks_root, args.task)
     sections = configuration(tasks, args.repeats)
-    directory = Path(os.environ["REEF_WORK"]).resolve() / campaign_id(sections)
+    directory = Path(os.environ["ASTER_WORK"]).resolve() / campaign_id(sections)
     files = render_tree(HarnessTree.read(SEED), get_adapter("terminus"))
     print(
         json.dumps(
@@ -236,15 +236,15 @@ def main() -> None:
     if args.dry_run:
         return
     if not all(Path(task).is_relative_to("/usr") or Path(task).is_relative_to("/opt") for task in tasks):
-        raise ValueError("place the task checkout under /usr or /opt so Reef's sandbox can read it")
-    if shutil.which("reef-terminus") is None:
-        raise RuntimeError("reef-terminus is missing; install Reef and this example in the same environment")
+        raise ValueError("place the task checkout under /usr or /opt so Aster's sandbox can read it")
+    if shutil.which("aster-terminus") is None:
+        raise RuntimeError("aster-terminus is missing; install Aster and this example in the same environment")
     recipe = load_recipe(sections, directory)
     dispatcher = open_campaign(recipe, directory)
     try:
         scenario = dispatcher.get_or_create_scenario(SCENARIO)
         if scenario is None:
-            raise RuntimeError("Reef did not create the campaign scenario")
+            raise RuntimeError("Aster did not create the campaign scenario")
         search(dispatcher, scenario, recipe, directory, args.iterations)
     finally:
         dispatcher.close()

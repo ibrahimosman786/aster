@@ -6,9 +6,9 @@ from pathlib import Path
 
 from tests.support.runtime_stubs import StubInferenceRuntime, StubTrainingComponent
 
-from reef.core.config import config_option
-from reef.train.component import TrainingComponentFactory
-from reef.train.deployment import InProcessTrainingDeployment
+from aster.core.config import config_option
+from aster.train.component import TrainingComponentFactory
+from aster.train.deployment import InProcessTrainingDeployment
 
 
 @dataclass(frozen=True)

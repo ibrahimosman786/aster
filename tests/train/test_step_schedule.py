@@ -7,7 +7,7 @@ from dataclasses import replace
 import pytest
 from tests.support._trajectories import policy_trajectory
 
-from reef.train.algos.schedule import (
+from aster.train.algos.schedule import (
     MaterializedSchedule,
     StepScheduling,
     materialize_schedule,
@@ -16,7 +16,7 @@ from reef.train.algos.schedule import (
     schedule_job_data,
     schedule_seed,
 )
-from reef.train.types import JobData
+from aster.train.types import JobData
 
 
 @pytest.mark.unit

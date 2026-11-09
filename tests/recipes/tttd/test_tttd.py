@@ -12,18 +12,18 @@ from tests.support.runtime_stubs import STUB_ROOT, runtime_bindings
 
 from recipes.tttd import TTTDGroupedRolloutReport, TTTDJobData, TTTDRecipe, TTTDSamples, TTTDSettings
 from recipes.tttd.objective import adaptive_entropic_advantages
-from reef.core import AgentRecord, RequestType
-from reef.core.plugins import PluginConfigError
-from reef.core.reports import ReportValidationError
-from reef.core.trajectories import trajectory_reward
-from reef.recipe.config import RecipeConfigError
-from reef.record2sample import NoSamples
-from reef.train import PipelineContext, Trainer
-from reef.train.algos.schedule import StepScheduling
-from reef.train.pipeline import TrainingPipeline
-from reef.train.slime_backend.loss_families import resolve_loss_family
-from reef.train.slime_backend.reef_adapters.preparation import prepare_slime_job
-from reef.train.types import TrajectorySample, trajectory_groups
+from aster.core import AgentRecord, RequestType
+from aster.core.plugins import PluginConfigError
+from aster.core.reports import ReportValidationError
+from aster.core.trajectories import trajectory_reward
+from aster.recipe.config import RecipeConfigError
+from aster.record2sample import NoSamples
+from aster.train import PipelineContext, Trainer
+from aster.train.algos.schedule import StepScheduling
+from aster.train.pipeline import TrainingPipeline
+from aster.train.slime_backend.loss_families import resolve_loss_family
+from aster.train.slime_backend.aster_adapters.preparation import prepare_slime_job
+from aster.train.types import TrajectorySample, trajectory_groups
 
 
 class _ExperimentLogger:
@@ -184,7 +184,7 @@ def test_tttd_job_data_needs_the_tttd_sample_stage() -> None:
 @pytest.mark.unit
 def test_tttd_backend_contract_owns_its_dynamic_function_paths() -> None:
     pytest.importorskip("torch")
-    from reef.train.slime_backend.algorithm import resolve_objective_paths
+    from aster.train.slime_backend.algorithm import resolve_objective_paths
 
     args = SimpleNamespace(
         loss_family="tttd",
@@ -221,7 +221,7 @@ def test_tttd_backend_contract_rejects_objective_drift(overrides, message) -> No
     values.update(overrides)
 
     with pytest.raises(RuntimeError, match=message):
-        tttd.validate_specific_args(SimpleNamespace(**values), "reef.recipe=tttd")
+        tttd.validate_specific_args(SimpleNamespace(**values), "aster.recipe=tttd")
 
 
 @pytest.mark.unit
@@ -231,7 +231,7 @@ def test_tttd_accepts_any_positive_kl_coef() -> None:
     tttd = resolve_loss_family("tttd")
     tttd.validate_specific_args(
         SimpleNamespace(compute_advantages_and_returns=True, kl_coef=0.2),
-        "reef.recipe=tttd",
+        "aster.recipe=tttd",
     )
 
 
@@ -321,7 +321,7 @@ def test_tttd_rejects_and_releases_a_step_spanning_artifact_ids(caplog) -> None:
 
 @pytest.mark.unit
 def test_tttd_caches_policy_samples_at_push(monkeypatch) -> None:
-    from reef.record2sample import assembly as reported_module
+    from aster.record2sample import assembly as reported_module
 
     calls = 0
     make_trajectory = reported_module.make_trajectory
@@ -601,8 +601,8 @@ def test_tttd_objective_flags_a_batch_of_constant_groups() -> None:
     # The processor keeps one constant-reward group when every group is
     # constant; the objective reports that batch, whose advantages carry no
     # signal, through constant_groups_retained.
-    from reef.train.slime_backend.objectives import resolve_slime_objective
-    from reef.train.types import JobData
+    from aster.train.slime_backend.objectives import resolve_slime_objective
+    from aster.train.types import JobData
 
     def sample(record_id: str, reward: float) -> TrajectorySample:
         return policy_trajectory(record_id, (5, 1), (1,), (-0.1,), reward)

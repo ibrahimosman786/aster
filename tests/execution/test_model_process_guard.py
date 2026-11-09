@@ -11,7 +11,7 @@ from uuid import uuid4
 
 import pytest
 
-from reef.execution.executor.process_guard import DEPLOYMENT_ENV, _directory, retire
+from aster.execution.executor.process_guard import DEPLOYMENT_ENV, _directory, retire
 
 
 def wait_for(path):
@@ -30,7 +30,7 @@ def test_process_lease_retires_forked_children_without_touching_other_groups(tmp
     script = """
 import json, os, time, sys
 from pathlib import Path
-from reef.execution.executor.process_guard import install
+from aster.execution.executor.process_guard import install
 install()
 pid = os.fork()
 if pid == 0:
@@ -64,7 +64,7 @@ else:
 
 @pytest.mark.parametrize("worker_alive", [True, False])
 def test_a_missing_guard_retires_its_group_once_the_worker_is_gone(tmp_path, monkeypatch, worker_alive):
-    from reef.execution.executor import process_guard
+    from aster.execution.executor import process_guard
 
     pytest.importorskip("psutil")
     retired: list[tuple[int, float | None]] = []
@@ -85,7 +85,7 @@ def test_a_missing_guard_retires_its_group_once_the_worker_is_gone(tmp_path, mon
 
 
 def test_a_group_whose_leader_exited_is_retired_whatever_its_leader_started_at(monkeypatch):
-    from reef.execution.executor import process_guard
+    from aster.execution.executor import process_guard
 
     psutil = pytest.importorskip("psutil")
     signals = []
@@ -102,7 +102,7 @@ def test_a_group_whose_leader_exited_is_retired_whatever_its_leader_started_at(m
 
 @pytest.mark.parametrize("alive", [False, True])
 def test_group_retirement_handles_exit_during_identity_read_but_requires_no_live_members(monkeypatch, alive):
-    from reef.execution.executor import process_guard
+    from aster.execution.executor import process_guard
 
     psutil = pytest.importorskip("psutil")
 
@@ -124,7 +124,7 @@ def test_group_retirement_handles_exit_during_identity_read_but_requires_no_live
 
 
 def test_group_retirement_never_signals_reused_owner_pid(monkeypatch):
-    from reef.execution.executor import process_guard
+    from aster.execution.executor import process_guard
 
     psutil = pytest.importorskip("psutil")
     monkeypatch.setattr(psutil, "Process", lambda pid: SimpleNamespace(create_time=lambda: 2))

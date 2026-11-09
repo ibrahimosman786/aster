@@ -23,7 +23,7 @@ sequence length of the call.
 The match is exact only under three conditions:
 
 - The engine uses the SDPA vision attention backend. For an engine that Slime starts, pass
-  ``--sglang-mm-attention-backend sdpa``. For an engine that Reef starts, set ``mm-attention-backend: sdpa``
+  ``--sglang-mm-attention-backend sdpa``. For an engine that Aster starts, set ``mm-attention-backend: sdpa``
   under ``inference.options``. On CUDA, SGLang uses another backend by default.
 - The engine encodes each image in its own tower call. The regular engine path of the SGLang pin ``f7ea06e1``
   encodes the cache-miss images of one request (in the current prefill chunk) in one call. So this holds for at
@@ -33,8 +33,8 @@ The match is exact only under three conditions:
   across ranks.
 - SGLang is the pin ``f7ea06e1``. Other revisions can encode or round differently.
 
-Reef copies this file into the installed ``slime_plugins/models/`` at image build time
-(``docker/Dockerfile.reef``). Remove it when Reef's Slime pin has the same change.
+Aster copies this file into the installed ``slime_plugins/models/`` at image build time
+(``docker/Dockerfile.aster``). Remove it when Aster's Slime pin has the same change.
 """
 
 from __future__ import annotations
@@ -77,7 +77,7 @@ def get_local_rope_apply() -> Callable[..., tuple[torch.Tensor, torch.Tensor]]:
 def get_rope_apply() -> Callable[..., tuple[torch.Tensor, torch.Tensor]]:
     """Return SGLang's compiled ``apply_rotary_pos_emb_native``.
 
-    The Reef image build checks that this import works. Without SGLang (for example outside the image), return the
+    The Aster image build checks that this import works. Without SGLang (for example outside the image), return the
     local compiled copy and log a warning.
     """
     try:

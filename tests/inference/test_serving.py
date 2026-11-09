@@ -9,14 +9,14 @@ from pathlib import Path
 import pytest
 from tests.support.runtime_stubs import RunningEngines
 
-from reef.artifact import REFERENCE_FILE, DownloadedSnapshot, HuggingFaceRevision, HuggingFaceSource
-from reef.artifact.artifact import Artifact, SnapshotRef
-from reef.core.errors import ReefError
-from reef.core.weight_layout import ADAPTER_DIR
-from reef.inference.deployment import InferenceService
-from reef.inference.interfaces import InferenceBackend, InferenceHandler, RuntimeContractError
-from reef.inference.residency import AdapterCapacityExhausted, AdapterResidencyError, adapter_name, parse_adapter_name
-from reef.inference.serving import AdapterServingRuntime, FullWeightServingRuntime
+from aster.artifact import REFERENCE_FILE, DownloadedSnapshot, HuggingFaceRevision, HuggingFaceSource
+from aster.artifact.artifact import Artifact, SnapshotRef
+from aster.core.errors import AsterError
+from aster.core.weight_layout import ADAPTER_DIR
+from aster.inference.deployment import InferenceService
+from aster.inference.interfaces import InferenceBackend, InferenceHandler, RuntimeContractError
+from aster.inference.residency import AdapterCapacityExhausted, AdapterResidencyError, adapter_name, parse_adapter_name
+from aster.inference.serving import AdapterServingRuntime, FullWeightServingRuntime
 
 
 class Engines(InferenceBackend):
@@ -202,12 +202,12 @@ def test_an_activation_loads_another_release_and_the_default_start_loads_as_any_
 
 
 def test_only_a_saved_adapter_of_a_named_scenario_is_served(serving, tmp_path):
-    with pytest.raises(ReefError, match="named scenario"):
+    with pytest.raises(AsterError, match="named scenario"):
         serving.activate_checkpoint(release(saved_adapter(tmp_path / "a"), "a"))
     manifest_only = tmp_path / "manifest-only"
     manifest_only.mkdir()
     (manifest_only / "tinker-checkpoint.json").write_text("{}")
-    with pytest.raises(ReefError, match="holds no PEFT adapter"):
+    with pytest.raises(AsterError, match="holds no PEFT adapter"):
         serving.activate_checkpoint(release(manifest_only, "m"), scenario="math")
     assert serving.serving_adapter_runtime_load_id("math") is None
 
@@ -310,13 +310,13 @@ def test_a_release_that_refers_to_a_revision_loads_the_revisions_snapshot(engine
         downloaded.append(source)
         return DownloadedSnapshot(snapshot, revision.commit)
 
-    monkeypatch.setattr("reef.inference.serving.download_huggingface_snapshot", download)
+    monkeypatch.setattr("aster.inference.serving.download_huggingface_snapshot", download)
     serving = opened(FullWeightServingRuntime(RunningEngines(engines), Handler()))
     version = serving.activate_checkpoint(release(reference, "hf"))
     assert engines.events[-2] == ("load", "full", None, version, snapshot)
     assert downloaded == [HuggingFaceSource(revision.repo, revision.commit)]
     (reference / REFERENCE_FILE).write_text("{}")
-    with pytest.raises(ReefError, match="no readable reference"):
+    with pytest.raises(AsterError, match="no readable reference"):
         serving.activate_checkpoint(release(reference, "bad"))
 
 
@@ -508,7 +508,7 @@ def test_a_runtime_that_control_did_not_open_changes_no_engine(engines, tmp_path
     # A process that runs no control builds the same runtime to send requests, and must leave the engines alone.
     serving = AdapterServingRuntime(RunningEngines(engines), Handler(), adapter_capacity=1)
     assert engines.events == []
-    with pytest.raises(ReefError, match="not open"):
+    with pytest.raises(AsterError, match="not open"):
         serving.activate_checkpoint(release(saved_adapter(tmp_path / "math"), "m"), scenario="math")
     serving.shutdown()
     assert engines.events == []

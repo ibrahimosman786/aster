@@ -1,11 +1,11 @@
 version = "1.0"
 
 [metadata]
-author_name = "Reef"
+author_name = "Aster"
 benchmark = "sdpo-sciknoweval"
 difficulty = "hard"
 category = "reinforcement-learning"
-tags = ["reef", "harbor", "sdpo", "sciknoweval", "chemistry"]
+tags = ["aster", "harbor", "sdpo", "sciknoweval", "chemistry"]
 
 [verifier]
 # The verifier reads the run's curve; no model calls happen here.

@@ -1,14 +1,14 @@
 # AutoEnvScaling on Tinker: a coding agent rebuilds recorded sessions as Harbor tasks, and the served model trains on them.
 # The built-in generated-task recipe hands the tasks to Tinker, which rolls them out and trains; AutoEnvScaling is the task generator.
-# Supply TINKER_API_KEY, E2B_API_KEY and REEF_AUTOENVSCALING_DESIGNER_TOKEN through the shell, never here.
-# REEF_AUTOENVSCALING_STATE_DIR is where this deployment keeps its state; REEF_AUTOENVSCALING_SOURCES_PATH lists the
-# recorded sessions; REEF_AUTOENVSCALING_DESIGNER_URL is the Reef that serves the agent's model and holds the sessions.
-# The generator service runs under the same interpreter as Reef.
-reef:
+# Supply TINKER_API_KEY, E2B_API_KEY and ASTER_AUTOENVSCALING_DESIGNER_TOKEN through the shell, never here.
+# ASTER_AUTOENVSCALING_STATE_DIR is where this deployment keeps its state; ASTER_AUTOENVSCALING_SOURCES_PATH lists the
+# recorded sessions; ASTER_AUTOENVSCALING_DESIGNER_URL is the Aster that serves the agent's model and holds the sessions.
+# The generator service runs under the same interpreter as Aster.
+aster:
   host: 127.0.0.1
   port: 8900
-  token: ${REEF_TOKEN}
-  run-dir: ${REEF_AUTOENVSCALING_STATE_DIR}/stack
+  token: ${ASTER_TOKEN}
+  run-dir: ${ASTER_AUTOENVSCALING_STATE_DIR}/stack
   # The Tinker runtime downloads tokenizer files and saves the initial checkpoint before /healthz answers.
   ready-timeout: 600
 inference:
@@ -17,7 +17,7 @@ inference:
   timeout-s: 1800
 # The generator service: writes and checks the agent's tasks, on the host that has Docker and harbor.
 generator:
-  tasks-root: ${REEF_AUTOENVSCALING_STATE_DIR}/tasks
+  tasks-root: ${ASTER_AUTOENVSCALING_STATE_DIR}/tasks
   # The agent of the generator service's own rollouts, thinking off.
   agent:
     name: terminus-2
@@ -31,7 +31,7 @@ generator:
           chat_template_kwargs:
             enable_thinking: false
 recipe:
-  implementation: reef.recipe.generated_tasks:GeneratedTaskRecipe
+  implementation: aster.recipe.generated_tasks:GeneratedTaskRecipe
   config:
     job_parameters:
       # The method that trains the rollouts. Replace this reference with a TinkerObjective that you provide.
@@ -71,19 +71,19 @@ pipeline:
         module: recipes.beta.autoenvscaling:AutoEnvScalingGenerator
         config:
           generator_url: ${endpoints.generator}
-          state_dir: ${REEF_AUTOENVSCALING_STATE_DIR}/generations
-          sources_path: ${REEF_AUTOENVSCALING_SOURCES_PATH}
+          state_dir: ${ASTER_AUTOENVSCALING_STATE_DIR}/generations
+          sources_path: ${ASTER_AUTOENVSCALING_SOURCES_PATH}
           count: 8
           # A task that ran is in the band when the Reasoning Agent passes a quarter to three quarters of its rollouts.
           band_low: 0.25
           band_high: 0.75
-          # The Designer: pi on a strong model, its calls recorded on the Designer's Reef.
+          # The Designer: pi on a strong model, its calls recorded on the Designer's Aster.
           agent_model: gpt-6-sol
-          agent_reef_url: ${REEF_AUTOENVSCALING_DESIGNER_URL}
-          agent_token_env: REEF_AUTOENVSCALING_DESIGNER_TOKEN
+          agent_aster_url: ${ASTER_AUTOENVSCALING_DESIGNER_URL}
+          agent_token_env: ASTER_AUTOENVSCALING_DESIGNER_TOKEN
           # Optional: an upstream that serves only the Responses API needs agent_api: responses.
           agent_api: openai
-          # A model call on the same Reef reviews each task's tests; a task they grade on what the instruction does
+          # A model call on the same Aster reviews each task's tests; a task they grade on what the instruction does
           # not state is refused.
           review: refuse
   # One task job holds up to buffer_size saved tasks; Tinker rolls them out and trains on their task groups.
@@ -95,14 +95,14 @@ training:
   ready-timeout: 1800
   timeout-s: 1800
   options:
-    state-dir: ${REEF_AUTOENVSCALING_STATE_DIR}/tinker
+    state-dir: ${ASTER_AUTOENVSCALING_STATE_DIR}/tinker
     # Rollouts in one optimizer step: two complete task groups of rollouts_per_task rollouts.
     batch-size: 8
     lora-rank: 32
     learning-rate: 0.00004
 storage:
-  artifact-repository: ${REEF_AUTOENVSCALING_STATE_DIR}/artifacts.git
-  artifact-work-dir: ${REEF_AUTOENVSCALING_STATE_DIR}/artifact-work
-  artifact-cache-dir: ${REEF_AUTOENVSCALING_STATE_DIR}/artifact-cache
-  agent-record-dir: ${REEF_AUTOENVSCALING_STATE_DIR}/agent-record
-  task-file-dir: ${REEF_AUTOENVSCALING_STATE_DIR}/task-files
+  artifact-repository: ${ASTER_AUTOENVSCALING_STATE_DIR}/artifacts.git
+  artifact-work-dir: ${ASTER_AUTOENVSCALING_STATE_DIR}/artifact-work
+  artifact-cache-dir: ${ASTER_AUTOENVSCALING_STATE_DIR}/artifact-cache
+  agent-record-dir: ${ASTER_AUTOENVSCALING_STATE_DIR}/agent-record
+  task-file-dir: ${ASTER_AUTOENVSCALING_STATE_DIR}/task-files

@@ -11,13 +11,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from reef.evaluation.harness import TaskScorer, verifier_reward
-from reef.harness.tasks.run import TaskResult
-from reef.harness.tasks.trajectory import final_assistant_text
+from aster.evaluation.harness import TaskScorer, verifier_reward
+from aster.harness.tasks.run import TaskResult
+from aster.harness.tasks.trajectory import final_assistant_text
 
 #: Expected final answers, keyed by the stable prefix each task starts with (the example serve config's tasks).
 ANSWERS = {
-    "[health]": "reef-ok",
+    "[health]": "aster-ok",
 }
 
 #: The health task as a Harbor task directory, for an adapter that runs a task directory rather than a prompt

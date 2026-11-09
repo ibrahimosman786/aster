@@ -11,12 +11,12 @@ def postgres_config():
     from sqlalchemy import create_engine
     from sqlalchemy.schema import DropSchema
 
-    from reef.storage.postgres import postgres_url
+    from aster.storage.postgres import postgres_url
 
-    url = os.environ.get("REEF_TEST_POSTGRES_URL")
+    url = os.environ.get("ASTER_TEST_POSTGRES_URL")
     if not url:
-        pytest.skip("set REEF_TEST_POSTGRES_URL to run PostgreSQL integration tests")
-    schema = f"reef_test_{uuid.uuid4().hex}"
+        pytest.skip("set ASTER_TEST_POSTGRES_URL to run PostgreSQL integration tests")
+    schema = f"aster_test_{uuid.uuid4().hex}"
     try:
         yield url, schema
     finally:
@@ -32,7 +32,7 @@ def postgres_config():
 
 @pytest.fixture
 def postgres_database(postgres_config):
-    from reef.storage.postgres import PostgresRecordDatabase
+    from aster.storage.postgres import PostgresRecordDatabase
 
     url, schema = postgres_config
     database = PostgresRecordDatabase(url, schema=schema)

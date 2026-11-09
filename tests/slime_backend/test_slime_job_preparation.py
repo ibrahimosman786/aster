@@ -9,11 +9,11 @@ import pytest
 from tests.support._grouped_pg import GROUPED_PG_OBJECTIVE
 from tests.support._trajectories import policy_trajectory
 
-from reef.train.algos.schedule import StepScheduling
-from reef.train.algos.signals import TrainingSignal
-from reef.train.slime_backend.objectives import SlimeObjective
-from reef.train.slime_backend.reef_adapters.preparation import prepare_slime_job
-from reef.train.types import JobData, TaskSample, trajectories
+from aster.train.algos.schedule import StepScheduling
+from aster.train.algos.signals import TrainingSignal
+from aster.train.slime_backend.objectives import SlimeObjective
+from aster.train.slime_backend.aster_adapters.preparation import prepare_slime_job
+from aster.train.types import JobData, TaskSample, trajectories
 
 SFT_OBJECTIVE = "tests.slime_backend.test_slime_job_preparation:SampleSftObjective"
 TWO_EPOCH_OBJECTIVE = "tests.slime_backend.test_slime_job_preparation:TwoEpochObjective"

@@ -5,17 +5,17 @@
 #
 # The stack is left running and a healthy one is reused; `docker compose down`
 # stops it. A trained stack is bound to its scenario, so switching
-# REEF_SCENARIO or RUN_DIR needs a restart.
+# ASTER_SCENARIO or RUN_DIR needs a restart.
 set -euo pipefail
 cd "$(dirname "$0")"
-REEF_ROOT="$(cd ../../../.. && pwd)"
+ASTER_ROOT="$(cd ../../../.. && pwd)"
 
-REEF_IMAGE="${REEF_IMAGE:-reef}"
+ASTER_IMAGE="${ASTER_IMAGE:-aster}"
 MODEL_DIR="${MODEL_DIR:-$HOME/models}"
 RUN_DIR="${RUN_DIR:-$PWD/work}"
 HOST_IP="$(hostname -I | awk '{print $1}')"
-export REEF_SERVICE_URL="${REEF_SERVICE_URL:-http://${HOST_IP}:28900}"
-export REEF_SCENARIO="${REEF_SCENARIO:-ceobench-sao}"
+export ASTER_SERVICE_URL="${ASTER_SERVICE_URL:-http://${HOST_IP}:28900}"
+export ASTER_SCENARIO="${ASTER_SCENARIO:-ceobench-sao}"
 # The longest turn the trainer takes (serve.yaml explains the budget): turns
 # longer than this are served and recorded but not reported for training.
 export CEOBENCH_TRAIN_MAX_TOKENS="${CEOBENCH_TRAIN_MAX_TOKENS:-24576}"
@@ -38,7 +38,7 @@ export CEOBENCH_TOOL_USER="${CEOBENCH_TOOL_USER:-agent}"
 # Limits widened for a paced game: a bash command such as next-week may take
 # an hour (the benchmark's limit is 1200 s; the engine gives up at 4200 s), a
 # model call may wait through a pacer hold, and one simulator request is
-# bounded (reef.patch reads it) so a stuck call fails instead of stalling
+# bounded (aster.patch reads it) so a stuck call fails instead of stalling
 # the week.
 export CEOBENCH_BASH_TIMEOUT_S="${CEOBENCH_BASH_TIMEOUT_S:-3600}"
 export CEOBENCH_LLM_TIMEOUT_S="${CEOBENCH_LLM_TIMEOUT_S:-1800}"
@@ -59,18 +59,18 @@ export CEOBENCH_PACE_TIMEOUT_S="${CEOBENCH_PACE_TIMEOUT_S:-1200}"
 # Prerequisites
 command -v uv >/dev/null || { echo "run.sh: uv not found (pip install uv)" >&2; exit 1; }
 docker info >/dev/null 2>&1 || { echo "run.sh: Docker is not running" >&2; exit 1; }
-docker image inspect "$REEF_IMAGE" >/dev/null 2>&1 \
-    || { echo "run.sh: image $REEF_IMAGE not found (build docker/Dockerfile.reef)" >&2; exit 1; }
+docker image inspect "$ASTER_IMAGE" >/dev/null 2>&1 \
+    || { echo "run.sh: image $ASTER_IMAGE not found (build docker/Dockerfile.aster)" >&2; exit 1; }
 [ -d "$MODEL_DIR/Qwen3.6-27B" ] \
     || { echo "run.sh: $MODEL_DIR/Qwen3.6-27B not found (hf download Qwen/Qwen3.6-27B)" >&2; exit 1; }
 mkdir -p "$RUN_DIR"
 [ -f "$RUN_DIR/token" ] || openssl rand -hex 16 > "$RUN_DIR/token"
-export REEF_TOKEN="$(cat "$RUN_DIR/token")"
+export ASTER_TOKEN="$(cat "$RUN_DIR/token")"
 
 # 1. Compose owns the stack's startup and readiness.
-echo "==> [1/2] the reef stack at $REEF_SERVICE_URL"
+echo "==> [1/2] the aster stack at $ASTER_SERVICE_URL"
 (
-    export REEF_IMAGE MODEL_DIR RUN_DIR REEF_ROOT
+    export ASTER_IMAGE MODEL_DIR RUN_DIR ASTER_ROOT
     docker compose up -d --wait
 ) || { echo "run.sh: the stack never became healthy; docker compose logs" >&2; exit 1; }
 

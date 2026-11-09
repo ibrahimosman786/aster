@@ -7,11 +7,11 @@ import sys
 
 import pytest
 
-from reef.inference import deployment as registry
-from reef.inference.vllm import deployment
-from reef.inference.vllm.config import REEF_CONNECTOR_CONFIG, VLLMConfig, kv_transfer_config
-from reef.inference.vllm.control import VLLMExecutor
-from reef.inference.vllm.service import INFERENCE_PROTOCOL, VLLMInferenceService
+from aster.inference import deployment as registry
+from aster.inference.vllm import deployment
+from aster.inference.vllm.config import ASTER_CONNECTOR_CONFIG, VLLMConfig, kv_transfer_config
+from aster.inference.vllm.control import VLLMExecutor
+from aster.inference.vllm.service import INFERENCE_PROTOCOL, VLLMInferenceService
 
 
 def base_values(**overrides):
@@ -20,7 +20,7 @@ def base_values(**overrides):
 
 @pytest.mark.parametrize("executor", [None, "auto", "ray"])
 def test_factory_accepts_plain_input_without_starting_workers(monkeypatch, executor):
-    from reef.execution.executor.ray import RayExecutor
+    from aster.execution.executor.ray import RayExecutor
 
     def fail_allocation(*args, **kwargs):
         raise AssertionError("factory must not allocate workers")
@@ -43,14 +43,14 @@ def test_factory_rejects_non_native_executor_aliases(executor):
         deployment.create_inference(base_values(executor=executor))
 
 
-def test_config_derives_reef_serving_options():
+def test_config_derives_aster_serving_options():
     config = VLLMConfig(**base_values())
     assert config.options["logprobs_mode"] == "processed_logprobs"
     assert config.options["generation_config"] == "vllm"
     explicit = VLLMConfig(**base_values(options={"generation_config": "/models/qwen/generation"}))
     assert explicit.options["generation_config"] == "/models/qwen/generation"
     assert config.options["enable_prefix_caching"] is False
-    assert config.options["kv_transfer_config"] == REEF_CONNECTOR_CONFIG
+    assert config.options["kv_transfer_config"] == ASTER_CONNECTOR_CONFIG
     assert config.engine_count == 1
     retracting = VLLMConfig(**base_values(pause_mode="retract"))
     assert retracting.options["enable_prefix_caching"] is True
@@ -73,7 +73,7 @@ def test_config_derives_reef_serving_options():
         (base_values(engine_port_base=65501), "engine_port_base"),
     ],
 )
-def test_config_rejects_settings_reef_cannot_serve(values, message):
+def test_config_rejects_settings_aster_cannot_serve(values, message):
     with pytest.raises(ValueError, match=message):
         VLLMConfig(**values)
 
@@ -83,7 +83,7 @@ def test_two_engines_serve_behind_a_configured_router():
     assert config.engine_count == 2
 
 
-def test_configured_connectors_compose_with_reef_under_multi_connector():
+def test_configured_connectors_compose_with_aster_under_multi_connector():
     offloading = {
         "kv_connector": "OffloadingConnector",
         "kv_role": "kv_both",
@@ -91,13 +91,13 @@ def test_configured_connectors_compose_with_reef_under_multi_connector():
     }
     composed = kv_transfer_config(offloading)
     assert composed["kv_connector"] == "MultiConnector"
-    assert composed["kv_connector_extra_config"]["connectors"] == [offloading, REEF_CONNECTOR_CONFIG]
-    # A MultiConnector the operator wrote gains Reef's connector once and keeps its other settings.
+    assert composed["kv_connector_extra_config"]["connectors"] == [offloading, ASTER_CONNECTOR_CONFIG]
+    # A MultiConnector the operator wrote gains Aster's connector once and keeps its other settings.
     assert kv_transfer_config(composed) == composed
     multi = {"kv_connector": "MultiConnector", "kv_role": "kv_both", "kv_connector_extra_config": {"connectors": []}}
-    assert kv_transfer_config(multi)["kv_connector_extra_config"]["connectors"] == [REEF_CONNECTOR_CONFIG]
-    assert kv_transfer_config('{"kv_connector": "ReefConnector", "kv_role": "kv_both"}')["kv_connector"] == (
-        "ReefConnector"
+    assert kv_transfer_config(multi)["kv_connector_extra_config"]["connectors"] == [ASTER_CONNECTOR_CONFIG]
+    assert kv_transfer_config('{"kv_connector": "AsterConnector", "kv_role": "kv_both"}')["kv_connector"] == (
+        "AsterConnector"
     )
 
 
@@ -108,14 +108,14 @@ def test_factory_imports_and_builds_with_training_stack_and_vllm_blocked():
             "-c",
             """
 import sys
-sys.modules.update(dict.fromkeys(('slime', 'megatron', 'torch', 'vllm', 'reef.train.slime_backend')))
-from reef.inference.vllm.deployment import create_inference
+sys.modules.update(dict.fromkeys(('slime', 'megatron', 'torch', 'vllm', 'aster.train.slime_backend')))
+from aster.inference.vllm.deployment import create_inference
 service = create_inference(dict(model_path='model', num_gpus=1, gpus_per_engine=1, gpus_per_node=1))
-assert service.config.options['kv_transfer_config']['kv_connector'] == 'ReefConnector'
-from reef.inference.vllm import backend, control, engine, launch, service as service_module, worker
-from reef.inference.interfaces import InferenceEngine
-assert engine.ReefVLLMEngine.__bases__ == (InferenceEngine,)
-assert not any(name.startswith(('slime.', 'reef.train.slime_backend.', 'reef.inference.sglang')) for name in sys.modules)
+assert service.config.options['kv_transfer_config']['kv_connector'] == 'AsterConnector'
+from aster.inference.vllm import backend, control, engine, launch, service as service_module, worker
+from aster.inference.interfaces import InferenceEngine
+assert engine.AsterVLLMEngine.__bases__ == (InferenceEngine,)
+assert not any(name.startswith(('slime.', 'aster.train.slime_backend.', 'aster.inference.sglang')) for name in sys.modules)
 service.close()
 """,
         ],

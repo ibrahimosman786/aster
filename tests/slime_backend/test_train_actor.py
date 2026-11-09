@@ -1,4 +1,4 @@
-"""CPU tests of Reef's Slime training worker (``ReefMegatronTrainRayActor``).
+"""CPU tests of Aster's Slime training worker (``AsterMegatronTrainRayActor``).
 
 The worker module loads with stubs for Slime's Megatron actor, its timer and
 the Megatron LoRA helpers, so the tests run without a GPU or Megatron.
@@ -84,39 +84,39 @@ def _load_train_actor(monkeypatch: pytest.MonkeyPatch):
     )
     _stub_module(
         monkeypatch,
-        "reef.train.slime_backend.reef_adapters.megatron.lora",
+        "aster.train.slime_backend.aster_adapters.megatron.lora",
         collect_lora_train_metrics=lambda _model: {},
         megatron_lora_enabled=lambda _args: False,
         zero_megatron_lora_adapters=lambda _model: None,
     )
     _stub_module(
         monkeypatch,
-        "reef.train.slime_backend.reef_adapters.megatron.hf_export",
+        "aster.train.slime_backend.aster_adapters.megatron.hf_export",
         MegatronToHfWeightIterator=type("MegatronToHfWeightIterator", (), {}),
     )
     _stub_module(
         monkeypatch,
-        "reef.train.slime_backend.reef_adapters.megatron.lora_checkpoint",
+        "aster.train.slime_backend.aster_adapters.megatron.lora_checkpoint",
         export_lora_adapter_tensors=lambda _iterator, _weights: [],
         save_lora_adapter_to_path=lambda *_args, **_kwargs: None,
     )
     _stub_module(
         monkeypatch,
-        "reef.train.slime_backend.reef_adapters.worker_hooks",
+        "aster.train.slime_backend.aster_adapters.worker_hooks",
         drain_worker_metrics=lambda: {"train/loss": 0.5},
         record_worker_metrics=lambda _metrics: None,
-        reef_node_ip_and_free_port=lambda: ("127.0.0.1", 1234),
+        aster_node_ip_and_free_port=lambda: ("127.0.0.1", 1234),
         _loss_family_spec=lambda _args: None,
         switch_loss_family=lambda _args: None,
         resolve_tensor_dtype=lambda name: name,
     )
-    name = "reef.train.slime_backend.reef_adapters._train_actor_test"
+    name = "aster.train.slime_backend.aster_adapters._train_actor_test"
     path = (
         Path(__file__).parents[2]
-        / "reef"
+        / "aster"
         / "train"
         / "slime_backend"
-        / "reef_adapters"
+        / "aster_adapters"
         / "megatron"
         / "train_actor.py"
     )
@@ -136,14 +136,14 @@ def test_full_weight_save_delegates_without_reopening_slimes_timer(monkeypatch: 
     # started", which failed every non-LoRA save after a training step.
     module = _load_train_actor(monkeypatch)
     saved: list[tuple[int, bool]] = []
-    base = module.ReefMegatronTrainRayActor.__mro__[1]
+    base = module.AsterMegatronTrainRayActor.__mro__[1]
 
     def base_save_model(self, rollout_id, force_sync=False):
         with _StubTimer().context("save_model"):
             saved.append((rollout_id, force_sync))
 
     monkeypatch.setattr(base, "save_model", base_save_model, raising=False)
-    actor = object.__new__(module.ReefMegatronTrainRayActor)
+    actor = object.__new__(module.AsterMegatronTrainRayActor)
     actor.args = object()
 
     actor.save_model(7, force_sync=True)
@@ -159,14 +159,14 @@ def test_lora_save_times_the_branch_that_does_not_delegate(monkeypatch: pytest.M
     module = _load_train_actor(monkeypatch)
     monkeypatch.setattr(module, "megatron_lora_enabled", lambda _args: True)
     saved: list[tuple[int, bool]] = []
-    base = module.ReefMegatronTrainRayActor.__mro__[1]
+    base = module.AsterMegatronTrainRayActor.__mro__[1]
     monkeypatch.setattr(
         base,
         "save_model",
         lambda *_args, **_kwargs: pytest.fail("the LoRA branch must not delegate"),
         raising=False,
     )
-    actor = object.__new__(module.ReefMegatronTrainRayActor)
+    actor = object.__new__(module.AsterMegatronTrainRayActor)
     actor.args = object()
     monkeypatch.setattr(
         actor,
@@ -203,7 +203,7 @@ def test_lora_save_writes_the_rollouts_megatron_checkpoint_and_adapter(monkeypat
 
     monkeypatch.setattr(module, "export_lora_adapter_tensors", export)
     monkeypatch.setattr(module, "save_lora_adapter_to_path", save_adapter)
-    actor = object.__new__(module.ReefMegatronTrainRayActor)
+    actor = object.__new__(module.AsterMegatronTrainRayActor)
     actor.args = types.SimpleNamespace(
         debug_rollout_only=False,
         offload_train=offload_train,
@@ -227,7 +227,7 @@ def test_lora_save_writes_the_rollouts_megatron_checkpoint_and_adapter(monkeypat
 @pytest.mark.unit
 def test_the_worker_reports_its_parallel_layout_and_only_its_own_metrics(monkeypatch) -> None:
     module = _load_train_actor(monkeypatch)
-    worker = object.__new__(module.ReefMegatronTrainRayActor)
+    worker = object.__new__(module.AsterMegatronTrainRayActor)
     worker.train_parallel_config = {"dp_size": 2, "cp_size": 1}
 
     layout = worker.parallel_layout()
@@ -243,12 +243,12 @@ def test_an_actor_switches_to_a_jobs_family_and_initializes_it_once(monkeypatch:
     initialized: list[str] = []
     misc = importlib.import_module("slime.utils.misc")
     monkeypatch.setattr(misc, "load_function", lambda path: lambda actor: initialized.append(path))
-    actor = object.__new__(module.ReefMegatronTrainRayActor)
-    actor.args = types.SimpleNamespace(loss_family="sft", loss_type="sft_loss", reef_actor_init_hook_path=None)
+    actor = object.__new__(module.AsterMegatronTrainRayActor)
+    actor.args = types.SimpleNamespace(loss_family="sft", loss_type="sft_loss", aster_actor_init_hook_path=None)
     actor.initialized_loss_families = {"sft"}
     schedule_state = {"schedule": {"name": "rl"}, "completed_steps": 4}
     worker_switch = {
-        "loss_family_args": {"loss_family": "pg", "loss_type": "policy_loss", "reef_actor_init_hook_path": "pg.init"},
+        "loss_family_args": {"loss_family": "pg", "loss_type": "policy_loss", "aster_actor_init_hook_path": "pg.init"},
         "learning_rate_schedule_state": schedule_state,
     }
 
@@ -256,11 +256,11 @@ def test_an_actor_switches_to_a_jobs_family_and_initializes_it_once(monkeypatch:
     actor.switch_training_method(worker_switch)
 
     assert (actor.args.loss_family, actor.args.loss_type) == ("pg", "policy_loss")
-    assert actor.args.reef_learning_rate_schedule_state == schedule_state
+    assert actor.args.aster_learning_rate_schedule_state == schedule_state
     # A family's actor init hook runs when the actor first trains it, not on every switch.
     assert initialized == ["pg.init"]
     actor.switch_training_method({**worker_switch, "learning_rate_schedule_state": None})
-    assert actor.args.reef_learning_rate_schedule_state is None
+    assert actor.args.aster_learning_rate_schedule_state is None
 
 
 @pytest.mark.unit
@@ -268,11 +268,11 @@ def test_an_actor_switches_to_a_jobs_family_and_initializes_it_once(monkeypatch:
 @pytest.mark.parametrize("enabled", [True, False])
 def test_external_checkpoint_clears_student_adapter_only_for_frozen_roles(monkeypatch, tag, enabled):
     module = _load_train_actor(monkeypatch)
-    actor = object.__new__(module.ReefMegatronTrainRayActor)
+    actor = object.__new__(module.AsterMegatronTrainRayActor)
     actor.args = types.SimpleNamespace()
     actor.model = object()
     calls = []
-    base = module.ReefMegatronTrainRayActor.__mro__[1]
+    base = module.AsterMegatronTrainRayActor.__mro__[1]
     monkeypatch.setattr(
         base, "load_other_checkpoint", lambda self, role, path: calls.append(("load", role)), raising=False
     )

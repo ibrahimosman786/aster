@@ -56,5 +56,5 @@ remains responsible for every submitted line, claim, and test result.
 ## Review and merge
 
 Reviewers are requested automatically from `CODEOWNERS`. See the
-[maintenance model](https://github.com/Human-Agent-Society/reef/blob/main/.github/MAINTAINER.md)
+[maintenance model](https://github.com/Human-Agent-Society/aster/blob/main/.github/MAINTAINER.md)
 for review and merge requirements.

@@ -1,9 +1,9 @@
 # sdpo
 
-Reproduction of [Self-Distillation Policy Optimization](https://arxiv.org/abs/2601.20802) as a Reef weight-training recipe. SDPO samples a question several times and turns the attempts that succeed into teachers for the others. The teacher is the model itself reading the question with a correct attempt appended. The student reads the question alone. The loss is the per-token divergence between their next-token distributions along the student's own attempt. The package holds the method. Its report contract is `reef.core.reports.TeacherContextReport` plus the attempt's place in the sampling grid.
+Reproduction of [Self-Distillation Policy Optimization](https://arxiv.org/abs/2601.20802) as an Aster weight-training recipe. SDPO samples a question several times and turns the attempts that succeed into teachers for the others. The teacher is the model itself reading the question with a correct attempt appended. The student reads the question alone. The loss is the per-token divergence between their next-token distributions along the student's own attempt. The package holds the method. Its report contract is `aster.core.reports.TeacherContextReport` plus the attempt's place in the sampling grid.
 
 - Paper: [arXiv:2601.20802](https://arxiv.org/abs/2601.20802)
-- Reference implementation: [lasgroup/SDPO](https://github.com/lasgroup/SDPO) at `7c457fc1b1f6`. The recipe's processor maps onto its reprompt templates and the Slime backend's distillation base (`reef/train/slime_backend/distill/`, which the `sdpo` family configures) onto its loss.
+- Reference implementation: [lasgroup/SDPO](https://github.com/lasgroup/SDPO) at `7c457fc1b1f6`. The recipe's processor maps onto its reprompt templates and the Slime backend's distillation base (`aster/train/slime_backend/distill/`, which the `sdpo` family configures) onto its loss.
 - Pins: `slime` pinned to `THUDM/slime@8a53b680e82932dabb48cbfcd34f749854400857` (via `pyproject.toml` `dependency-groups.runtime`)
 - Claim scope: [SDPO on SciKnowEval Chemistry](examples/sciknoweval/README.md), the paper's Chemistry run on Qwen3-8B.
 

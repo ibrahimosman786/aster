@@ -1,6 +1,6 @@
 """The task-shaped inputs the harness takes, without knowing the task.
 
-The search, the archive, the prompts, and the Reef adapter are the same for
+The search, the archive, the prompts, and the Aster adapter are the same for
 every discovery problem. What changes per task is a handful of strings — the
 language a candidate is written in, the sentence that constrains proposable
 mechanisms, the label of the judge's raw score — plus the problem statement

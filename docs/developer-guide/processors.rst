@@ -8,7 +8,7 @@ explains the stages, what a recipe writes for each, the job size, the training
 modes, the task generation contract, and the path a record takes to a job.
 Storage owns deletion.
 
-:For: recipe authors writing the stages of a method, and anyone reading ``reef/train/pipeline.py``
+:For: recipe authors writing the stages of a method, and anyone reading ``aster/train/pipeline.py``
 :Before you start: the stage hooks from `Python API <../reference/python-api.rst#pipeline-stages>`__
 :You will have: which stages a method needs, what it writes, and what it never writes
 
@@ -19,14 +19,14 @@ The two stages
 
    record ─► record2sample ─► sample ─► sample2job ─► job data ─► trainer
 
-- The **record-to-sample stage** (``Record2Sample``, ``reef.record2sample``)
+- The **record-to-sample stage** (``Record2Sample``, ``aster.record2sample``)
   decides which records train, and in which record sets and units (see
   `Record sets and their units <#record-sets-and-their-units>`__). It turns
   each record set into samples. A sample is a ``Sample``: a
   ``TrajectorySample`` that trains directly, or a ``TaskSample`` (a Harbor
   task) that an algorithm rolls out. One job's data holds samples of one
   kind.
-- The **sample-to-job stage** (``Sample2Job``, ``reef.sample2job``)
+- The **sample-to-job stage** (``Sample2Job``, ``aster.sample2job``)
   shapes the samples of the next job into one ``JobData``. Grouped
   recipes set ``group_id`` on each member. The stage also sets
   ``job_samples``, the fewest samples of one automatic job, and ``buffer_size``,
@@ -70,8 +70,8 @@ configured once: TTTD's sample-to-job stage reads the step grid from
 ``TTTDSamples``, and OpenClaw-RL's reads the judging of ``OpenClawRLSamples``.
 ``config`` is the stage's own config. A stage
 declares its keys as a frozen settings dataclass that inherits
-``reef.core.plugins.PluginSettings`` (fields made with
-``reef.core.config.config_option``). Its ``from_config`` parses the config
+``aster.core.plugins.PluginSettings`` (fields made with
+``aster.core.config.config_option``). Its ``from_config`` parses the config
 with ``Settings.parse(config, plugin_class=cls)`` and gives the settings
 object to the constructor; the stage never reads a raw mapping. A stage
 without config parses with ``NoSettings``, which refuses any key. A
@@ -97,7 +97,7 @@ value is a record set if and only if it holds one or more
 records, and it holds each record that its records reference. Aster links the
 inference records of a scenario into trajectories: a call's parent is the
 earlier call with the same API format and tools whose request is the longest
-prefix of its own (``reef.core.trajectory_index``). A report references the last
+prefix of its own (``aster.core.trajectory_index``). A report references the last
 call of each trajectory that it scores; the report and the calls of those
 trajectories form one record set. The calls of a trajectory that ended without
 a report (``TrajectorySamples``), one judged record, or one inference
@@ -153,7 +153,7 @@ writes makes the samples again; an item that exists stays as it is.
 The pipeline
 ------------
 
-``TrainingPipeline`` (``reef/train/pipeline.py``) is the only object that the
+``TrainingPipeline`` (``aster/train/pipeline.py``) is the only object that the
 trainer gives records to and takes job data from. Recipes do not subclass it.
 The trainer calls it on its own thread, under its lock; no call may block:
 
@@ -197,7 +197,7 @@ nothing:
   stored sample trains like every other sample.
 - ``job_ended(outcome)``: a training job ended, and the commit of its end is
   durable. The samples service calls it, also when control runs in another
-  process. ``outcome`` is a ``JobOutcome`` (``reef.core.job_data``): the job
+  process. ``outcome`` is a ``JobOutcome`` (``aster.core.job_data``): the job
   ID, the component name, ``event`` (``finished`` or ``failed``), the job's
   ``metrics``, and ``error``, which is set exactly when the job failed. A
   trainer that starts with no running job calls it again for the last job
@@ -327,7 +327,7 @@ Format 1 of a directory:
 
 A directory does not change after Aster writes it, and several jobs can read
 it, so a component must not write in it. A component reads it with
-``reef.storage.job_data.read_job_data(job.data_dir, job.data_id)``. A
+``aster.storage.job_data.read_job_data(job.data_dir, job.data_id)``. A
 component that runs the job elsewhere, such as in a container, gives that
 place ``job.data_uri`` and mounts or copies the directory there.
 
@@ -402,7 +402,7 @@ trains it.
 Like a sample made from records, an uploaded trajectory has no tokens and
 no log probabilities: the training component renders it and computes them.
 An objective that needs a reward, such as a policy-gradient objective, needs
-a finite ``extra.reef.reward`` in the trajectory; an SFT sample needs none.
+a finite ``extra.aster.reward`` in the trajectory; an SFT sample needs none.
 
 The record-to-sample stage
 --------------------------
@@ -446,7 +446,7 @@ The check has these steps:
 
 1. The inference service writes the ``artifact_id`` of the artifact that
    answered into each inference record. The sample keeps each record's
-   payload in ``extra.reef.records``, and ``TrajectorySample.artifact_id``
+   payload in ``extra.aster.records``, and ``TrajectorySample.artifact_id``
    reads the ``artifact_id`` of its last call. A task rollout of a training
    component names its artifact in ``training.artifact_id`` instead.
 2. When the scenario reserves job data, it gives the pipeline the artifacts
@@ -483,7 +483,7 @@ because an SFT target is fixed text, not sampled tokens. Both refuse the key.
 Built-in stages
 ~~~~~~~~~~~~~~~
 
-A recipe's stage extends one of these classes of the ``reef.record2sample`` package:
+A recipe's stage extends one of these classes of the ``aster.record2sample`` package:
 
 .. list-table::
    :header-rows: 1
@@ -519,25 +519,25 @@ serving returns none. ``SampleAssembly.build`` makes a report's sample:
   call of the report's trajectories, and every reply trains.
 
 The training component renders each sample with the model's chat template
-(``reef.core.chat_rendering``). It computes the log probabilities that its
+(``aster.core.chat_rendering``). It computes the log probabilities that its
 objective needs with the weights of the job's start, the current weights.
 They are exact when ``max_staleness`` is 0 and an approximation above it.
 A stage can add what the component renders with:
 
-- ``extra.reef.teacher``: the teacher request of a distillation sample. The
+- ``extra.aster.teacher``: the teacher request of a distillation sample. The
   component renders the teacher sequence: the teacher prompt followed by the
   student's reply tokens, or the student's own tokens for a request without
   messages.
-- ``extra.reef.teacher_candidates``: one teacher request for each hint, as
+- ``extra.aster.teacher_candidates``: one teacher request for each hint, as
   OpenClaw-RL writes them.
-- ``extra.reef.max_tokens``: the longest sample that may train, as SFT
+- ``extra.aster.max_tokens``: the longest sample that may train, as SFT
   writes it.
 
 The component renders each trained turn as its call rendered it. When a
 call's prompt does not extend the tokens of the call before it, as with a
 template that drops earlier turns' reasoning, the trajectory trains as
 several segments. Each segment is one sample with
-``extra.reef.training.segment``: ``{"index": i, "count": n}``. The segments
+``extra.aster.training.segment``: ``{"index": i, "count": n}``. The segments
 keep the trajectory's group and reward. A recipe whose objective counts
 trajectories, such as one that compares the samples of a group, must read
 ``segment``.
@@ -560,7 +560,7 @@ initial value through ``Trainer.build`` and ``PipelineContext``; it defaults
 to ``auto``. A ``Sample2Job`` declares the modes it supports in
 ``supported_training_modes``; the default is ``auto`` and ``manual``. Record push,
 sample storage and acknowledgement use the same methods in both modes.
-``GET /reef/status`` reports ``pending_requests``, the queued requests
+``GET /aster/status`` reports ``pending_requests``, the queued requests
 that no commit consumed yet.
 
 - ``auto`` makes job data when the next job holds ``job_samples`` samples.
@@ -594,7 +594,7 @@ Unsupported modes raise ``NotImplementedError``. An invalid mode name raises
 Changing training mode
 ----------------------
 
-``POST /reef/scenarios/{scenario}/update`` selects ``auto`` or ``manual`` on
+``POST /aster/scenarios/{scenario}/update`` selects ``auto`` or ``manual`` on
 the existing pipeline. The trainer serializes selection with record push and
 reservation. Reserved job data stays unchanged and acknowledgement consumes
 its actual contents, independently of subsequent mode changes.
@@ -699,15 +699,15 @@ Task generation contract
 
 A deployment can train on tasks that a task generator makes. The deployment
 selects the built-in generated-task recipe,
-``reef.recipe.generated_tasks:GeneratedTaskRecipe``, configures its stages in
+``aster.recipe.generated_tasks:GeneratedTaskRecipe``, configures its stages in
 the ``pipeline`` section, and names a ``TaskGenerator`` class in
 ``pipeline.record2sample.config.generator`` (see `generated tasks
 <../reference/configuration.rst#generated-tasks>`__). The recipe does not
 depend on the generator's method, so a team can replace the generator without
 a new recipe. SPADE (``recipes/beta/spade``) is one generator.
 
-``TaskGenerator`` is in ``reef.recipe.generated_tasks``, and
-``TaskGenerationRequest`` in ``reef.record2sample.generator``. Aster calls its class method
+``TaskGenerator`` is in ``aster.recipe.generated_tasks``, and
+``TaskGenerationRequest`` in ``aster.record2sample.generator``. Aster calls its class method
 ``from_config(config, *, scenario, environ)`` once for each scenario. The
 generator gets what it needs from its ``config`` and from these calls only:
 
@@ -823,7 +823,7 @@ such as a generator's own reports, without assembling them.
 A round can also generate tasks from recorded sessions. Set
 ``source_records_per_round`` above 0 and ``source_tag`` to a
 ``name=value`` tag. A report without a training arm, whose inference records all carry the
-header ``x-reef-tag-<name>: <value>``, is a source session. The stage
+header ``x-aster-tag-<name>: <value>``, is a source session. The stage
 holds source sessions in arrival order. Each round takes at most
 ``source_records_per_round`` of them, and a round without a waiting session
 has none. The generator receives each session's inference records and then
@@ -856,9 +856,9 @@ scenario's training state counts the tasks that trained.
 After a restart, the record-to-sample stage continues with the next generation number.
 The scenario still uses the task items that did not train, so a later job takes them again. The stage sends the results that the generator did not receive, even when no other job is due. A task that trained before its result was saved gets an infrastructure-failure result, so its generation's feedback completes.
 A replayed session that a complete generation already used makes no new generation.
-``GET /reef/status`` shows the generator, the generation in flight, the completed generations and the last error under ``task_generation``, task counts under ``task_store``, and the stored tasks that wait under ``ready_samples``.
+``GET /aster/status`` shows the generator, the generation in flight, the completed generations and the last error under ``task_generation``, task counts under ``task_store``, and the stored tasks that wait under ``ready_samples``.
 
-Container operations run in the generator service, ``reef.record2sample.generator``.
+Container operations run in the generator service, ``aster.record2sample.generator``.
 The record-to-sample stage calls this service over HTTP. The task store is the
 source of each task; the service's tasks root holds staged copies. Staging the
 same task again under its name returns the staged copy, so rollouts that a stop
@@ -891,26 +891,26 @@ A record's path to a job
 Where the stages live
 ---------------------
 
-Each stage has its own package: ``reef/record2sample/`` and
-``reef/sample2job/``. The pipeline lives in ``reef/train/pipeline.py``, and
-the context that the stages read in ``reef/pipeline_context.py``. A stage that
+Each stage has its own package: ``aster/record2sample/`` and
+``aster/sample2job/``. The pipeline lives in ``aster/train/pipeline.py``, and
+the context that the stages read in ``aster/pipeline_context.py``. A stage that
 saves generated tasks opens a store with
 ``context.task_storage.open(name)`` (see `Task stores
 <../reference/python-api.rst#task-stores>`__). In a composite recipe,
 each component opens its store names under its component name.
 ``task_storage`` is ``None`` if the trainer has no scenario session. The stage
 packages also hold shared implementations: ``SampleAssembly``
-(``reef/record2sample/assembly.py``), and ``DistillSamples``
-(``reef/record2sample/distill.py``) with ``DistillJobData``
-(``reef/sample2job/distill.py``) for the distilling recipes. ``DistillSamples``
-emits the student's call with a teacher request in ``extra.reef.teacher``: the
+(``aster/record2sample/assembly.py``), and ``DistillSamples``
+(``aster/record2sample/distill.py``) with ``DistillJobData``
+(``aster/sample2job/distill.py``) for the distilling recipes. ``DistillSamples``
+emits the student's call with a teacher request in ``extra.aster.teacher``: the
 request that the recipe composes from the recorded request and the report's
 ``teacher_context`` (its ``teacher_request`` override). The training component
 renders it into the teacher sequence. A method's own stages live in
 ``recipes/<name>/processor.py`` (the record-to-sample and sample-to-job
 classes), and ``recipes/<name>/recipe.py`` names them in ``pipeline_spec()``;
-harness evolution's live in ``reef/record2sample/traces.py`` and
-``reef/sample2job/traces.py``. Recipe-specific correlation and
+harness evolution's live in ``aster/record2sample/traces.py`` and
+``aster/sample2job/traces.py``. Recipe-specific correlation and
 model clients belong beside the method's stages.
 
 Compatibility

@@ -16,21 +16,21 @@ import pytest
 from tests.support.samples import open_sample_store
 from tests.support.task_service_stubs import task_for
 
-from reef.artifact import SnapshotRef
-from reef.core import AgentRecord, RequestType
-from reef.core.job_data import TaskSample
-from reef.core.reports import ReportValidationError
-from reef.core.tasks import write_harbor_task
-from reef.core.trajectories import recorded_payload, recorded_payloads, source_record_id
-from reef.pipeline_context import PipelineContext
-from reef.recipe.harness import HarnessEvolutionRecipe
-from reef.record2sample.traces import InferenceSamples, TraceSamples
-from reef.sample2job.traces import TraceJobData, TrainTaskJobData
-from reef.storage.commits import CommitRecord
-from reef.storage.data import NewItem
-from reef.storage.samples import SampleStore, consumed_sample_id
-from reef.train.pipeline import PipelineConfig, TrainingPipeline
-from reef.train.types import JobData
+from aster.artifact import SnapshotRef
+from aster.core import AgentRecord, RequestType
+from aster.core.job_data import TaskSample
+from aster.core.reports import ReportValidationError
+from aster.core.tasks import write_harbor_task
+from aster.core.trajectories import recorded_payload, recorded_payloads, source_record_id
+from aster.pipeline_context import PipelineContext
+from aster.recipe.harness import HarnessEvolutionRecipe
+from aster.record2sample.traces import InferenceSamples, TraceSamples
+from aster.sample2job.traces import TraceJobData, TrainTaskJobData
+from aster.storage.commits import CommitRecord
+from aster.storage.data import NewItem
+from aster.storage.samples import SampleStore, consumed_sample_id
+from aster.train.pipeline import PipelineConfig, TrainingPipeline
+from aster.train.types import JobData
 
 
 def _inference(agent_record_id: str, payload: dict) -> AgentRecord:
@@ -56,7 +56,7 @@ def _report(agent_record_id: str, score: object, references: list[str], feedback
 
 #: The ``pipeline`` section that evolves on recorded inference traffic alone, without reports.
 INFERENCE_STAGES = {
-    "record2sample": {"module": "reef.record2sample.traces:InferenceSamples"},
+    "record2sample": {"module": "aster.record2sample.traces:InferenceSamples"},
 }
 
 

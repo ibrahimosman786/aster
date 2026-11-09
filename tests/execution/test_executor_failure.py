@@ -4,8 +4,8 @@ from concurrent.futures import Future
 
 import pytest
 
-from reef.execution.executor import Executor, ExecutorConfig, ExecutorFailedError, ExecutorFailure, WorkerSpec
-from reef.execution.executor.failure import ExecutorFailureListener, FailureState
+from aster.execution.executor import Executor, ExecutorConfig, ExecutorFailedError, ExecutorFailure, WorkerSpec
+from aster.execution.executor.failure import ExecutorFailureListener, FailureState
 
 
 class Listener(ExecutorFailureListener):

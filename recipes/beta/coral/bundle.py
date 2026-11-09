@@ -1,4 +1,4 @@
-"""The result bundle: what a finished CORAL x Reef run leaves behind.
+"""The result bundle: what a finished CORAL x Aster run leaves behind.
 
 Issue #3's Done-when asks the bundle for score-over-time, the best artifact,
 model/skill versions, token/cost accounting, and enough metadata to replay
@@ -114,6 +114,6 @@ def build_result_bundle(
         "attempts": attempts,
         "replay": {
             "journal_path": str(journal.path),
-            "correlation": "x-reef-tag-coral-{run,agent,commit} on stored INFERENCE records",
+            "correlation": "x-aster-tag-coral-{run,agent,commit} on stored INFERENCE records",
         },
     }

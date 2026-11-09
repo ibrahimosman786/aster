@@ -23,23 +23,23 @@ from tests.support.harness_steps import head_of
 from tests.support.samples import data_storage
 from tests.support.samples_service import make_samples
 
-from reef.artifact import Artifact, CachedRepositoryBackendFactory, InMemoryRepositoryBackend
-from reef.core import AgentRecord, RequestType
-from reef.core.evaluation import CandidateEvaluationPlugin
-from reef.core.snapshot import RootSource
-from reef.dispatcher import Dispatcher
-from reef.evaluation.harness import ComparePolicy
-from reef.inference.interfaces import InferenceHandler
-from reef.recipe import Recipe
-from reef.recipe.harness import HarnessEvolutionRecipe
-from reef.scenario.scenario import SNAPSHOT_ROW_KEYS, Scenario
-from reef.storage.sql_coordination import memory_coordination
-from reef.train.component import ScenarioRoot
-from reef.train.harness_backend.backend import HarnessBackend
-from reef.train.harness_backend.component import HarnessTrainingComponent
-from reef.train.job_queue import JobQueueComponent
-from reef.train.trainer import Trainer
-from reef.train.types import JobData, TrainingCommit
+from aster.artifact import Artifact, CachedRepositoryBackendFactory, InMemoryRepositoryBackend
+from aster.core import AgentRecord, RequestType
+from aster.core.evaluation import CandidateEvaluationPlugin
+from aster.core.snapshot import RootSource
+from aster.dispatcher import Dispatcher
+from aster.evaluation.harness import ComparePolicy
+from aster.inference.interfaces import InferenceHandler
+from aster.recipe import Recipe
+from aster.recipe.harness import HarnessEvolutionRecipe
+from aster.scenario.scenario import SNAPSHOT_ROW_KEYS, Scenario
+from aster.storage.sql_coordination import memory_coordination
+from aster.train.component import ScenarioRoot
+from aster.train.harness_backend.backend import HarnessBackend
+from aster.train.harness_backend.component import HarnessTrainingComponent
+from aster.train.job_queue import JobQueueComponent
+from aster.train.trainer import Trainer
+from aster.train.types import JobData, TrainingCommit
 
 
 def harness_repository(tmp_path: Path) -> CachedRepositoryBackendFactory:
@@ -193,7 +193,7 @@ def run_step(scenario: Scenario, suffix: str) -> TrainingCommit:
 
 
 def catalog(scenario: Scenario) -> list[dict[str, Any]]:
-    """The catalog rows of ``scenario``, newest first, as ``GET /reef/harness/artifacts`` lists them."""
+    """The catalog rows of ``scenario``, newest first, as ``GET /aster/harness/artifacts`` lists them."""
     rows = []
     for row in scenario.harness_snapshot_rows():
         snapshot, selected, parent = row["snapshot"], row["artifact_snapshot"], row["parent_snapshot"]

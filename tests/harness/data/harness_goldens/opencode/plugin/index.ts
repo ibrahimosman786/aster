@@ -13,7 +13,7 @@ function merge(base: any, overlay: any): any {
   return merged;
 }
 
-export const ReefHarness = async (input: any) => {
+export const AsterHarness = async (input: any) => {
   const directory = join(here, "extensions");
   const files = existsSync(directory) ? readdirSync(directory).filter((name) => name.endsWith(".ts")).sort() : [];
   const hooks: any[] = [];

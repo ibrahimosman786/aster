@@ -1,7 +1,7 @@
 """In-memory actor doubles for tests of distributed coordinators, not a backend."""
 
-from reef.execution.executor import Executor, ExecutorConfig, ExecutorFuture, resolve
-from reef.execution.executor.uniproc import UniProcExecutor
+from aster.execution.executor import Executor, ExecutorConfig, ExecutorFuture, resolve
+from aster.execution.executor.uniproc import UniProcExecutor
 
 
 class _GroupFuture(ExecutorFuture):

@@ -58,7 +58,7 @@ from argparse import Namespace
 from tests.support.reference_algorithms import sao
 
 from recipes.sao.slime.objective import compute_sao_loss, get_skip_observation_advantages_and_returns, sao_advantages
-from reef.train.slime_backend.loss_families import resolve_loss_family
+from aster.train.slime_backend.loss_families import resolve_loss_family
 
 
 @pytest.mark.unit

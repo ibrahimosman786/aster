@@ -3,7 +3,7 @@
 The hermetic suites check the rendered files. Here the pinned opencode runs against a stdlib OpenAI-compatible
 stub that records each request, once as a run and once as a person's session: the plugin installed with
 ``opencode plugin -g`` into an empty home, as ``reef-client harness connect`` does. Skipped unless
-REEF_REAL_OPENCODE_BINARY points at an installed opencode (.github/workflows/harness-smoke.yml provides one).
+ASTER_REAL_OPENCODE_BINARY points at an installed opencode (.github/workflows/harness-smoke.yml provides one).
 """
 
 from __future__ import annotations
@@ -19,24 +19,24 @@ import pytest
 from tests.support.harness_render import write_layer
 from tests.support.openai_stub import MODEL, StubOpenAI
 
-from reef.harness.adapters import get_adapter
-from reef.harness.sync import layer_install
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tasks.run import run_task
-from reef.harness.tree import HarnessTree, render_tree
+from aster.harness.adapters import get_adapter
+from aster.harness.sync import layer_install
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tasks.run import run_task
+from aster.harness.tree import HarnessTree, render_tree
 
-REAL_OPENCODE = os.environ.get("REEF_REAL_OPENCODE_BINARY", "")
+REAL_OPENCODE = os.environ.get("ASTER_REAL_OPENCODE_BINARY", "")
 
-pytestmark = pytest.mark.skipif(not REAL_OPENCODE, reason="REEF_REAL_OPENCODE_BINARY does not name a real opencode")
+pytestmark = pytest.mark.skipif(not REAL_OPENCODE, reason="ASTER_REAL_OPENCODE_BINARY does not name a real opencode")
 
 PROBE_TOOL = (
     "export const Probe = async () => ({ tool: { tidepool_probe: { "
-    'description: "The reef smoke extension marker is TIDEPOOL-EXT-19.", args: {}, execute: async () => "ok" } } });\n'
+    'description: "The aster smoke extension marker is TIDEPOOL-EXT-19.", args: {}, execute: async () => "ok" } } });\n'
 )
 PARTS = {
-    "rules.md": "The reef smoke rules marker is TIDEPOOL-RULES-41.\n",
-    "skills/probe/SKILL.md": "---\nname: probe\ndescription: The reef smoke skill marker is TIDEPOOL-SKILL-23.\n---\n",
-    "commands/ship.md": "---\ndescription: Ship it.\n---\nThe reef smoke command marker is TIDEPOOL-COMMAND-31.\n",
+    "rules.md": "The aster smoke rules marker is TIDEPOOL-RULES-41.\n",
+    "skills/probe/SKILL.md": "---\nname: probe\ndescription: The aster smoke skill marker is TIDEPOOL-SKILL-23.\n---\n",
+    "commands/ship.md": "---\ndescription: Ship it.\n---\nThe aster smoke command marker is TIDEPOOL-COMMAND-31.\n",
     "extensions/probe.ts": PROBE_TOOL,
     # A config key: without webfetch, the request offers no webfetch tool.
     "config/primary.json": json.dumps({"permission": {"webfetch": "deny"}}),

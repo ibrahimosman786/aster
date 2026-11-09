@@ -2,7 +2,7 @@
 
 This example trains Qwen3-8B on the Chemistry split of SciKnowEval with the
 `sdpo` recipe (`recipes/sdpo/`). Each step samples 32 questions eight times
-through Reef and scores every attempt. An attempt is distilled toward a
+through Aster and scores every attempt. An attempt is distilled toward a
 teacher that read a correct attempt at the same question. Every five steps
 the served model is scored on the test split and that series is the learning
 curve.
@@ -12,7 +12,7 @@ the reference implementation ([lasgroup/SDPO](https://github.com/lasgroup/SDPO)
 at `7c457fc1b1f6`), which the task image clones.
 
 ```text
-run.sh                          starts the Reef stack and runs the rollout
+run.sh                          starts the Aster stack and runs the rollout
 run.py                          runs the Harbor task under the harness through reef-eval
 harness/agent.py                runs the stage in the task container
 harbor/chemistry/
@@ -21,7 +21,7 @@ harbor/chemistry/
   environment/
     Dockerfile                  clones the reference at its pin and installs reef-client
     docker-compose.yaml         names the host for the task container
-    chemistry.py                the split, the prompts, the scorer and the Reef calls
+    chemistry.py                the split, the prompts, the scorer and the Aster calls
     stage.py                    the runner: samples each grid, reports it, waits, evaluates
   tests/grade.py                the verifier: the last test score from the runner's curve
 serve.yaml                      the training stack: Qwen3-8B on four GPUs

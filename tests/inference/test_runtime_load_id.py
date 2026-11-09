@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from reef.inference.interfaces import RuntimeLoadId, new_runtime_load_id_incarnation
+from aster.inference.interfaces import RuntimeLoadId, new_runtime_load_id_incarnation
 
 
 @pytest.mark.unit

@@ -5,4 +5,4 @@ judge service at `$JUDGE_URL`: `GET /state` returns their current message,
 Help them the way they ask until they say the session is over.
 
 (The bundled harness runs this loop with a Hermes agent whose model calls go
-through a Reef training service; see `harness/agent.py`.)
+through an Aster training service; see `harness/agent.py`.)

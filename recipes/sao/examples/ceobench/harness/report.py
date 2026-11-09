@@ -1,11 +1,11 @@
-"""The reward: each finished week of a CEO-Bench rollout, credited and posted to Reef.
+"""The reward: each finished week of a CEO-Bench rollout, credited and posted to Aster.
 
 The harness (``harness.harbor_agent``) plays the benchmark's agent turn by
 turn and knows the engine's day at every model call, so :class:`WeekRecords`
 files each captured turn under its simulated week with the state the week
 started in (:class:`WeekStart`, read from the engine's dashboard and books).
 When enough later weeks have opened the week is scored, and
-:func:`post_week_reports` turns it into one Reef report per decision turn:
+:func:`post_week_reports` turns it into one Aster report per decision turn:
 the week's credit as the score, that turn's receipt as the only reference.
 One reference per report is what the ``sao`` recipe trains on.
 :class:`TrainingPacer` holds the game until the trainer has consumed the
@@ -33,7 +33,7 @@ Only a week's decision turns are reported, the ones whose tool call changed
 the company; a turn that only read is recorded and left out, so the week's
 outcome lands on the decisions in it. A turn longer than the trainer's
 window (``max_tokens``, prompt and completion together) is skipped too: the
-engine served it and Reef recorded it, but the trainer could not hold it,
+engine served it and Aster recorded it, but the trainer could not hold it,
 so it stays evaluation-only.
 """
 
@@ -51,7 +51,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import TypedDict
 
-from reef_client import ReefClient
+from reef_client import AsterClient
 
 #: The benchmark's starting balance (the runner's ``--cash`` default).
 INITIAL_CASH = 1_000_000.0
@@ -110,7 +110,7 @@ class ScoreScale:
 
 
 def post_week_reports(
-    client: ReefClient,
+    client: AsterClient,
     scenario: str,
     *,
     week: int,
@@ -128,7 +128,7 @@ def post_week_reports(
 
     ``turns`` are ``(receipt, tokens, decision)`` triples in call order, the
     decision being the company-changing call the turn made or ``None`` when
-    it only read; ``score`` is the scaled ``credit`` and is what Reef trains
+    it only read; ``score`` is the scaled ``credit`` and is what Aster trains
     on, the rest travels along for the record.
     """
     decisions = sum(1 for receipt, tokens, decision in turns if decision is not None)
@@ -143,8 +143,8 @@ def post_week_reports(
             continue
         payload = {
             # A report id derived from the receipt makes a duplicate post a
-            # no-op on Reef's side, not a second report about the same turn.
-            "agent_record_id": uuid.uuid5(uuid.NAMESPACE_URL, f"reef:ceobench:{receipt}").hex,
+            # no-op on Aster's side, not a second report about the same turn.
+            "agent_record_id": uuid.uuid5(uuid.NAMESPACE_URL, f"aster:ceobench:{receipt}").hex,
             "score": score,
             "feedback": feedback,
             "references": [receipt],
@@ -363,7 +363,7 @@ class WeekRecords:
         self.weeks.setdefault(start.week, WeekRecord(start))
 
     def add_turns(self, week: int, captured: list[dict]) -> list[TurnRecord]:
-        """File captured turns under ``week``; return the records of the ones Reef served."""
+        """File captured turns under ``week``; return the records of the ones Aster served."""
         records = []
         for turn in captured:
             if turn.get("status") != 200 or not turn.get("receipt"):
@@ -463,13 +463,13 @@ class TrainingStepCount(ABC):
 
 
 class ScenarioStatus(TrainingStepCount):
-    """The scenario's step on the Reef service status.
+    """The scenario's step on the Aster service status.
 
     The run activates nothing and sets no training start, so each commit of the scenario is a training step.
     """
 
     def __init__(self, service_url: str, scenario: str, token: str) -> None:
-        self.url = f"{service_url}/reef/status"
+        self.url = f"{service_url}/aster/status"
         self.scenario = scenario
         self.token = token
 

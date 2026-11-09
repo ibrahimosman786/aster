@@ -1,7 +1,7 @@
 """One Harbor trial, one stage of the skill stream: the stage runner in the task container.
 
 The agent makes no model calls of its own. ``stage.py`` in the task's image
-samples, reports and waits for training against the Reef service on the
+samples, reports and waits for training against the Aster service on the
 host, and asks the task's judge to score the served model on both skills.
 This class runs it, hands it the stage settings from the host environment
 (every ``SDFT_*`` variable), and keeps its output in the trial's agent log.
@@ -38,7 +38,7 @@ class HarborAgent(BaseAgent):
 
     @staticmethod
     def name() -> str:
-        return "reef-sdft-skill-stream"
+        return "aster-sdft-skill-stream"
 
     def version(self) -> str | None:
         return None

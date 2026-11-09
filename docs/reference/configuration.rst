@@ -12,11 +12,11 @@ health endpoint, then starts Aster on ``127.0.0.1:8900``. Use
 ``--inference.tensor-parallel-size 2`` for two visible GPUs; the default is one.
 ``--inference.backend sglang`` makes the default backend explicit;
 ``--inference.backend vllm`` starts ``vllm.entrypoints.openai.api_server``
-instead. The service interpreter (``REEF_PYTHON``, otherwise the launcher's
+instead. The service interpreter (``ASTER_PYTHON``, otherwise the launcher's
 interpreter) must have the selected engine and GPU-enabled PyTorch installed.
 The engine validates its GPU environment, model compatibility and available
 device memory during startup. Its output is available in
-``.reef/run/sglang.log`` or ``.reef/run/vllm.log``. The managed path currently
+``.aster/run/sglang.log`` or ``.aster/run/vllm.log``. The managed path currently
 supports a single GPU node. Use the `SGLang installation guide
 <https://docs.sglang.io/docs/get-started/install>`__ or the `vLLM installation
 guide <https://docs.vllm.ai/en/latest/getting_started/installation/>`__ to
@@ -26,7 +26,7 @@ Local model paths and Hugging Face IDs use the existing model resolver.
 Aster resolves a downloaded snapshot once and preserves the original model
 identifier as SGLang's served model name. Startup has a one-hour readiness
 deadline for SGLang and 30 seconds for Aster. On failure or interruption,
-Aster cleans up both processes. Logs live under ``.reef/run/``.
+Aster cleans up both processes. Logs live under ``.aster/run/``.
 Local ``--inference.model-path`` cannot be combined with upstream URL/model selection;
 ``--model`` remains provider shorthand. Native engine options use ``inference.options`` as described below.
 
@@ -37,23 +37,23 @@ An external-provider deployment also needs no YAML file:
    aster serve --inference.upstream-url http://localhost:8000 --inference.upstream-model my-model
 
 Aster starts its core record-only recipe, listens on ``127.0.0.1:8900``, and
-stores state under ``.reef/`` in the launch directory. It records inference
-and feedback without training weights. Use ``--reef.host`` or ``--reef.port`` to change
-the bind address. Logs live under ``.reef/run/``. Aster checks its own HTTP
+stores state under ``.aster/`` in the launch directory. It records inference
+and feedback without training weights. Use ``--aster.host`` or ``--aster.port`` to change
+the bind address. Logs live under ``.aster/run/``. Aster checks its own HTTP
 readiness, runs in the foreground, and cleans up its process on Ctrl-C;
 it does not launch or stop the upstream provider. Readiness does not verify
 provider credentials or model availability.
 
-``REEF_UPSTREAM_URL``, ``REEF_UPSTREAM_MODEL``, ``REEF_UPSTREAM_API_KEY`` and
-``REEF_TOKEN`` supply optional environment fallbacks for this mode. Explicit
+``ASTER_UPSTREAM_URL``, ``ASTER_UPSTREAM_MODEL``, ``ASTER_UPSTREAM_API_KEY`` and
+``ASTER_TOKEN`` supply optional environment fallbacks for this mode. Explicit
 CLI settings win. ``--model ollama/my-model`` fills the Ollama endpoint and
-model; ``--model openai/my-model`` uses ``REEF_UPSTREAM_API_KEY``. A model ID
+model; ``--model openai/my-model`` uses ``ASTER_UPSTREAM_API_KEY``. A model ID
 with any other prefix still needs an upstream URL.
 
 Scenario routing between students and teachers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``reef.routing_manifest`` (CLI: ``--reef.routing-manifest``) enables routing
+``aster.routing_manifest`` (CLI: ``--aster.routing-manifest``) enables routing
 from an immutable deployment manifest. It is unset by default. This mode
 supports ordinary and SSE ``/v1/chat/completions`` requests for online OPD:
 each configured Scenario serves its default target (usually the student),
@@ -63,7 +63,7 @@ teacher), and accepts explicit pins to its own targets.
 Clients call Aster directly. ``aster serve`` owns one unmodified Semantic Router
 (SR) container, the upstream version pinned in ``third_party/semantic-router``.
 For ``model: auto``, Aster sends one ``POST /api/v1/routing/preview`` for the
-client's ``x-reef-scenario`` to that Scenario's private entrypoint, then checks
+client's ``x-aster-scenario`` to that Scenario's private entrypoint, then checks
 the selected rule and target against the manifest and the SR runtime it
 verified. A pin to one of the Scenario's targets is checked locally and never
 calls SR. See the `Semantic Router tutorial
@@ -80,8 +80,8 @@ selected target with the backoff set by ``inference.retry-initial-s`` and
 ``inference.retry-max-s``. ``inference.retry-timeout-s`` bounds these retries
 and defaults to ``inference.timeout-s``.
 
-Configure ``reef.tokens`` and ``reef.host: 127.0.0.1``. Clients present an Aster
-service token and ``x-reef-scenario``; they may not send Aster's or SR's
+Configure ``aster.tokens`` and ``aster.host: 127.0.0.1``. Clients present an Aster
+service token and ``x-aster-scenario``; they may not send Aster's or SR's
 selection headers. SR credentials are generated per start and never reach
 clients: one grants only ``classify.invoke`` (previews), the other only
 configuration and readiness.
@@ -116,7 +116,7 @@ The manifest (``schema_version: 2``) has three parts:
   See the `domain classifier section
   <../../tutorials/semantic-router/README.md#route-by-a-pretrained-domain-classifier>`__.
 
-Target IDs and ``automatic_model`` must not start with ``reef-entrypoint/``,
+Target IDs and ``automatic_model`` must not start with ``aster-entrypoint/``,
 in any letter case: that prefix names the private router entrypoints.
 
 See `Routed external-model requests
@@ -126,7 +126,7 @@ contract.
 Managed routing lifecycle
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Setting ``reef.routing_manifest`` makes ``aster serve`` own the SR container
+Setting ``aster.routing_manifest`` makes ``aster serve`` own the SR container
 and a routed Aster child; there is no separately launched mode. This requires
 Linux, a local Docker daemon with Compose, and the local ``uni`` service
 executor. External model services remain independently managed. The SR image
@@ -140,7 +140,7 @@ for the required commit and label.
 
 .. code-block:: yaml
 
-   reef:
+   aster:
      host: 127.0.0.1
      routing_manifest: /path/to/input-manifest.yaml
      routing_deployment:
@@ -151,7 +151,7 @@ Startup renders a private, frozen configuration generation. The container
 publishes only SR's HTTP API, on ``127.0.0.1:<sr_management_port>``; SR's gRPC
 and metrics ports are not published. The Aster child starts closed, with its
 lifecycle control on a private Unix socket (directory 0700, socket 0600), never
-on ``reef.port``. The owner then waits for SR's actual runtime
+on ``aster.port``. The owner then waits for SR's actual runtime
 (``active == generated``, ``activation_status: active``, ``/ready``),
 publishes that verified runtime hash to the closed child, and opens admission;
 opening first checks the providers and sends one preview per Scenario, and any
@@ -159,9 +159,9 @@ valid selection passes. Periodic checks read SR's readiness and runtime hash
 only. ``/healthz`` remains a liveness check; it does not express routing
 readiness.
 
-The following keys are inside ``reef.routing_deployment``. Unknown keys are
+The following keys are inside ``aster.routing_deployment``. Unknown keys are
 errors; YAML accepts underscores or hyphens. The CLI accepts the complete object
-through ``--reef.routing-deployment``.
+through ``--aster.routing-deployment``.
 
 .. list-table::
    :header-rows: 1
@@ -210,7 +210,7 @@ through ``--reef.routing-deployment``.
      - SR CPU and memory limits.
 
 To change targets, rules, a Scenario's default target or its target membership
-without restarting Aster or SR, edit the configured ``reef.routing_manifest`` and
+without restarting Aster or SR, edit the configured ``aster.routing_manifest`` and
 send ``SIGHUP`` to the ``aster serve`` process. A target can be added, removed,
 enabled or disabled, or given another provider model, revision or endpoint.
 A target that a default or rule still names cannot be removed or disabled in
@@ -281,7 +281,7 @@ recreates the SR container without replaying requests or restarting Aster or
 model services. Aster failure, unresolved record writes, or exhausted recovery
 attempts stop the deployment.
 
-Ownership is recorded under ``${XDG_STATE_HOME:-~/.local/state}/reef/routing/``
+Ownership is recorded under ``${XDG_STATE_HOME:-~/.local/state}/aster/routing/``
 and locked per deployment ID. A different run directory does not permit a second
 owner. Containers and networks are removed only after their ownership matches;
 records, model caches and provider containers are preserved. A killed parent may
@@ -295,7 +295,7 @@ cleanup and configuration replacement commands.
 External router lifecycle
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Use ``reef.routing_deployment.lifecycle: external`` when each Aster service runs
+Use ``aster.routing_deployment.lifecycle: external`` when each Aster service runs
 in its own process and another system runs SR, for example Kubernetes. Aster then
 needs no Docker, and each replica of the ``inference`` service uses one SR on its
 own loopback. Every service can read the same configuration, because the other
@@ -304,8 +304,8 @@ lifecycle.
 
 .. code-block:: yaml
 
-   reef:
-     routing_manifest: /etc/reef/manifest.yaml
+   aster:
+     routing_manifest: /etc/aster/manifest.yaml
      routing_deployment:
        lifecycle: external
        sr_management_port: 50053
@@ -318,19 +318,19 @@ lifecycle.
 
 To start a replica:
 
-1. Set ``REEF_SR_MANAGEMENT_TOKEN`` and ``REEF_SR_SELECTION_TOKEN`` to two
+1. Set ``ASTER_SR_MANAGEMENT_TOKEN`` and ``ASTER_SR_SELECTION_TOKEN`` to two
    different secrets, for both SR and the replica.
 2. Write SR's configuration, before SR starts:
 
    .. code-block:: bash
 
-      python -m reef.service.deploy.routing.cli render \
-        --config /etc/reef/reef.yaml --output /app/config/config.yaml
+      python -m aster.service.deploy.routing.cli render \
+        --config /etc/aster/aster.yaml --output /app/config/config.yaml
 
 3. Run SR with ``/app/config/config.yaml`` as its argument, in the replica's
    network namespace. SR listens on ``127.0.0.1:<sr_management_port>``. The render
    step writes the file with mode 0600, so run SR as the user that wrote it.
-4. Run ``aster serve --component inference``. Clients reach it on ``reef.host``.
+4. Run ``aster serve --component inference``. Clients reach it on ``aster.host``.
 
 Use ``GET /readyz`` as the replica's readiness check. It needs no token. It
 answers 200 after SR reports its generated runtime as active and ready, every
@@ -369,7 +369,7 @@ For example, the local inference command above can also use:
 
 .. code:: yaml
 
-   reef:
+   aster:
      host: 127.0.0.1
      port: 8900
    inference:
@@ -381,7 +381,7 @@ For example, the local inference command above can also use:
    recipe:
      implementation: recipe
 
-Run it with ``aster serve -c reef.yaml --inference.options.mem-fraction-static 0.7``.
+Run it with ``aster serve -c aster.yaml --inference.options.mem-fraction-static 0.7``.
 An explicit CLI value overrides the corresponding YAML value. Omitted public
 fields use their declared defaults. Hyphens and underscores are accepted in
 section names and declared YAML fields; supplying both spellings of one field
@@ -390,7 +390,7 @@ Unknown sections and undeclared public fields are rejected.
 
 The public layout groups fields by their owner:
 
-* ``reef``: HTTP host, port, authentication, run directory and readiness deadline.
+* ``aster``: HTTP host, port, authentication, run directory and readiness deadline.
 * ``inference``: model path, backend, TP size, provider connection and native options.
 * ``recipe.implementation``: the selected recipe class or preset.
 * ``recipe.config``: fields declared by that recipe.
@@ -405,7 +405,7 @@ The public layout groups fields by their owner:
 * ``harness``: how harness clients reach the deployment's services.
 
 A configuration file contains no process definitions. ``service`` and
-``services`` are rejected; HTTP settings belong in ``reef``. The selected Recipe and inference
+``services`` are rejected; HTTP settings belong in ``aster``. The selected Recipe and inference
 or training backend determine the processes, dependencies and connections.
 ``training.config`` holds workload variables such as checkpoint directories;
 native training flags belong in ``training.options`` and engine flags in ``inference.options``.
@@ -420,12 +420,12 @@ published snapshots, from files. With the default Slime backend and an engine
 services:
 
 - ``inference``: a local inference component (``python -m
-  reef.inference.remote``) on a free loopback port. It starts the serving
+  aster.inference.remote``) on a free loopback port. It starts the serving
   engines and loads each published snapshot into them. An ``inference.remote``
   section replaces it with a component on another host.
 - ``distill-teacher``: a frozen SGLang teacher engine, only when a ``teacher``
   section is set.
-- ``reef``: the HTTP service. It hosts the Slime training component, which
+- ``aster``: the HTTP service. It hosts the Slime training component, which
   starts a Slime driver on Ray for each job. The driver starts Slime's workers
   on the GPUs of Slime's serving session when one runs (see `Task jobs on
   Slime`_), and otherwise reserves the job's GPUs and releases them when the
@@ -451,7 +451,7 @@ The ``spindle_full`` backend trains all the parameters of one Hugging Face
 revision on a Spindle deployment, and exports each snapshot's weights to a
 Hugging Face repo; see `Train all the parameters on Spindle
 <../user-guide/tinker.rst#train-all-the-parameters-on-spindle>`__.
-``training.backend`` also accepts an installed ``reef.training_backends``
+``training.backend`` also accepts an installed ``aster.training_backends``
 entry-point name or an importable ``package.module:Deployment`` class. The
 selected definition validates its settings. It names the services that the
 HTTP service depends on. It also describes the training component that the
@@ -469,10 +469,10 @@ integrations reject Ray and training executor settings.
 
 ``training.ready-timeout`` (default 3600 seconds) bounds the startup of the
 services that the training backend adds, such as the inference component and
-the teacher engine. ``reef.ready-timeout`` (default 30 seconds) bounds HTTP
+the teacher engine. ``aster.ready-timeout`` (default 30 seconds) bounds HTTP
 startup. When the HTTP service loads the model into training workers or
 starts serving engines before it answers, as with Slime and whenever Aster's
-engines serve, Aster raises ``reef.ready-timeout`` to at least
+engines serve, Aster raises ``aster.ready-timeout`` to at least
 ``training.ready-timeout``.
 
 ``training.timeout-s`` bounds each call to the training workers, in seconds.
@@ -597,10 +597,10 @@ managed path yet. Aster binds ``training.options.hf-checkpoint`` to
 explicit ``training.options.global-batch-size``, the samples in one optimizer
 step: Slime cuts each job's data into optimizer batches of that size.
 
-The SGLang integration lives in ``reef.inference.sglang``. Its native engine
+The SGLang integration lives in ``aster.inference.sglang``. Its native engine
 launch and control do not depend on Slime. The serving runtime turns the
 ``inference`` section and the artifact format into plain engine configuration
-data (``reef.inference.remote.runtime.serving_engine_config``), and the
+data (``aster.inference.remote.runtime.serving_engine_config``), and the
 inference component starts the engines from that data. See
 `Independent SGLang backend
 <../developer-guide/executors.rst#independent-sglang-backend>`__ for the
@@ -684,8 +684,8 @@ one.
 
 The launcher translates public paths to the existing internal service and
 recipe contracts before starting children. Config references such as
-``${reef.port}`` and ``${inference.model-path}`` use the same field mapping.
-The HTTP service binds to loopback by default. The ``reef`` section contains
+``${aster.port}`` and ``${inference.model-path}`` use the same field mapping.
+The HTTP service binds to loopback by default. The ``aster`` section contains
 only declared HTTP settings; model and recipe fields belong to their owning
 sections.
 
@@ -694,8 +694,8 @@ Train without an inference engine
 
 ``inference.backend: none`` runs no inference engine. Use it for supervised
 fine-tuning on data that does not come from the served model, such as uploaded
-trajectory items (``POST /reef/namespaces/{owner}/data``) or imported records
-(``POST /reef/records``). Only the Slime backend supports it. The trainer
+trajectory items (``POST /aster/namespaces/{owner}/data``) or imported records
+(``POST /aster/records``). Only the Slime backend supports it. The trainer
 takes every GPU that ``training.options.actor-*`` names:
 
 .. code:: yaml
@@ -775,7 +775,7 @@ Override an individual native flag with
 options reach each job's Slime driver through the effective config. The
 training component parses them once at startup, which refuses a malformed
 option before the first job. The driver takes out Aster's own options, such as
-``--reef-checkpoint-policy``, and the loss family's options, then passes the
+``--aster-checkpoint-policy``, and the loss family's options, then passes the
 rest to Slime's native parser.
 
 ``inference.handler-config`` has a different owner: it configures Aster's
@@ -787,9 +787,9 @@ recipe-owned option objects likewise stay with their selected components.
 
 Two token-native handlers render the prompt with the model's chat template
 and call the engine's native generate route.
-``reef.inference.sglang.chat.SGLangInferenceHandler`` calls SGLang
+``aster.inference.sglang.chat.SGLangInferenceHandler`` calls SGLang
 ``/generate`` and relays its incremental stream.
-``reef.inference.vllm.chat.VLLMInferenceHandler`` calls vLLM
+``aster.inference.vllm.chat.VLLMInferenceHandler`` calls vLLM
 ``/inference/v1/generate``; it serves buffered responses and answers a
 streaming request with the completed turn as one burst of protocol frames.
 The answer is the provider response without training tensors. The handler
@@ -817,7 +817,7 @@ reasoning; a request's own ``chat_template_kwargs`` win key by key.
 A vLLM engine serving a training stack also needs Aster's connector, which
 stamps every sampled token with the weight version that produced it::
 
-   --kv-transfer-config '{"kv_connector": "AsterConnector", "kv_connector_module_path": "reef.inference.vllm.connector", "kv_role": "kv_both"}'
+   --kv-transfer-config '{"kv_connector": "AsterConnector", "kv_connector_module_path": "aster.inference.vllm.connector", "kv_role": "kv_both"}'
 
 The connector moves no KV and composes with another connector under vLLM's
 ``MultiConnector``. To combine it with vLLM's native CPU offloading, list
@@ -890,9 +890,9 @@ Explicit file selection
 
 Relative config paths resolve from the directory where you run the command.
 With no ``-c``, Aster uses CLI inference inputs;
-it does not discover ``REEF_CONFIG`` or ``./reef.yaml``. File deployments must
-use ``aster serve -c reef.yaml`` or ``aster serve -c "$REEF_CONFIG"`` instead
-of relying on the previous implicit discovery. ``REEF_CONFIG`` remains the
+it does not discover ``ASTER_CONFIG`` or ``./aster.yaml``. File deployments must
+use ``aster serve -c aster.yaml`` or ``aster serve -c "$ASTER_CONFIG"`` instead
+of relying on the previous implicit discovery. ``ASTER_CONFIG`` remains the
 internal way the launcher passes effective settings to its HTTP child.
 A selected missing or invalid file is an error, even when provider flags are
 present. Aster reports the selected config source and does not search the Aster
@@ -905,17 +905,17 @@ where its value came from:
 
 .. code:: text
 
-   [reef] config: /srv/reef/stack.yaml
-   [reef] resolved settings:
-   [reef]   recipe.implementation = recipes.sao.recipe:SAORecipe  (file)
-   [reef]   reef.host = 127.0.0.1  (default)
-   [reef]   reef.port = 9000  (command line)
-   [reef]   reef.tokens = ["****"]  (file)
-   [reef]   inference.model-path = /models/demo  (file)
-   [reef]   inference.backend = sglang  (automatic)
-   [reef]   training.backend = slime  (automatic)
+   [aster] config: /srv/aster/stack.yaml
+   [aster] resolved settings:
+   [aster]   recipe.implementation = recipes.sao.recipe:SAORecipe  (file)
+   [aster]   aster.host = 127.0.0.1  (default)
+   [aster]   aster.port = 9000  (command line)
+   [aster]   aster.tokens = ["****"]  (file)
+   [aster]   inference.model-path = /models/demo  (file)
+   [aster]   inference.backend = sglang  (automatic)
+   [aster]   training.backend = slime  (automatic)
 
-Sources are ``file``, ``command line``, ``environment`` (the ``REEF_*``
+Sources are ``file``, ``command line``, ``environment`` (the ``ASTER_*``
 variables a configuration-free start reads, or a field's declared fallback
 variable), ``automatic`` for a choice Aster made because the field was omitted,
 and ``default``. Settings left at their defaults are not listed except the
@@ -931,14 +931,14 @@ shown as written; the snapshot is resolved only at startup.
 
 .. code:: bash
 
-   aster serve -c stack.yaml --reef.port 9000 --print-config
+   aster serve -c stack.yaml --aster.port 9000 --print-config
 
 Relative state paths use the launch directory. Values interpolate from the
 environment with ``${VAR}`` and from the config itself with ``${dotted.path}``.
 Use full public paths for command-line overrides:
 ``--inference.model-path /models/demo`` or
-``--training.config.checkpoint_dir /tmp/ckpt``. Logs go to ``.reef/run/``;
-set ``reef.run-dir`` to move them.
+``--training.config.checkpoint_dir /tmp/ckpt``. Logs go to ``.aster/run/``;
+set ``aster.run-dir`` to move them.
 
 Configuration-free startup accepts public settings and the selected weight
 recipe's declared fields, plus native inference or training options for the
@@ -952,7 +952,7 @@ Their types, defaults, and help are declared on ``ServiceConfig``. Explicit
 CLI values override YAML values; omitted values use the setting's default.
 Run ``aster serve --help`` to see these options. Use ``--inference.upstream-model``
 as the canonical spelling. Compatibility aliases include ``--upstream-model``,
-``--upstream_model`` and ``--reef.upstream_model``. The last
+``--upstream_model`` and ``--aster.upstream_model``. The last
 explicit CLI spelling of a setting wins. ``--recipe.implementation`` overrides
 the deployment's recipe setting; a bare ``--recipe <name>`` is refused because
 built-in profiles were removed.
@@ -964,21 +964,21 @@ an explicit value or a bare flag; a negative flag can disable a YAML setting:
 
 .. code:: bash
 
-   aster serve -c stack.yaml --reef.port 9000 --no-reef.allow-implicit-scenario-creation
+   aster serve -c stack.yaml --aster.port 9000 --no-aster.allow-implicit-scenario-creation
 
 List and object options take one quoted JSON/YAML value. Empty lists and
 objects are preserved, and an explicit container replaces the YAML value:
 
 .. code:: bash
 
-   aster serve -c stack.yaml --reef.tokens '[]' \
+   aster serve -c stack.yaml --aster.tokens '[]' \
      --inference.handler-config '{"tool_call_parser": "qwen25"}'
 
 The parsed public values are also supplied to service commands and the HTTP
 child's config. An empty string, as an unset ``${VAR}`` reference expands to,
 is treated as an omitted service value and keeps its default. An explicit
 ``null`` is a value: optional fields resolve to null and any other field
-rejects it (see below). ``reef.token`` and ``reef.tokens`` remain
+rejects it (see below). ``aster.token`` and ``aster.tokens`` remain
 distinct inputs whose credentials are combined. The selected Recipe, runtime adapter and executor
 settings use the same field parser.
 
@@ -996,8 +996,8 @@ the deployment and reaches dotted recipes as well as named presets.
 After selecting ``recipe.implementation``, Aster loads that class's declarations without
 constructing the recipe. A dotted weight-training recipe exposes its fields
 as ``--recipe.config.<field>``, for example ``--recipe.config.training-mode``, with the aliases
-``--training-mode`` / ``--training_mode`` / ``--reef.training_mode``. Other dotted
-recipes use the same ``--recipe.config.*`` namespace; their ``--reef.data.*``
+``--training-mode`` / ``--training_mode`` / ``--aster.training_mode``. Other dotted
+recipes use the same ``--recipe.config.*`` namespace; their ``--aster.data.*``
 spellings remain accepted aliases. ``aster serve -c stack.yaml --help`` includes the
 selected component's flags; basic ``aster serve --help`` does not load a recipe.
 The selected package must be importable in the launcher and child environments.
@@ -1014,7 +1014,7 @@ field (``str | None`` and similar) resolves to null, and writing ``null`` for
 any other field is an error naming the field, rather than a silent fall back
 to its default. Omit the field to use the default. The literal string
 ``null`` remains text for string fields. A file that repeats a YAML key,
-``reef.port`` twice for example, is rejected with both line numbers instead of
+``aster.port`` twice for example, is rejected with both line numbers instead of
 the last occurrence silently winning, and two spellings of one field
 (``model-path`` and ``model_path``) are a duplicate field error. Recipe floats
 retain their historical non-finite support; a recipe can declare
@@ -1054,20 +1054,20 @@ launched, including when they are still loading a model.
 
 The basic and SAO example ``run.sh`` launchers wait for the HTTP health
 endpoint and stop waiting if Aster exits. Startup deadlines are configured
-through ``reef.ready-timeout``; the scripts do not add a
+through ``aster.ready-timeout``; the scripts do not add a
 second deadline. Each HTTP probe has a five-second timeout. Startup errors
-are recorded in ``work/reef.log``, and exiting the script stops the Aster
+are recorded in ``work/aster.log``, and exiting the script stops the Aster
 process it started.
 
 Use ``${VAR:?}`` for a required environment variable, for example
-``upstream_model: ${REEF_UPSTREAM_MODEL:?}``. If it is unset, empty, or only
+``upstream_model: ${ASTER_UPSTREAM_MODEL:?}``. If it is unset, empty, or only
 whitespace, Aster reports the missing variable names and their config fields
 before downloading models or starting processes. Command-line overrides are
 applied before this check, so ``--inference.upstream-model <model-id>`` can supply the
 value instead. Plain ``${VAR}`` keeps resolving to an empty string when unset;
 use it for optional values such as an API key for a provider without authentication.
 
-``REEF_PYTHON`` defaults to the interpreter that launched ``aster serve`` and
+``ASTER_PYTHON`` defaults to the interpreter that launched ``aster serve`` and
 can be overridden in the environment. Use it when a service must share Aster's
 Python environment. A literal ``python`` keeps its normal meaning and is
 resolved from that service's ``PATH``; Aster never rewrites command names.
@@ -1104,7 +1104,7 @@ a PRM engine and a student model.
 Service and storage settings
 ----------------------------
 
-The HTTP service reads these fields from the ``recipe``, ``reef``,
+The HTTP service reads these fields from the ``recipe``, ``aster``,
 ``inference``, ``harness``, ``storage`` and ``evaluation`` sections.
 
 .. container:: config
@@ -1112,25 +1112,25 @@ The HTTP service reads these fields from the ``recipe``, ``reef``,
    ``recipe.implementation`` : recipe
        the recipe this deployment serves
 
-   ``reef.host`` : 127.0.0.1
+   ``aster.host`` : 127.0.0.1
        bind address
 
-   ``reef.port`` : 8900
+   ``aster.port`` : 8900
        bind port
 
-   ``reef.served-url``
+   ``aster.served-url``
        the URL a composite recipe's own evaluation calls (runs and the method's calls to the served model) reach this service at; the default is loopback on the bind port, so set it when tasks run on another host. A recipe of one component calls its runtime's endpoint directly and ignores it
 
-   ``reef.console-origins`` : []
+   ``aster.console-origins`` : []
        exact browser console origins allowed to access the HTTP service; disabled by default
 
-   ``reef.token``
+   ``aster.token``
        the bearer token the service accepts. Use ``tokens: [...]`` to accept several while rotating.
 
-   ``reef.allow-unauthenticated`` : false
-       when true, serve without a token on a ``reef.host`` that other machines can reach. When false, Aster does not start on such an address without a token. A loopback address, such as ``127.0.0.1``, ``::1`` or ``localhost``, needs no token
+   ``aster.allow-unauthenticated`` : false
+       when true, serve without a token on a ``aster.host`` that other machines can reach. When false, Aster does not start on such an address without a token. A loopback address, such as ``127.0.0.1``, ``::1`` or ``localhost``, needs no token
 
-   ``reef.allow-implicit-scenario-creation`` : true
+   ``aster.allow-implicit-scenario-creation`` : true
        when false, a report, a record import or a harness install for an unknown scenario is HTTP 404. An inference request never creates a scenario, whatever this setting says
 
    ``inference.model-path``
@@ -1152,10 +1152,10 @@ The HTTP service reads these fields from the ``recipe``, ``reef``,
        reserved: every built-in deployment refuses it, because Aster starts or names its engines itself (``inference.model-path``, ``inference.upstream-url`` or ``inference.remote``)
 
    ``harness.inference-url``
-       the URL at which clients reach the inference service. A client's harness layer (``GET /reef/harness?form=client``) sends its model calls to ``<url>/reef/scenarios/<scenario>/v1``. The default is the ``service_url`` that the client gave, which is right when one process runs every service
+       the URL at which clients reach the inference service. A client's harness layer (``GET /aster/harness?form=client``) sends its model calls to ``<url>/aster/scenarios/<scenario>/v1``. The default is the ``service_url`` that the client gave, which is right when one process runs every service
 
-Storage paths default under ``.reef/``, which the basic and sao stacks keep;
-the openclawrl stack overrides them to ``/var/lib/reef``. Point them somewhere
+Storage paths default under ``.aster/``, which the basic and sao stacks keep;
+the openclawrl stack overrides them to ``/var/lib/aster``. Point them somewhere
 persistent.
 
 .. container:: config
@@ -1163,19 +1163,19 @@ persistent.
    ``storage.artifact-backend`` : git_lfs
        where releases are stored: ``git_lfs``, or a ``ConfigurableRepositoryBackendFactory`` plugin reference
 
-   ``storage.artifact-repository`` : .reef/artifacts.git
+   ``storage.artifact-repository`` : .aster/artifacts.git
        the Git LFS repository of the snapshot chain; only for ``git_lfs``. A Hugging Face repository needs the factory's ``refs`` and ``token_env`` options (`Choose the artifact backend <../user-guide/operate.rst#choose-the-artifact-backend>`__)
 
-   ``storage.artifact-work-dir`` : .reef/artifact-work
+   ``storage.artifact-work-dir`` : .aster/artifact-work
        materialization scratch
 
-   ``storage.artifact-cache-dir`` : .reef/artifact-cache
+   ``storage.artifact-cache-dir`` : .aster/artifact-cache
        fetched artifact cache; artifact imports run under ``imports/`` in it
 
    ``storage.artifact-sources`` : []
        ``ArtifactSourceReader`` plugin references that read artifact import URIs, beside the built-in ``hf``, ``file`` and ``s3`` readers
 
-   ``storage.agent-record-dir`` : .reef/agent-record
+   ``storage.agent-record-dir`` : .aster/agent-record
        the SQLite scenario storage: records, commits and settings
 
    ``storage.record-backend`` : sqlite
@@ -1194,12 +1194,12 @@ persistent.
        where the files of generated tasks live: ``local``, or a ``TaskFileStore`` plugin reference
 
    ``storage.data-store`` : follows ``record-backend``
-       where the deployment's data items live: ``sqlite``, ``postgres`` (``record-database-url``, schema ``reef_data``), or a ``DataStore`` plugin reference
+       where the deployment's data items live: ``sqlite``, ``postgres`` (``record-database-url``, schema ``aster_data``), or a ``DataStore`` plugin reference
 
    ``storage.segment-backend`` : unset
        where a SQL data store keeps large content as JSON Lines segments: unset (in the database), ``local`` (``<agent-record-dir>/segments``), or a ``SegmentStore`` plugin reference
 
-   ``storage.task-file-dir`` : .reef/task-files
+   ``storage.task-file-dir`` : .aster/task-files
        the files of generated tasks for ``local``, or the local cache of a plugin store
 
    ``storage.job-directory-ttl-s`` : 604800
@@ -1288,9 +1288,9 @@ It has two values:
 
 - ``auto``: a job starts when the `next job
   <../developer-guide/processors.rst#the-next-job>`__ holds ``job_samples``
-  samples: the untrained samples that it takes. ``POST /reef/train`` is
+  samples: the untrained samples that it takes. ``POST /aster/train`` is
   refused.
-- ``manual``: a job starts only for a ``POST /reef/train`` request. The
+- ``manual``: a job starts only for a ``POST /aster/train`` request. The
   job trains the samples that the request names (`Choose the samples that
   train <http-api.rst#choose-the-samples-that-train>`__). A weight recipe
   needs them; the request text goes into the commit's
@@ -1313,7 +1313,7 @@ inference-only recipe does not create a training backend.
 
 The ``aster serve`` option ``--recipe.config.training-mode manual`` sets the same field at deployment.
 The mode controls training initiation, independently of the `activation
-rule <#the-activation-section>`__. Use ``POST /reef/scenarios/{scenario}/update``
+rule <#the-activation-section>`__. Use ``POST /aster/scenarios/{scenario}/update``
 to select another mode at runtime. This changes subsequent job data; reserved
 job data completes under its original mode. Aster stores the selected mode in
 the scenario's settings, so reloads and restarts apply it again, and it takes
@@ -1325,11 +1325,11 @@ job trains them.
 .. container:: config
 
    ``recipe.config.training_mode`` : auto
-       ``auto`` starts a job when ``job_samples`` samples are held; ``manual`` starts a job only for a ``POST /reef/train`` request
+       ``auto`` starts a job when ``job_samples`` samples are held; ``manual`` starts a job only for a ``POST /aster/train`` request
 
 ``recipe.config.job_parameters`` is an object that a weight recipe sends with
 every job, over its default parameters. Aster does not read it. The training
-component owns it, and ``GET /reef/scenarios/{scenario}/contract`` serves its JSON
+component owns it, and ``GET /aster/scenarios/{scenario}/contract`` serves its JSON
 Schema. The component refuses a parameter that it does not take, and the job is
 not submitted. A recipe that overrides ``configured_parameters`` decides where the
 setting goes.
@@ -1379,7 +1379,7 @@ A recipe is selected three ways:
 - **The core record-only recipe:** ``recipe.implementation: recipe``
 - **A dotted class:** ``recipe.implementation: "my_pkg.my_method:MyMethodRecipe"``
 - **A named preset:** ``recipe.implementation: my-preset``, resolved to
-  ``my-preset.yaml`` under ``REEF_RECIPE_CONFIG_DIR``
+  ``my-preset.yaml`` under ``ASTER_RECIPE_CONFIG_DIR``
 
 There is no recipe-implementation registry. A bare name other than ``recipe``
 is always a preset name; it never imports a learning method implicitly.
@@ -1393,7 +1393,7 @@ how ``recipes.sao.recipe:SAORecipe`` resolves from a source checkout: the
 launcher does not export ``PYTHONPATH`` itself. Entries already in
 ``PYTHONPATH`` keep their precedence.
 
-``REEF_RECIPE_CONFIG_DIR`` is the directory preset YAML is read from, and it has
+``ASTER_RECIPE_CONFIG_DIR`` is the directory preset YAML is read from, and it has
 **no default**: a bare recipe name resolves to a preset only when it is set.
 Aster bundles no presets.
 
@@ -1411,7 +1411,7 @@ model. Harness-evolution presets also carry ``recipe.config.evolution``:
 .. code:: yaml
 
    recipe:
-     implementation: reef.recipe.harness:HarnessEvolutionRecipe
+     implementation: aster.recipe.harness:HarnessEvolutionRecipe
      config:
        evolution:
          adapter: pi
@@ -1455,11 +1455,11 @@ trainer keeps the reports its own contract parses:
 .. code:: yaml
 
    recipe:
-     implementation: reef.recipe.composite:CompositeRecipe
+     implementation: aster.recipe.composite:CompositeRecipe
      config:
        components:
          harness:
-           implementation: reef.recipe.harness:HarnessEvolutionRecipe
+           implementation: aster.recipe.harness:HarnessEvolutionRecipe
            config:
              evolution:
                adapter: pi
@@ -1478,7 +1478,7 @@ component that trains weights goes under its ``config.pipeline``:
 .. code:: yaml
 
    recipe:
-     implementation: reef.recipe.composite:CompositeRecipe
+     implementation: aster.recipe.composite:CompositeRecipe
      config:
        components:
          weights:
@@ -1486,7 +1486,7 @@ component that trains weights goes under its ``config.pipeline``:
            config:
              pipeline: {sample2job: {config: {job_samples: 8, buffer_size: 32}}}
          harness:
-           implementation: reef.recipe.harness:HarnessEvolutionRecipe
+           implementation: aster.recipe.harness:HarnessEvolutionRecipe
            config:
              evolution: {adapter: pi, method: methods.mine:MyMethod, evaluation: {tasks: ["..."], scorer: methods.mine:MyScorer}}
    inference:
@@ -1494,7 +1494,7 @@ component that trains weights goes under its ``config.pipeline``:
    training:
      backend: slime
 
-Slime's ``--reef-executor-backend`` option selects the executor of its
+Slime's ``--aster-executor-backend`` option selects the executor of its
 training workers and defaults to ``auto`` (Slime's Ray launcher). See
 `Slime worker executors <../developer-guide/executors.rst#slime-worker-executors>`__
 for its contract.
@@ -1557,13 +1557,13 @@ The default stages train on every valid scored report as a trace, including
 successful outcomes. A step starts when ``pipeline.sample2job.config.job_samples``
 traces are held, 1 by default. To train on recorded traffic alone, every ``job_samples``
 requests with unscored samples, set
-``pipeline.record2sample.module: reef.record2sample.traces:InferenceSamples``.
+``pipeline.record2sample.module: aster.record2sample.traces:InferenceSamples``.
 Aster refuses ``batch_size`` and ``batch_policy`` directly under
 ``recipe.config``.
 
 To evolve offline, on the train split of the scenario's imported tasks
 instead of on traffic, set
-``pipeline.sample2job.module: reef.sample2job.traces:TrainTaskJobData``. Each
+``pipeline.sample2job.module: aster.sample2job.traces:TrainTaskJobData``. Each
 uploaded train task then trains once, in upload order. A
 step holds either traces or train tasks; a step of train tasks rolls out up to
 ``pipeline.sample2job.config.buffer_size`` of them (default ``job_samples``) on
@@ -1583,7 +1583,7 @@ that plays task directories (an npm ``install``) and
        the directory of the first tree: every regular file under it, at its relative path as its tree path; a new scenario's root snapshot holds it, and an existing scenario keeps its own root and head. Startup refuses a seed that fails validation for ``evolution.adapter``, holds a symbolic link, or holds a file that is not UTF-8 text. A relative path resolves against the Aster process's working directory. Unset, the empty tree, unless a recipe subclass sets its own (for example Reefine's starter skill)
 
    ``evolution.binary``
-       a path to the harness binary; unset, backend construction installs the adapter's pinned version through the vendor's channel under ``$REEF_HARNESS_PREFIX`` (default ``~/.local/share/reef-harness``)
+       a path to the harness binary; unset, backend construction installs the adapter's pinned version through the vendor's channel under ``$ASTER_HARNESS_PREFIX`` (default ``~/.local/share/aster-harness``)
 
    ``evolution.models`` : {}
        the method's own models by name, which it calls as ``services.models[name]``: ``url``, ``model``, optional ``api`` (default ``openai``) and ``timeout_s``, with the credential as a literal ``api_key`` or an ``api_key_env`` variable name; the name ``served`` is refused, since it is the model under test
@@ -1591,14 +1591,14 @@ that plays task directories (an npm ``install``) and
    ``evolution.model_metadata`` : {}
        optional map of exact model names to ``{context_window: <positive token count>, reasoning: <boolean>}``; Codex uses these values before provider discovery
 
-   ``evolution.state_dir`` : .reef/harness
+   ``evolution.state_dir`` : .aster/harness
        the directory of each scenario's harness state; a relative path resolves against the Aster process's working directory. ``<state_dir>/<scenario>/<component>/``, where ``<component>`` is the snapshot component the recipe evolves (``harness`` for ``HarnessEvolutionRecipe``, the component's own name in a composite recipe), holds ``history/``, every candidate, run and decision, which is the score cache; and ``steps/``, one step record per step (the workspace with its ``output/``, and ``calls.json``; ``<step>`` is the scenario step, and a retried step lands in ``<step>-2``). Nothing prunes it. A directory that cannot be created refuses to load the scenario
 
    ``evolution.max_steps`` : 0
-       skip automatic evolve steps once the scenario's step number passes this; the scenario numbers every commit, activations, train-from operations, imports and syncs included; 0 disables the limit; an instruction from ``POST /reef/train`` still runs past it
+       skip automatic evolve steps once the scenario's step number passes this; the scenario numbers every commit, activations, train-from operations, imports and syncs included; 0 disables the limit; an instruction from ``POST /aster/train`` still runs past it
 
    ``evolution.max_failure_streak`` : 0
-       stop automatic evolve steps after this many consecutive rejected steps, request steps included; 0 disables the limit; a request from ``POST /reef/train`` still runs while the breaker is open
+       stop automatic evolve steps after this many consecutive rejected steps, request steps included; 0 disables the limit; a request from ``POST /aster/train`` still runs while the breaker is open
 
    ``evolution.max_model_calls_per_step`` : 0
        cap the method's model calls in one step, through ``services.models`` or ``services.calls``; a call past the cap raises ``RuntimeError``; 0 disables the limit
@@ -1619,10 +1619,10 @@ that plays task directories (an npm ``install``) and
        ``cpus_per_worker`` and ``gpus_per_worker``; omitted values retain component defaults; GPUs select Ray under ``auto`` and cannot reduce declared GPU needs
 
    ``evolution.sandbox``
-       for ``sandbox``: ``egress_hosts`` and ``limits`` (``cpu_seconds``, ``memory_bytes``, ``processes``, ``file_bytes``); for ``e2b``: ``e2b_api_key_env`` (default ``E2B_API_KEY``), optional ``e2b_api_key``, ``e2b_template`` and ``forward_ports`` (explicit worker-loopback TCP ports). for ``modal``: optional ``modal_app`` (default ``reef-sandboxes``), ``modal_image``, ``modal_cpu``, ``modal_memory_mb`` and ``forward_ports``, with Modal's credentials from ``MODAL_TOKEN_ID``/``MODAL_TOKEN_SECRET`` or ``~/.modal.toml``. The cloud sandboxes reject nonempty ``egress_hosts``/``limits``; image resources and outbound internet apply. All accept ``env_from``
+       for ``sandbox``: ``egress_hosts`` and ``limits`` (``cpu_seconds``, ``memory_bytes``, ``processes``, ``file_bytes``); for ``e2b``: ``e2b_api_key_env`` (default ``E2B_API_KEY``), optional ``e2b_api_key``, ``e2b_template`` and ``forward_ports`` (explicit worker-loopback TCP ports). for ``modal``: optional ``modal_app`` (default ``aster-sandboxes``), ``modal_image``, ``modal_cpu``, ``modal_memory_mb`` and ``forward_ports``, with Modal's credentials from ``MODAL_TOKEN_ID``/``MODAL_TOKEN_SECRET`` or ``~/.modal.toml``. The cloud sandboxes reject nonempty ``egress_hosts``/``limits``; image resources and outbound internet apply. All accept ``env_from``
 
    ``evolution.agent``
-       the coding agent that a method which runs one, such as ``reef.train.harness_backend:AgentMethod``, runs in its steps (``services.run_agent``); unset, no agent runs, and such a method is refused at startup
+       the coding agent that a method which runs one, such as ``aster.train.harness_backend:AgentMethod``, runs in its steps (``services.run_agent``); unset, no agent runs, and such a method is refused at startup
 
    ``evolution.agent.adapter`` : pi
        the agent's harness: any adapter whose prompt is text
@@ -1630,7 +1630,7 @@ that plays task directories (an npm ``install``) and
    ``evolution.agent.binary``
        the agent's binary; unset, backend construction installs the adapter's pinned version, as for ``evolution.binary``
 
-   ``evolution.agent.sandbox`` : ``REEF_AGENT_SANDBOX``
+   ``evolution.agent.sandbox`` : ``ASTER_AGENT_SANDBOX``
        ``bwrap`` jails the agent, with the internet but no host port except its gateway's; ``e2b`` or ``modal`` runs it in a cloud sandbox that reaches the gateway through a tunnel, with that provider's options in the section, as in ``evolution.sandbox``; ``none`` runs it with the service's own privileges and must be chosen. Unset, the agent is jailed where the host can run bwrap and pasta, and off where it cannot
 
    ``evolution.agent.timeout_s`` : 1800
@@ -1657,7 +1657,7 @@ one task source: ``tasks``, ``task_manifest`` with ``tasks_root``, or
        the evaluation tasks: instructions, the text the agent reads, or task directories for an adapter that takes one (``takes_task_directory``)
 
    ``evolution.evaluation.task_manifest``
-       a split manifest written by ``reef.core.tasks``; its eval split names the evaluation's tasks as directories under ``evolution.evaluation.tasks_root``, each passed to the adapter as its path. Each task runs in its own container, and the adapter needs an npm ``install`` (`Task directories <../user-guide/evolve-your-harness.rst#task-directories>`__); startup refuses a manifest that names no eval task
+       a split manifest written by ``aster.core.tasks``; its eval split names the evaluation's tasks as directories under ``evolution.evaluation.tasks_root``, each passed to the adapter as its path. Each task runs in its own container, and the adapter needs an npm ``install`` (`Task directories <../user-guide/evolve-your-harness.rst#task-directories>`__); startup refuses a manifest that names no eval task
 
    ``evolution.evaluation.tasks_root``
        the directory the manifest's task names live under; set together with ``task_manifest``
@@ -1666,7 +1666,7 @@ one task source: ``tasks``, ``task_manifest`` with ``tasks_root``, or
        true makes each step evaluate on the task directories of the eval split of the scenario's imported tasks (the ``task-import`` section, or task items whose metadata names the scenario's ``eval`` split) as the step reads them, so tasks that the scenario gets later join the next step. The eval split may be empty when the scenario loads. The same adapter rule as ``task_manifest``. The former ``evolution.evaluation.task_store`` is refused with a message that names this key
 
    ``evolution.evaluation.scorer``
-       a ``TaskScorer`` class, in the same form as ``evolution.method``; ``reef.evaluation.harness:VerifierRewardScorer`` scores a task directory run by its Harbor verifier's reward
+       a ``TaskScorer`` class, in the same form as ``evolution.method``; ``aster.evaluation.harness:VerifierRewardScorer`` scores a task directory run by its Harbor verifier's reward
 
    ``evolution.evaluation.policy`` : compare
        the publication policy: ``compare`` scores the candidate and the current tree (the training start) on the same tasks and repeats; ``floor`` scores the candidate alone and publishes it when every task has a run that completed and every run that completed scores at least ``floor_score``; ``none`` runs no task and publishes every candidate that passes validation
@@ -1702,7 +1702,7 @@ one task source: ``tasks``, ``task_manifest`` with ``tasks_root``, or
        the cap on collected tasks; admission stops there so the suite is bounded; 0 collects none
 
    ``evolution.evaluation.max_collected_per_client`` : 5
-       the cap on collected tasks from one tagged client (its ``x-reef-tag-client``, else session, tag); untagged traffic has no identity to count under and meets only ``max_collected_tasks``; 0 disables the cap
+       the cap on collected tasks from one tagged client (its ``x-aster-tag-client``, else session, tag); untagged traffic has no identity to count under and meets only ``max_collected_tasks``; 0 disables the cap
 
 The evaluation context is what a run's score depends on besides the
 tree and the task: the served model and the named models of
@@ -1748,10 +1748,10 @@ the component:
    ``inference.remote.url``
        the component's HTTP(S) base URL, without credentials, query or fragment
 
-   ``inference.remote.control-token-env`` : REEF_REMOTE_CONTROL_TOKEN
+   ``inference.remote.control-token-env`` : ASTER_REMOTE_CONTROL_TOKEN
        variable with the component's control token; the process that starts the engines reads it
 
-   ``inference.remote.inference-token-env`` : REEF_REMOTE_INFERENCE_TOKEN
+   ``inference.remote.inference-token-env`` : ASTER_REMOTE_INFERENCE_TOKEN
        variable with the component's inference token; the HTTP service reads it
 
    ``inference.remote.startup-timeout-s`` : 3600
@@ -1775,7 +1775,7 @@ Read by the weight-training stack. See `Evolve your model
        must stay false: Aster's serving never shares GPUs with training, and Slime and Tinker refuse ``true``; Slime's own rollout engines share the training GPUs with ``training.options.colocate``
 
    ``training.ready-timeout`` : 3600
-       startup deadline of the services the training backend adds, such as the inference component and the teacher engine; Slime, and every deployment that Aster's engines serve, also raise ``reef.ready-timeout`` to at least this value
+       startup deadline of the services the training backend adds, such as the inference component and the teacher engine; Slime, and every deployment that Aster's engines serve, also raise ``aster.ready-timeout`` to at least this value
 
    ``training.config.num_gpus``
        example-specific GPU count passed to Slime's model topology flags; does not set the Ray cluster's capacity
@@ -1808,12 +1808,12 @@ Training never decides whether an artifact serves. The activation rule that
 this section names decides that. The section applies to every recipe, a
 composite included. Without the section, the rule is ``always``. A scenario
 can select one of the built-in rules for itself with
-``POST /reef/scenarios/{scenario}/update`` (`Scenario updates
+``POST /aster/scenarios/{scenario}/update`` (`Scenario updates
 <http-api.rst#scenario-updates>`__). The section's rule applies to each
 scenario that selects none.
 
 An artifact that the rule does not activate stays inactive. A person can
-activate it with ``POST /reef/scenarios/{scenario}/activate``. Activation does
+activate it with ``POST /aster/scenarios/{scenario}/activate``. Activation does
 not change where training continues. `Activate an artifact
 <../user-guide/operate.rst#activate-an-artifact>`__ describes activation, and
 `Go back to an older artifact
@@ -1830,7 +1830,7 @@ make an older artifact serve for good.
 .. container:: config
 
    ``activation.module``
-       ``always``, ``never``, ``evaluated``, or a ``package.module:ClassName`` reference to an ``ActivationRule`` subclass (``reef.core.activation``). Default ``always``.
+       ``always``, ``never``, ``evaluated``, or a ``package.module:ClassName`` reference to an ``ActivationRule`` subclass (``aster.core.activation``). Default ``always``.
 
    ``activation.config``
        the rule's settings, below; a class of your own receives the mapping in ``from_config``
@@ -1977,7 +1977,7 @@ Generated tasks
 ~~~~~~~~~~~~~~~
 
 The built-in generated-task recipe,
-``reef.recipe.generated_tasks:GeneratedTaskRecipe``, names no objective. The
+``aster.recipe.generated_tasks:GeneratedTaskRecipe``, names no objective. The
 deployment names one in ``recipe.config.job_parameters.objective``, as a dotted
 reference to a method that it provides. Its stages are ``GeneratedTaskSamples`` and
 ``GeneratedTaskJobData``. Without
@@ -1992,7 +1992,7 @@ and the rollouts.
 .. code:: yaml
 
    recipe:
-     implementation: reef.recipe.generated_tasks:GeneratedTaskRecipe
+     implementation: aster.recipe.generated_tasks:GeneratedTaskRecipe
      config:
        job_parameters:
          objective: my_methods.objectives:MyObjective
@@ -2011,7 +2011,7 @@ and the rollouts.
            config:
              generator_url: ${endpoints.generator}
              skills: [inspection, repair]
-             state_dir: ${REEF_STATE_DIR}/generations
+             state_dir: ${ASTER_STATE_DIR}/generations
      sample2job:
        config:
          buffer_size: 2
@@ -2030,7 +2030,7 @@ which are not records.
        recorded sessions that each round gives the generator, at most; 0 generates from the description only
 
    ``pipeline.record2sample.config.source_tag``
-       the ``name=value`` tag that marks a source session: each of its model calls carries the header ``x-reef-tag-<name>: <value>``. Required when ``source_records_per_round`` is above 0.
+       the ``name=value`` tag that marks a source session: each of its model calls carries the header ``x-aster-tag-<name>: <value>``. Required when ``source_records_per_round`` is above 0.
 
    ``pipeline.record2sample.config.refill_tasks`` : 1
        the next round starts only while fewer saved tasks than this wait to train; a task in a running job does not wait
@@ -2126,7 +2126,7 @@ loop does. Aster's serving never calls them. The first task job starts the
 session; it holds the engines, their router and the training GPUs until the
 component closes, so the next jobs attach to the started engines, and every job
 trains on the session's GPUs. A failed or cancelled job leaves the session
-running for the next job. The save root's ``reef-serving.json`` records the
+running for the next job. The save root's ``aster-serving.json`` records the
 session, which the component disposes when it closes. ``training.options.rollout-num-gpus`` gives the engines GPUs of
 their own; ``training.options.colocate`` puts them on the training GPUs (all
 of them, unless ``rollout-num-gpus`` names fewer), and Slime moves the GPU
@@ -2242,9 +2242,9 @@ A dataset job trains a prompt dataset the way Slime trains on its own (RFC
 #1041). Slime rolls the prompts out on its serving session's engines, scores
 them with its reward model, computes the advantages and trains its loss; Aster
 records each saved rollout as a candidate. The deployment selects the built-in
-recipe ``reef.recipe.dataset:DatasetRecipe`` with ``data.training_mode:
+recipe ``aster.recipe.dataset:DatasetRecipe`` with ``data.training_mode:
 manual``. Its loss family, ``slime``, leaves the training signal to Slime and
-refuses every other job except a task job. Each training request (``POST /reef/train``)
+refuses every other job except a task job. Each training request (``POST /aster/train``)
 whose ``parameters`` hold ``dataset`` is one job:
 
 .. code:: json
@@ -2304,11 +2304,11 @@ The ``generator`` section
 -------------------------
 
 Absent by default. When present, ``aster serve`` starts the generator service
-(``python -m reef.service.deploy.generator_process``) before the HTTP service, which depends on
+(``python -m aster.service.deploy.generator_process``) before the HTTP service, which depends on
 it, and publishes its address as ``${endpoints.generator}`` for the
 generated-task stages to consume. The generator writes and checks Harbor tasks for the generated-task recipe,
 and runs the plays of a task generator such as SPADE, under the same
-interpreter as the Aster service (``REEF_PYTHON``, otherwise the launcher's). Its
+interpreter as the Aster service (``ASTER_PYTHON``, otherwise the launcher's). Its
 host needs the ``harbor`` command line and the Harbor environment that
 ``generator.environment`` selects; the Aster service itself needs neither. The
 default, ``docker``, needs a Docker daemon on the host. ``e2b`` runs each task
@@ -2339,7 +2339,7 @@ checks and rollouts at the same time.
        where the rollout runner keeps trials
 
    ``generator.agent`` : terminus-2
-       the Harbor agent each rollout runs, with ``{model}``, ``{base_url}`` and ``{api_key}`` placeholders. ``import_path: reef.record2sample.generator.terminus:VerifiedTerminus2`` in place of ``name: terminus-2`` also scores a rollout whose agent filled its context or lost its terminal, which Terminus 2 leaves without a reward
+       the Harbor agent each rollout runs, with ``{model}``, ``{base_url}`` and ``{api_key}`` placeholders. ``import_path: aster.record2sample.generator.terminus:VerifiedTerminus2`` in place of ``name: terminus-2`` also scores a rollout whose agent filled its context or lost its terminal, which Terminus 2 leaves without a reward
 
    ``generator.agent-host``
        an address of the host the task container can reach, for an agent that runs inside the container
@@ -2377,7 +2377,7 @@ checks and rollouts at the same time.
 .. code:: yaml
 
    generator:
-     tasks-root: ${REEF_SPADE_STATE_DIR}/tasks
+     tasks-root: ${ASTER_SPADE_STATE_DIR}/tasks
    execution:
      generator: auto
    pipeline:
@@ -2385,11 +2385,11 @@ checks and rollouts at the same time.
        config:
          generator_url: ${endpoints.generator}
 
-The generator reads the resolved deployment through ``REEF_CONFIG`` like the
-other children: the Aster address from ``reef.host`` and ``reef.port``, the
-token from ``reef.token``, and the served model from ``inference.model-path``
+The generator reads the resolved deployment through ``ASTER_CONFIG`` like the
+other children: the Aster address from ``aster.host`` and ``aster.port``, the
+token from ``aster.token``, and the served model from ``inference.model-path``
 or ``inference.upstream-model``. Without ``aster serve``,
-``python -m reef.service.deploy.generator_process -c serve.yaml`` runs it from the same file.
+``python -m aster.service.deploy.generator_process -c serve.yaml`` runs it from the same file.
 
 The ``task-import`` section
 ---------------------------
@@ -2412,20 +2412,20 @@ Experiment tracking
 Tracking is optional, off by default, and belongs to an Aster *scenario* rather
 than to one training backend. The same provider-neutral logger is shared by the
 recipe, the processor, backend results, and the commit lifecycle. Install
-``reef[wandb]`` when the training extra does not already provide it.
+``aster[wandb]`` when the training extra does not already provide it.
 
 .. code:: yaml
 
    observability:
      wandb:
        enabled: true
-       project: reef
+       project: aster
        entity: your-team             # optional
        group_prefix: prod-us-east    # optional scenario-group namespace
        name_prefix: baseline         # optional run-name prefix
        tags: [openclawrl, qwen]
        mode: online                  # online, offline, or disabled
-       directory: /var/lib/reef/wandb
+       directory: /var/lib/aster/wandb
        upload_checkpoints: false
 
 Export ``WANDB_API_KEY`` before starting, or log in once with the credential
@@ -2446,15 +2446,15 @@ Each scenario maps to a group named after the scenario or
 binds and another after each train-from. The deterministic run id includes those
 identities, so restarting resumes the same run with ``resume=allow``. A
 train-from finishes the current run and records each component's training-start
-artifact ID in ``reef/train_from_artifact_ids``. It resets ``train/step`` to zero. An activation
-does not end a run. The globally monotonic ``reef/step`` stays attached for
+artifact ID in ``aster/train_from_artifact_ids``. It resets ``train/step`` to zero. An activation
+does not end a run. The globally monotonic ``aster/step`` stays attached for
 joining a run back to the commit history. A scenario with several
 trainers shares the run: each step's metrics carry its component name as a
 prefix (``harness/train/loss``) on the same ``train/step`` axis with
-``reef/component`` on the row, its optimizer step rows land under
+``aster/component`` on the row, its optimizer step rows land under
 ``<component>/step/*`` on their own counter, and the run config lists each
-component's backend under ``reef.components`` and ``backend.<component>``
-with ``reef.backend`` null. The names ``train``, ``step``, ``reef`` and
+component's backend under ``aster.components`` and ``backend.<component>``
+with ``aster.backend`` null. The names ``train``, ``step``, ``aster`` and
 ``operations`` are these prefixes, so a composite recipe refuses them as
 component names.
 
@@ -2476,7 +2476,7 @@ inference-only scenarios, every
 10 seconds and once during graceful shutdown. Samples use the existing scenario
 run under ``operations/*``, with Unix time in ``operations/time_seconds`` as
 their horizontal axis. They do not advance ``train/step`` and do not wait for a
-successful commit or a ``/reef/status`` request. Offline mode records the same
+successful commit or a ``/aster/status`` request. Offline mode records the same
 samples locally; disabled tracking starts no sampling thread.
 
 The following names are relative to ``operations/``:
@@ -2569,9 +2569,9 @@ Commit correlation
 
 Durable commit metrics carry ``experiment/provider``, ``experiment/project``,
 ``experiment/group``, and ``experiment/run_id``. Use them to open the run from
-an Aster version, and use the run's ``reef/training_job_id`` to go the other way.
+an Aster version, and use the run's ``aster/training_job_id`` to go the other way.
 
-The job listing, ``GET /reef/scenarios/{scenario}/jobs``, gives the run of
+The job listing, ``GET /aster/scenarios/{scenario}/jobs``, gives the run of
 each training job as ``experiment``. Control writes it into the job's work
 item when its tracker records the job, so every service that lists jobs reads
 it. Its ``url`` is the URL that the open W&B run gives. An offline run gives
@@ -2600,13 +2600,13 @@ OpenTelemetry Collector. Install ``aster-infra[opentelemetry]``.
        enabled: true
        endpoint: https://cloud.langfuse.com/api/public/otel/v1/traces  # full OTLP/HTTP traces URL
        authorization: ${LANGFUSE_AUTH}  # the backend credential, sent as the Authorization header
-       service_name: reef              # optional resource service.name
+       service_name: aster              # optional resource service.name
 
 ``endpoint`` is the complete traces URL. ``authorization`` is the credential
 the backend expects in its ``Authorization`` header: ``Basic <base64
 public:secret>`` for Langfuse, ``Bearer <token>`` for most others. It is
 handled like ``inference.upstream_api_key``: write it as an environment
-reference in the YAML, or omit it and export ``REEF_TRACING_AUTHORIZATION``;
+reference in the YAML, or omit it and export ``ASTER_TRACING_AUTHORIZATION``;
 the startup report masks it and it never appears in a span or a log line. A
 backend that expects its credential under another header name, such as
 ``x-api-key``, takes it in the ``headers`` mapping; the startup report masks
@@ -2619,21 +2619,21 @@ Each accepted inference record becomes the root span of its own trace, named
 ``chat <model>``. Its trace and span ids derive from the scenario and record
 id, so a restart or a second Aster host produces the same ids. The span carries:
 
-* ``session.id`` and ``reef.scenario``: the scenario.
-* ``reef.agent_record_id`` and ``reef.request_type``: the receipt and record kind.
+* ``session.id`` and ``aster.scenario``: the scenario.
+* ``aster.agent_record_id`` and ``aster.request_type``: the receipt and record kind.
 * ``gen_ai.request.model``, ``gen_ai.response.model``, ``gen_ai.response.id``,
   ``gen_ai.usage.input_tokens``, ``gen_ai.usage.output_tokens`` and
   ``gen_ai.response.finish_reasons`` from the provider request and response,
   following the OpenTelemetry GenAI semantic conventions.
-* ``reef.artifact_id``: the artifact that answered the request.
-* ``reef.tags``: the ``x-reef-tag-*`` request tags.
+* ``aster.artifact_id``: the artifact that answered the request.
+* ``aster.tags``: the ``x-aster-tag-*`` request tags.
 
 A feedback record becomes a ``feedback`` span inside the trace of the first
-inference it references, with ``reef.score`` and ``reef.references``; further
+inference it references, with ``aster.score`` and ``aster.references``; further
 references are span links. A committed step adds a ``training step N`` span
 with the commit's step, component artifact IDs, job id, consumed record counts,
-its component as ``reef.component`` when the scenario runs several trainers,
-and its scalar metrics as ``reef.metrics.*``, plus one ``trained in step N``
+its component as ``aster.component`` when the scenario runs several trainers,
+and its scalar metrics as ``aster.metrics.*``, plus one ``trained in step N``
 child span below every record the step consumed, linked back to the commit
 span. Records carry one timestamp, so their spans have zero duration and start
 at the record's creation time.
@@ -2647,7 +2647,7 @@ The stored response and the forwarded stream remain unchanged.
 
 Spans carry the exchange itself: the request messages and the reply as JSON
 in ``gen_ai.input.messages`` and ``gen_ai.output.messages``, feedback text in
-``reef.feedback``. The backend
+``aster.feedback``. The backend
 therefore sees the scenario's traffic; point tracing only at one trusted with
 it. Export failures are reported in the service log and never
 fail record acceptance or a commit; the exporter batches spans in a background

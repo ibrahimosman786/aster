@@ -3,7 +3,7 @@
     {
       "key": "harbor:b721576042304e9f",
       "kind": "episode",
-      "task": "/home/ubuntu/reef/recipes/sao/examples/ceobench/harbor",
+      "task": "/home/ubuntu/aster/recipes/sao/examples/ceobench/harbor",
       "tags": {
         "days": 500,
         "seed": 42,
@@ -18,7 +18,7 @@
         "reward": -6.567996697034182e-05,
         "survival_days": 255
       },
-      "uri": "file:///home/ubuntu/reef/recipes/sao/examples/ceobench/work/lab/trials/harbor__tVV8V2c",
+      "uri": "file:///home/ubuntu/aster/recipes/sao/examples/ceobench/work/lab/trials/harbor__tVV8V2c",
       "created_at": 1789279601.9563696
     }
   ],
@@ -349,7 +349,7 @@
   "runs": [
     {
       "run_id": "ef85ced8",
-      "model": "reef",
+      "model": "aster",
       "provider": "openai",
       "reasoning_effort": "none",
       "seed": 42,

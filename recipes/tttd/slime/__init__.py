@@ -9,10 +9,10 @@ from numbers import Real
 from typing import Any
 
 from recipes.tttd.objective import tttd_signal
-from reef.train.algos.signals import TrainingSignal
-from reef.train.slime_backend.algorithm import SlimeAlgorithm, register_loss_family
-from reef.train.slime_backend.objectives import SlimeObjective, register_slime_objective
-from reef.train.types import JobData
+from aster.train.algos.signals import TrainingSignal
+from aster.train.slime_backend.algorithm import SlimeAlgorithm, register_loss_family
+from aster.train.slime_backend.objectives import SlimeObjective, register_slime_objective
+from aster.train.types import JobData
 
 
 @register_loss_family

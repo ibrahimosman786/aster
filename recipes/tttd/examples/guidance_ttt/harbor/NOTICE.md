@@ -1,7 +1,7 @@
 # Benchmark sources
 
 - Polyomino Packing: FrontierCS problem 0 at `6d597dfb60be9e592881aef051b94e30d197c436`.
-  The existing Reef example supplies its instruction and initial program.
+  The existing Aster example supplies its instruction and initial program.
 - AHC058: AtCoder's Apple Production Planning task. The public inputs, tester,
   and initial solution come from TTT-Discover at `6c40e82dab9d5de7416ac873ad5cd3106084aaed` (MIT).
   ALE-Bench is pinned in `../judges/requirements-ale-bench.txt`.

@@ -8,10 +8,10 @@ from pathlib import Path
 
 import pytest
 
-from reef.harness.adapters import get_adapter
-from reef.harness.adapters.descriptor import AdapterDescriptor
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tree import HarnessTree, RenderError, render_tree
+from aster.harness.adapters import get_adapter
+from aster.harness.adapters.descriptor import AdapterDescriptor
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tree import HarnessTree, RenderError, render_tree
 
 GOLDEN = Path(__file__).parent / "data" / "terminus_golden"
 TERMINUS = get_adapter("terminus")

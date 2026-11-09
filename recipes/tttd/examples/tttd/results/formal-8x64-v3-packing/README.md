@@ -2,7 +2,7 @@
 
 These two runs used the bundled TTT-Discover harness and the circle-packing
 judges in this repository. Each run completed 50 search and training steps with
-Qwen3-8B. The search generated eight groups of 64 programs at each step. Reef
+Qwen3-8B. The search generated eight groups of 64 programs at each step. Aster
 trained a rank-32 LoRA adapter after every complete grid and served the updated
 adapter during the next search step.
 
@@ -50,13 +50,13 @@ The curve shows the best-solution history for each run.
 
 The jobs used checkpoints to continue the same scenario across scheduler
 allocations. The stored search identity fixes the instruction hash, sampling
-settings, grid dimensions, model, recipe, and scenario. Reef resumed the same
-W&B run ID and continued the monotonic `reef/step` sequence after each restart.
+settings, grid dimensions, model, recipe, and scenario. Aster resumed the same
+W&B run ID and continued the monotonic `aster/step` sequence after each restart.
 
 ## W&B history
 
 `wandb_history.csv` contains 50 committed rows for each task. The export reads
-all local W&B run segments, merges duplicate rows by `reef/step`, and checks
+all local W&B run segments, merges duplicate rows by `aster/step`, and checks
 that every step from 1 through 50 is present. `rollout/rewards` is the mean
 reward of the training grid at one step. It is not the best score in the search
 archive.

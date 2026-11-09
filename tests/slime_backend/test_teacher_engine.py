@@ -9,11 +9,11 @@ from unittest.mock import patch
 
 import pytest
 
-from reef.core.errors import DeployConfigError
-from reef.service.deploy.service_config import ServiceConfig
-from reef.train.slime_backend.distill.algorithm import DistillAlgorithm, DistillSettings, settings_from_args
-from reef.train.slime_backend.distill.teacher_engine import TeacherEngine, parse_teacher_scores, teacher_vocab_size
-from reef.train.slime_backend.launch import TEACHER_URL_ENV, SlimeDeployment, slime_arguments, teacher_service
+from aster.core.errors import DeployConfigError
+from aster.service.deploy.service_config import ServiceConfig
+from aster.train.slime_backend.distill.algorithm import DistillAlgorithm, DistillSettings, settings_from_args
+from aster.train.slime_backend.distill.teacher_engine import TeacherEngine, parse_teacher_scores, teacher_vocab_size
+from aster.train.slime_backend.launch import TEACHER_URL_ENV, SlimeDeployment, slime_arguments, teacher_service
 
 
 def settings(**kwargs):
@@ -201,7 +201,7 @@ def test_endpoint_identity_must_match_validated_model(actual, teacher_path):
 
 
 def test_teacher_public_config_resolves_to_owned_dependency(tmp_path):
-    from reef.service.deploy.orchestrator import resolve_deployment_config
+    from aster.service.deploy.orchestrator import resolve_deployment_config
 
     config, _ = resolve_deployment_config(
         {
@@ -218,20 +218,20 @@ def test_teacher_public_config_resolves_to_owned_dependency(tmp_path):
     )
     services = {service["name"]: service for service in config["services"]}
     # Slime trains in the HTTP service, which waits for the teacher and reads its endpoint.
-    assert "distill-teacher" in services["reef"]["depends_on"]
-    assert services["reef"]["env"][TEACHER_URL_ENV] == "${endpoints.distill-teacher}"
+    assert "distill-teacher" in services["aster"]["depends_on"]
+    assert services["aster"]["env"][TEACHER_URL_ENV] == "${endpoints.distill-teacher}"
     assert services["distill-teacher"]["resources"]["num_gpus"] == 2
     assert services["distill-teacher"]["endpoint"] == "http://{host}:30123"
-    assert config["reef"]["teacher_model_path"] == "/teacher"
+    assert config["aster"]["teacher_model_path"] == "/teacher"
 
 
 def test_unsupported_training_backend_rejects_teacher():
-    from reef.service.deploy.training import assemble_training_services
+    from aster.service.deploy.training import assemble_training_services
 
     with pytest.raises(DeployConfigError, match="teacher engine"):
         assemble_training_services(
             {
-                "reef": {
+                "aster": {
                     "recipe": "recipe",
                     "training_backend": "tinker",
                     "training_backend_options": {"state-dir": "tinker-state"},
@@ -243,10 +243,10 @@ def test_unsupported_training_backend_rejects_teacher():
 
 
 def test_provider_recipe_rejects_teacher():
-    from reef.service.deploy.inference import assemble_provider_services
+    from aster.service.deploy.inference import assemble_provider_services
 
     with pytest.raises(DeployConfigError, match="weight-training recipe"):
-        assemble_provider_services({"reef": {"recipe": "recipe", "teacher_model_path": "teacher"}})
+        assemble_provider_services({"aster": {"recipe": "recipe", "teacher_model_path": "teacher"}})
 
 
 def test_engine_columns_match_native_actor_columns_on_identical_logits(monkeypatch):
@@ -254,7 +254,7 @@ def test_engine_columns_match_native_actor_columns_on_identical_logits(monkeypat
 
     torch = pytest.importorskip("torch")
 
-    from reef.train.slime_backend.distill.teacher import gather_teacher_topk
+    from aster.train.slime_backend.distill.teacher import gather_teacher_topk
 
     mpu = SimpleNamespace(get_tensor_model_parallel_group=lambda: None, get_context_parallel_world_size=lambda: 1)
     monkeypatch.setitem(sys.modules, "megatron.core", SimpleNamespace(mpu=mpu))
@@ -292,7 +292,7 @@ def test_engine_columns_match_native_actor_columns_on_identical_logits(monkeypat
 def test_tokenizer_validation_rejects_equal_size_but_different_mapping(monkeypatch):
     import sys
 
-    from reef.train.slime_backend.distill.teacher_engine import validate_teacher_tokenizer
+    from aster.train.slime_backend.distill.teacher_engine import validate_teacher_tokenizer
 
     tokenizers = [
         SimpleNamespace(get_vocab=lambda: {"a": 0, "b": 1}),

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import jsonschema
 
-from reef.train.tinker_backend.parameters import tinker_parameters_schema
+from aster.train.tinker_backend.parameters import tinker_parameters_schema
 
 ROLLOUT = {"rollouts_per_task": 4, "environment": "docker", "concurrency": 2}
 

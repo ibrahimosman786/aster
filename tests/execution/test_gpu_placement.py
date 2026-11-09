@@ -1,11 +1,11 @@
-"""Reef reserves GPUs in one placement group and slices them into training and inference bundles."""
+"""Aster reserves GPUs in one placement group and slices them into training and inference bundles."""
 
 import sys
 from types import ModuleType, SimpleNamespace
 
 import pytest
 
-from reef.execution.executor.placement import GpuBundles, ModelGpuLayout, ModelGpuReservation, reserve_model_gpus
+from aster.execution.executor.placement import GpuBundles, ModelGpuLayout, ModelGpuReservation, reserve_model_gpus
 
 
 @pytest.mark.unit

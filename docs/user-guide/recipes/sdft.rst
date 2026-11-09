@@ -66,7 +66,7 @@ samples.
 
 ``SDFTSamples`` extends the shared ``DistillSamples``. ``DistillSamples`` turns every
 ``TeacherContextReport`` into one ``TrajectorySample``: the student's call as
-an ATIF trajectory, with the teacher's request in ``extra.reef.teacher``. The
+an ATIF trajectory, with the teacher's request in ``extra.aster.teacher``. The
 training component renders both with the model's chat template. The teacher
 sequence is the teacher's request rendered with the generation prompt and
 followed by the student's response tokens. A teacher sequence longer than
@@ -81,7 +81,7 @@ subclasses ``SDFTSamples`` and overrides ``teacher_request``. The deployment
 names the subclass in ``pipeline.record2sample.module``.
 
 The ``sdft`` loss family is a thin family on the Slime backend's
-distillation base in ``reef/train/slime_backend/distill/``
+distillation base in ``aster/train/slime_backend/distill/``
 (`Loss families <../../developer-guide/loss-families.rst>`__). It sets the
 reference's defaults and runs as a ``custom_loss``. Before each step the base
 runs one forward pass over every sample's teacher sequence and keeps the

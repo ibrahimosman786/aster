@@ -3,8 +3,8 @@
 configs/serve.yaml (or configs/serve-native.yaml, the argument run.sh passes
 for the native variant) carries both the deployment (`service`, `inference`, `services`)
 and the harness_evolve recipe itself. The registry loads named recipes from
-REEF_RECIPE_CONFIG_DIR, so run.sh writes the versioned recipe, pipeline and inference sections
-plus execution selectors and executor profiles there before starting Reef, and the
+ASTER_RECIPE_CONFIG_DIR, so run.sh writes the versioned recipe, pipeline and inference sections
+plus execution selectors and executor profiles there before starting Aster, and the
 evaluation task list beside them for run.py. An omitted model uses the deployment runtime.
 """
 

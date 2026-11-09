@@ -4,7 +4,7 @@
 :class:`AgentAuthor` is pi, Reefine's pinned coding agent, in a cloud sandbox (E2B or Modal). It reads the session, the repository at
 the base commit and its checkout path under ``../inputs/``, writes the task under ``./task/``, and checks it with its
 one tool, ``task_check``. Its model calls and checks go through a loopback gateway (:class:`RecordingGateway`) that
-holds the credentials and records each model call on Reef. :class:`PromptAuthor` is the baseline: the generator
+holds the credentials and records each model call on Aster. :class:`PromptAuthor` is the baseline: the generator
 service's one-reply prompt Designer, one recorded model call whose reply is the task.
 """
 
@@ -26,29 +26,29 @@ from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any, ClassVar, Literal
 
-from reef_client.client import ReefClient, ReefClientError
+from reef_client.client import AsterClient, AsterClientError
 from reef_client.serve import RECEIPT_HEADER
 
 from recipes.beta.autoenvscaling.sources import SESSION_BUDGET_CHARS, SessionSource, render_session
 from recipes.beta.reefine.agent import launch_pi, rendered_files
-from reef.core.prompts import untrusted_text
-from reef.core.tasks.harbor import TASK_NAME_PATTERN
-from reef.execution.sandbox.environment import download_directory
-from reef.execution.sandbox.process import ProgramExecutor, ProgramLaunchError, ProgramTimeout
-from reef.harness.adapters import get_adapter
-from reef.harness.gateway import AgentGateway, AgentTool, refuse, relay
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tasks.vendor_install import AdapterProgram
-from reef.harness.tree import HarnessTree
-from reef.inference.provider_protocol import ANTHROPIC_CLIENT_HEADERS, response_events
-from reef.record2sample.generator.designer import (
+from aster.core.prompts import untrusted_text
+from aster.core.tasks.harbor import TASK_NAME_PATTERN
+from aster.execution.sandbox.environment import download_directory
+from aster.execution.sandbox.process import ProgramExecutor, ProgramLaunchError, ProgramTimeout
+from aster.harness.adapters import get_adapter
+from aster.harness.gateway import AgentGateway, AgentTool, refuse, relay
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tasks.vendor_install import AdapterProgram
+from aster.harness.tree import HarnessTree
+from aster.inference.provider_protocol import ANTHROPIC_CLIENT_HEADERS, response_events
+from aster.record2sample.generator.designer import (
     HARBOR_OUTPUT_TEXT,
     SYSTEM_PROMPT,
     DesignerAnswer,
     DesignerError,
-    ReefDesigner,
+    AsterDesigner,
 )
-from reef.train import harness_backend
+from aster.train import harness_backend
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +91,7 @@ REBUILD_RULES_TEXT = """RULES:
 - instruction.md is at least 80 characters, self contained, states what the user asked for (their goal and every constraint they added during the session, in their words where possible), and never contains the solution.
 - tests/test.sh is the verifier: it runs after the agent, with /tests holding the tests/ files, checks that the requested change is in place (prefer the repository's own test framework: tests that fail before the change and pass after it), and writes one number in [0, 1] to /logs/verifier/reward.txt on every path, the failure path included (`echo 0 > /logs/verifier/reward.txt`).
 - solution/solve.sh is the reference solution: it makes the change the session made, from the state before the session's changes (write the final content of each file the session changed, or apply a patch you put in solution/). The task is accepted only if this script scores 1 and doing nothing scores below 1.
-- Reef appends a last step to environment/Dockerfile that keeps the repository's history up to the checked-out commit only: no remotes, no other branches or tags. The repository must be a git checkout at the checkout path.
+- Aster appends a last step to environment/Dockerfile that keeps the repository's history up to the checked-out commit only: no remotes, no other branches or tags. The repository must be a git checkout at the checkout path.
 - Use what the session shows. Where it does not show something the task needs, infer the most likely content.
 - Files are plain text; paths are relative, no directories above the task, at most four levels."""
 
@@ -246,8 +246,8 @@ class AuthoredTask:
     """The author's task as a Designer's reply, and where the model calls that wrote it are kept.
 
     Values: ``reply`` is the task in a Designer's reply form. ``record_ids`` are the receipts of the model calls
-    that Reef recorded, in order. ``transcript`` is the path, relative to the run's directory, of the transcript
-    of an author whose model calls Reef does not record (Claude Code's own session file), or ``""``.
+    that Aster recorded, in order. ``transcript`` is the path, relative to the run's directory, of the transcript
+    of an author whose model calls Aster does not record (Claude Code's own session file), or ``""``.
     Purpose: an author's ``author`` returns it; the generator admits ``reply`` and names the task's sources from
     ``record_ids``, or from ``transcript`` when no call was recorded.
     """
@@ -318,7 +318,7 @@ class VariantAuthor(TaskAuthor):
 
 
 class ModelCalls(harness_backend.ModelCalls):
-    """One agent run's model-call budget, and the receipts of the calls Reef recorded.
+    """One agent run's model-call budget, and the receipts of the calls Aster recorded.
 
     ``is_spent`` says the budget refused a call: the agent's model error that follows is its own limit, not an outage.
     """
@@ -346,20 +346,20 @@ class ModelCalls(harness_backend.ModelCalls):
         logger.debug("AutoEnvScaling agent %s: %s", kind, text)
 
 
-def session_text(reef: ReefClient, source: SessionSource, *, budget_chars: int = SESSION_BUDGET_CHARS) -> str:
-    """The source session read back from Reef, rendered within ``budget_chars`` and fenced as data."""
+def session_text(aster: AsterClient, source: SessionSource, *, budget_chars: int = SESSION_BUDGET_CHARS) -> str:
+    """The source session read back from Aster, rendered within ``budget_chars`` and fenced as data."""
     path = (
-        f"/reef/scenarios/{urllib.parse.quote(source.scenario, safe='')}"
+        f"/aster/scenarios/{urllib.parse.quote(source.scenario, safe='')}"
         f"/records/{urllib.parse.quote(source.record_id, safe='')}"
     )
     try:
-        body = reef.get(path)
-    except ReefClientError as exc:
+        body = aster.get(path)
+    except AsterClientError as exc:
         if exc.status == 404:
-            raise SourceError(f"Reef holds no record {source.record_id} in {source.scenario}") from exc
-        raise AuthorError(f"the session {source.record_id} could not be read from Reef: {exc}") from exc
+            raise SourceError(f"Aster holds no record {source.record_id} in {source.scenario}") from exc
+        raise AuthorError(f"the session {source.record_id} could not be read from Aster: {exc}") from exc
     except (OSError, ValueError) as exc:
-        raise AuthorError(f"the session {source.record_id} could not be read from Reef: {exc}") from exc
+        raise AuthorError(f"the session {source.record_id} could not be read from Aster: {exc}") from exc
     if not body["payload"].get("messages"):
         raise SourceError(f"the record {source.record_id} holds no session messages")
     return untrusted_text(render_session(body["payload"], budget_chars=budget_chars), "recorded session")
@@ -386,23 +386,23 @@ def workspace_reply(task_dir: Path) -> str:
 
 
 def call_receipt(headers: Mapping[str, str], body: bytes) -> str | None:
-    """The record id Reef gave a relayed model call: its receipt header, or, for a streamed reply, the ``reef``
+    """The record id Aster gave a relayed model call: its receipt header, or, for a streamed reply, the ``aster``
     object of the terminal event. ``None`` when neither is there (a reply longer than the relay keeps loses it)."""
     for name, value in headers.items():
         if name.lower() == RECEIPT_HEADER and value:
             return value
     for event in reversed(response_events(body.decode("utf-8", errors="replace"))):
-        if "reef" in event:
-            return str(event["reef"]["agent_record_id"])
+        if "aster" in event:
+            return str(event["aster"]["agent_record_id"])
     return None
 
 
 class RecordingGateway(AgentGateway):
-    """The agent gateway, with each model call recorded on Reef and its receipt kept.
+    """The agent gateway, with each model call recorded on Aster and its receipt kept.
 
-    The agent gateway relays a model call with the credential alone. Reef records a call only when it names a
-    scenario, so this relay adds ``x-reef-scenario`` and the run's ``x-reef-tag-*`` labels, sends the call to
-    ``upstream`` (a Reef service, the gateway's ``binding``) with its token, and records the receipt of every
+    The agent gateway relays a model call with the credential alone. Aster records a call only when it names a
+    scenario, so this relay adds ``x-aster-scenario`` and the run's ``x-aster-tag-*`` labels, sends the call to
+    ``upstream`` (an Aster service, the gateway's ``binding``) with its token, and records the receipt of every
     call in ``calls``. The request's ``model`` is always the binding's.
     """
 
@@ -410,7 +410,7 @@ class RecordingGateway(AgentGateway):
         self, upstream: ModelBinding, calls: ModelCalls, tools: AgentTool, *, headers: Mapping[str, str]
     ) -> None:
         super().__init__(upstream, calls, (tools,))
-        self.reef_headers = dict(headers)
+        self.aster_headers = dict(headers)
 
     def relay_model_call(self, client: BaseHTTPRequestHandler, route: str, payload: dict[str, Any]) -> None:
         try:
@@ -418,7 +418,7 @@ class RecordingGateway(AgentGateway):
         except RuntimeError as exc:
             refuse(client, 429, str(exc))
             return
-        headers = {"Content-Type": "application/json", "Accept-Encoding": "identity", **self.reef_headers}
+        headers = {"Content-Type": "application/json", "Accept-Encoding": "identity", **self.aster_headers}
         if self.binding.api_key:
             headers["Authorization"] = f"Bearer {self.binding.api_key}"
         for name in ANTHROPIC_CLIENT_HEADERS:
@@ -555,7 +555,7 @@ def repository_snapshot(source: SessionSource, cache_dir: Path) -> Path:
         # the snapshot.
         no_upkeep = ("-c", "gc.auto=0", "-c", "maintenance.auto=false")
         git(*no_upkeep, "add", "-A", cwd=partial)
-        commit = (*no_upkeep, "-c", "user.name=reef", "-c", "user.email=reef@localhost", "commit")
+        commit = (*no_upkeep, "-c", "user.name=aster", "-c", "user.email=aster@localhost", "commit")
         git(*commit, "-qm", "base commit", cwd=partial)
         partial.rename(target)
     except subprocess.CalledProcessError as exc:
@@ -574,16 +574,16 @@ def repository_snapshot(source: SessionSource, cache_dir: Path) -> Path:
     return target
 
 
-def write_inputs(reef: ReefClient, source: SessionSource, work_dir: Path, variant: TaskVariant | None) -> None:
+def write_inputs(aster: AsterClient, source: SessionSource, work_dir: Path, variant: TaskVariant | None) -> None:
     """An agent's inputs for ``source`` under ``work_dir / "inputs"``, and its empty ``workspace/task``.
 
-    The inputs are the session read from ``reef``, the repository's address and, with ``variant``, the parent's
+    The inputs are the session read from ``aster``, the repository's address and, with ``variant``, the parent's
     files and its pass rate. The repository's files are copied in later, from the snapshot cache.
     """
     inputs = work_dir / "inputs"
     (work_dir / "workspace" / "task").mkdir(parents=True)
     inputs.mkdir()
-    (inputs / "session.md").write_text(session_text(reef, source), encoding="utf-8")
+    (inputs / "session.md").write_text(session_text(aster, source), encoding="utf-8")
     repository = source.repository
     (inputs / "task.md").write_text(
         REPOSITORY_TEXT.format(url=repository.url, commit=repository.commit, path=repository.path)
@@ -606,9 +606,9 @@ def write_inputs(reef: ReefClient, source: SessionSource, work_dir: Path, varian
 
 
 class AgentAuthor(VariantAuthor):
-    """pi in a cloud sandbox, its model calls recorded on the Reef at ``reef_url`` under ``scenario``.
+    """pi in a cloud sandbox, its model calls recorded on the Aster at ``aster_url`` under ``scenario``.
 
-    ``reef_url`` and ``token`` also read the source sessions; ``cache_dir`` keeps the repository snapshots.
+    ``aster_url`` and ``token`` also read the source sessions; ``cache_dir`` keeps the repository snapshots.
     One run lasts at most ``timeout_seconds`` and makes at most ``max_model_calls`` model calls. With
     ``has_behaviour_rule`` the rules include :data:`BEHAVIOUR_RULES_TEXT`.
     """
@@ -616,7 +616,7 @@ class AgentAuthor(VariantAuthor):
     def __init__(
         self,
         *,
-        reef_url: str,
+        aster_url: str,
         token: str | None,
         scenario: str,
         model: str,
@@ -628,9 +628,9 @@ class AgentAuthor(VariantAuthor):
         has_behaviour_rule: bool = True,
     ) -> None:
         self.upstream = ModelBinding(
-            base_url=reef_url, model=model, api_key=token, api=api, timeout_s=MODEL_CALL_TIMEOUT_SECONDS
+            base_url=aster_url, model=model, api_key=token, api=api, timeout_s=MODEL_CALL_TIMEOUT_SECONDS
         )
-        self.reef = ReefClient(reef_url, token=token, timeout_s=RECORD_READ_TIMEOUT_SECONDS)
+        self.aster = AsterClient(aster_url, token=token, timeout_s=RECORD_READ_TIMEOUT_SECONDS)
         self.scenario = scenario
         self.executor = executor
         self.cache_dir = cache_dir
@@ -674,14 +674,14 @@ class AgentAuthor(VariantAuthor):
     ) -> AuthoredTask:
         inputs = work_dir / "inputs"
         task_dir = work_dir / "workspace" / "task"
-        write_inputs(self.reef, source, work_dir, variant)
+        write_inputs(self.aster, source, work_dir, variant)
         calls = ModelCalls(self.max_model_calls)
         try:
             shutil.copytree(repository_snapshot(source, self.cache_dir), inputs / "repo", symlinks=True)
             tools = AgentTools(work_dir, checks)
             headers = {
-                "x-reef-scenario": self.scenario,
-                **{f"x-reef-tag-{name}": value for name, value in tags.items()},
+                "x-aster-scenario": self.scenario,
+                **{f"x-aster-tag-{name}": value for name, value in tags.items()},
             }
             gateway = RecordingGateway(self.upstream, calls, tools, headers=headers)
             gateway.start()
@@ -732,11 +732,11 @@ class AgentAuthor(VariantAuthor):
         agent_tree = HarnessTree({"rules.md": rules, TOOLS_PATH: TOOLS_EXTENSION.read_text(encoding="utf-8")})
         binding = ModelBinding(base_url=gateway.base_url, model=self.upstream.model, api=self.upstream.api)
         env = {
-            "REEF_AUTHOR_URL": gateway.base_url,
-            "REEF_AUTHOR_DEADLINE_MS": str(int((time.time() + self.timeout_seconds) * 1000)),
-            "REEF_AUTHOR_FINISH_SECONDS": str(FINISH_SECONDS),
+            "ASTER_AUTHOR_URL": gateway.base_url,
+            "ASTER_AUTHOR_DEADLINE_MS": str(int((time.time() + self.timeout_seconds) * 1000)),
+            "ASTER_AUTHOR_FINISH_SECONDS": str(FINISH_SECONDS),
             # The task_check tool's description says when the check also reviews the tests.
-            "REEF_AUTHOR_REVIEWS": "1" if tools.checks.is_reviewing else "0",
+            "ASTER_AUTHOR_REVIEWS": "1" if tools.checks.is_reviewing else "0",
         }
         started = time.monotonic()
         ended = "timed out"
@@ -798,22 +798,22 @@ class AgentAuthor(VariantAuthor):
 
 
 class ModelReplies:
-    """One-reply model calls through the Reef at ``reef_url``, each recorded under a scenario.
+    """One-reply model calls through the Aster at ``aster_url``, each recorded under a scenario.
 
     ``api`` is the dialect: ``openai`` (Chat Completions) goes through the generator service's
-    :class:`~reef.record2sample.generator.designer.ReefDesigner`; ``responses`` makes the same call to the Responses API.
+    :class:`~aster.record2sample.generator.designer.AsterDesigner`; ``responses`` makes the same call to the Responses API.
     """
 
-    def __init__(self, *, reef_url: str, token: str | None, api: str) -> None:
+    def __init__(self, *, aster_url: str, token: str | None, api: str) -> None:
         if api not in ("openai", "responses"):
             raise ValueError(f"a one-reply call asks through agent_api openai or responses, not {api!r}")
         self.api = api
-        self.designer = ReefDesigner(reef_url=reef_url, token=token, timeout_s=MODEL_CALL_TIMEOUT_SECONDS)
+        self.designer = AsterDesigner(aster_url=aster_url, token=token, timeout_s=MODEL_CALL_TIMEOUT_SECONDS)
 
     def reply(self, *, scenario: str, model: str, system: str, prompt: str, tags: Mapping[str, str]) -> DesignerAnswer:
         """The reply's text, empty when it has none, and the call's record.
 
-        Raises ``DesignerError`` when Reef refuses the call or it does not complete.
+        Raises ``DesignerError`` when Aster refuses the call or it does not complete.
         """
         if self.api == "openai":
             messages = ({"role": "system", "content": system}, {"role": "user", "content": prompt})
@@ -825,10 +825,10 @@ class ModelReplies:
             "input": [{"role": "user", "content": [{"type": "input_text", "text": prompt}]}],
         }
         client = self.designer.client
-        headers = {f"x-reef-tag-{name}": value for name, value in tags.items()}
+        headers = {f"x-aster-tag-{name}": value for name, value in tags.items()}
         try:
             body, record_id = client.inference_with_record(scenario, "/v1/responses", payload, extra_headers=headers)
-        except ReefClientError as exc:
+        except AsterClientError as exc:
             raise DesignerError(f"the designer call was refused ({exc.status}): {exc.body[:300]}") from exc
         except OSError as exc:
             raise DesignerError(f"the designer call did not complete within {client.timeout_s:g} s: {exc}") from exc
@@ -843,11 +843,11 @@ class ModelReplies:
 
 
 class PromptAuthor(TaskAuthor):
-    """The generator service's one-reply prompt Designer on the session: one call through the Reef at ``reef_url``,
+    """The generator service's one-reply prompt Designer on the session: one call through the Aster at ``aster_url``,
     recorded under ``scenario``, whose reply is the task.
 
     The call asks for ``model`` through ``api``, ``openai`` (Chat Completions) or ``responses``, with the token
-    ``token``; ``reef_url`` also serves the source sessions. The Designer reads no files, so the session is rendered
+    ``token``; ``aster_url`` also serves the source sessions. The Designer reads no files, so the session is rendered
     into the prompt within ``session_chars`` characters. It runs no check: ``checks`` and ``stop`` go unused. With
     ``has_behaviour_rule`` the rules include :data:`BEHAVIOUR_RULES_TEXT`.
     """
@@ -855,7 +855,7 @@ class PromptAuthor(TaskAuthor):
     def __init__(
         self,
         *,
-        reef_url: str,
+        aster_url: str,
         token: str | None,
         scenario: str,
         model: str,
@@ -863,8 +863,8 @@ class PromptAuthor(TaskAuthor):
         session_chars: int = PROMPT_SESSION_CHARS,
         has_behaviour_rule: bool = True,
     ) -> None:
-        self.reef = ReefClient(reef_url, token=token, timeout_s=RECORD_READ_TIMEOUT_SECONDS)
-        self.replies = ModelReplies(reef_url=reef_url, token=token, api=api)
+        self.aster = AsterClient(aster_url, token=token, timeout_s=RECORD_READ_TIMEOUT_SECONDS)
+        self.replies = ModelReplies(aster_url=aster_url, token=token, api=api)
         self.scenario = scenario
         self.model = model
         self.session_chars = session_chars
@@ -882,7 +882,7 @@ class PromptAuthor(TaskAuthor):
         repository = source.repository
         prompt = PROMPT_TEXT.format(
             repository=REPOSITORY_TEXT.format(url=repository.url, commit=repository.commit, path=repository.path),
-            session=session_text(self.reef, source, budget_chars=self.session_chars),
+            session=session_text(self.aster, source, budget_chars=self.session_chars),
             rules=rebuild_rules(self.has_behaviour_rule),
             output=HARBOR_OUTPUT_TEXT,
         )

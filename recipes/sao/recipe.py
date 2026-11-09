@@ -7,16 +7,16 @@ from dataclasses import dataclass
 from typing import Any
 
 from recipes.sao.processor import SAOJobData, SAOSamples
-from reef.core.reports import ReportBase, ScoredRolloutReport
-from reef.recipe.base import WeightTrainingRecipe
-from reef.recipe.errors import RecipeConfigError
-from reef.storage.samples import SAMPLE_KINDS, SampleKind
-from reef.train.pipeline import PipelineSpec
+from aster.core.reports import ReportBase, ScoredRolloutReport
+from aster.recipe.base import WeightTrainingRecipe
+from aster.recipe.errors import RecipeConfigError
+from aster.storage.samples import SAMPLE_KINDS, SampleKind
+from aster.train.pipeline import PipelineSpec
 
 
 @dataclass(frozen=True, kw_only=True)
 class SAORecipe(WeightTrainingRecipe):
-    """Single-Rollout Asynchronous Optimization (arXiv:2607.07508) on reef.
+    """Single-Rollout Asynchronous Optimization (arXiv:2607.07508) on aster.
 
     "Single rollout" is one rollout per prompt: there is no comparison group
     and no slowest-sample barrier, so each scored rollout is accepted on its
@@ -27,7 +27,7 @@ class SAORecipe(WeightTrainingRecipe):
     of 1 (one step per rollout) is a smoke setting, not the paper's estimator. The DIS ratio
     needs the rollout log-probabilities as its behaviour proxy, so SAO requires
     an inference backend that attaches engine-native tensors
-    (``reef.inference_handler_factory``); reef never re-tokenizes a rollout to
+    (``aster.inference_handler_factory``); aster never re-tokenizes a rollout to
     reconstruct them.
 
     The stages are ``SAOSamples`` (every rollout trains by itself) and

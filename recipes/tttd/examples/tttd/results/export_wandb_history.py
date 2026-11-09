@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export the numeric Reef training history from resumed W&B run files."""
+"""Export the numeric Aster training history from resumed W&B run files."""
 
 from __future__ import annotations
 
@@ -14,9 +14,9 @@ from wandb.sdk.internal.datastore import DataStore
 
 FIELDS = [
     "task",
-    "reef/step",
-    "reef/run_step",
-    "reef/outcome",
+    "aster/step",
+    "aster/run_step",
+    "aster/outcome",
     "rollout/rewards",
     "rollout/kl",
     "rollout/response_lengths",
@@ -52,7 +52,7 @@ def history_rows(path: Path):
             key = item.key or "/".join(item.nested_key)
             if key:
                 row[key] = parse_value(item.value_json)
-        if "reef/step" in row:
+        if "aster/step" in row:
             yield row
 
 
@@ -63,7 +63,7 @@ def export_task(task: str, root: Path):
         raise FileNotFoundError(f"No W&B run files found below {root}")
     for run_file in run_files:
         for row in history_rows(run_file):
-            step = int(row["reef/step"])
+            step = int(row["aster/step"])
             current = by_step.setdefault(step, {})
             current.update({key: value for key, value in row.items() if value is not None})
     for step in sorted(by_step):

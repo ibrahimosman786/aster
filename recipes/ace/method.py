@@ -1,4 +1,4 @@
-"""ACE, Agentic Context Engineering (Zhang et al., arXiv 2510.04618), as a Reef harness method.
+"""ACE, Agentic Context Engineering (Zhang et al., arXiv 2510.04618), as an Aster harness method.
 
 ACE keeps a playbook of short lessons, called bullets, in the context of the agent. The served agent is ACE's
 Generator: it reads the playbook in ``rules.md``, which every session reads. In each step, each run (a trace with
@@ -21,14 +21,14 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, Self
 
-from reef.core.config import config_option
-from reef.core.plugins import PluginSettings
-from reef.core.prompts import untrusted_text
-from reef.core.trajectories import atif_messages
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tree import TreePatch
-from reef.harness.tree.checks import directive_shaped, secret_shaped
-from reef.train.harness_backend import Method, StepContext, Trace
+from aster.core.config import config_option
+from aster.core.plugins import PluginSettings
+from aster.core.prompts import untrusted_text
+from aster.core.trajectories import atif_messages
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tree import TreePatch
+from aster.harness.tree.checks import directive_shaped, secret_shaped
+from aster.train.harness_backend import Method, StepContext, Trace
 
 PROMPTS_DIR = Path(__file__).with_name("prompts")
 REFLECTOR_PROMPT = (PROMPTS_DIR / "reflector.md").read_text(encoding="utf-8")

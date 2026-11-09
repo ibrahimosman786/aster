@@ -6,7 +6,7 @@ Harness adapters
 :You will have: an adapter that Aster can render, run in runs and Harbor tasks, and install on a person's machine
 
 An adapter connects a harness tree to one agent. It is one file,
-``reef/harness/adapters/<name>/adapter.yaml``, and an optional ``render.py``
+``aster/harness/adapters/<name>/adapter.yaml``, and an optional ``render.py``
 for what the file cannot state. For an agent that runs on a person's machine,
 the tree renders as the agent's own plugin in ``plugin/``: an evaluation
 run loads that plugin, and a person's machine installs it with the
@@ -45,7 +45,7 @@ pi's ``adapter.yaml``, shortened:
    run:
      run: {argv: ["--mode", "json", "-p", "{task}", "-e", "{root}/plugin"], env: {PI_OFFLINE: "1"}}
      layer:                                 # a person's machine
-       args: [["--model", "reef/{model}"]]
+       args: [["--model", "aster/{model}"]]
        register: [["install", "{root}/plugin"]]
        unregister: [["remove", "{root}/plugin"]]
    config:                                  # the config files, with defaults and checks
@@ -90,7 +90,7 @@ An agent that isolates its own runs, such as the Terminal-Bench
 campaign's ``terminus``, may also set ``self_isolating``,
 ``execution_validator``, ``host_env``, ``is_root_bind_mounted`` and
 ``takes_task_directory`` (see `descriptor.py
-<../../reef/harness/adapters/descriptor.py>`__). ``load_descriptor`` refuses
+<../../aster/harness/adapters/descriptor.py>`__). ``load_descriptor`` refuses
 an unknown key.
 
 How Aster runs an agent
@@ -125,7 +125,7 @@ Tree parts
 ----------
 
 A kind fixes a part's tree path, format and merge (``KINDS`` in `parts.py
-<../../reef/harness/adapters/parts.py>`__). The adapter gives only the render
+<../../aster/harness/adapters/parts.py>`__). The adapter gives only the render
 path:
 
 .. list-table::
@@ -234,12 +234,12 @@ settings or memory.
    * - ``claude``
      - ``plugin/rules.md``, the plugin's output style
      - ``plugin/skills/<name>/SKILL.md``
-     - ``plugin/commands/<name>.md``, run as ``/reef:<name>``
+     - ``plugin/commands/<name>.md``, run as ``/aster:<name>``
      - ``plugin/extensions/<name>.mjs``, run by ``config/hooks.json``
    * - ``codex``
      - none
      - ``plugin/skills/<name>/SKILL.md``
-     - as a skill, run as ``$reef:<name>``
+     - as a skill, run as ``$aster:<name>``
      - none
    * - ``dsh``
      - ``dsh/AGENTS.md``
@@ -327,7 +327,7 @@ Bundled adapters
 
 At startup, Aster installs the pinned binary for the runs unless
 ``evolution.binary`` names one. Another package adds an adapter through the
-``reef.harness_adapters`` entry point, as the Meta-Harness Terminal-Bench
+``aster.harness_adapters`` entry point, as the Meta-Harness Terminal-Bench
 campaign adds ``terminus`` (`its README
 <../../recipes/meta_harness/examples/terminal_bench/README.md#the-terminus-adapter>`__).
 
@@ -369,7 +369,7 @@ campaign adds ``terminus`` (`its README
      - Rules follow Hermes's identity in ``SOUL.md``. An extension is a plugin
        with ``register(ctx)``. Only the ``openai`` dialect.
    * - ``native``
-     - ships with Aster; ``reef-native -p``
+     - ships with Aster; ``aster-native -p``
      - Aster's own loop (`Native runner`_).
    * - ``python``
      - uv 0.13.4; ``uv run --script {root}/program/main.py``
@@ -379,7 +379,7 @@ campaign adds ``terminus`` (`its README
        ``program/model.json``. It declares its dependencies as inline script
        metadata (PEP 723). Only the ``openai`` dialect. To give a task's
        verifier the run as ATIF, the program writes one JSONL line for each
-       model call under ``REEF_PROGRAM_SESSION_DIR``: the request body, with
+       model call under ``ASTER_PROGRAM_SESSION_DIR``: the request body, with
        the response body as ``response``.
 
 The comments in each ``adapter.yaml`` explain its defaults and checks.
@@ -430,7 +430,7 @@ X)``.
 Rendering
 ---------
 
-``reef.harness.tree.render_tree(tree, descriptor, overlays)`` returns the
+``aster.harness.tree.render_tree(tree, descriptor, overlays)`` returns the
 files one agent reads, by root-relative path. It writes no disk.
 
 #. Each config target is its ``defaults``, the tree's
@@ -480,7 +480,7 @@ method that returns its input unchanged by default and raises
      - a layer's render (`A person's machine`_)
 
 Prefer a check to a step for a rule on config values.
-``reef.harness.adapters.common`` has shared helpers, such as
+``aster.harness.adapters.common`` has shared helpers, such as
 ``with_skill_frontmatter``.
 
 A person's machine
@@ -500,7 +500,7 @@ that Aster starts also sends its model calls to Aster.
      - Loads a new snapshot
    * - ``claude``
      - ``claude plugin marketplace add <install>``, ``claude plugin install
-       reef@reef``
+       aster@aster``
      - in place
    * - ``pi``
      - ``pi install <install>/plugin``
@@ -510,13 +510,13 @@ that Aster starts also sends its model calls to Aster.
      - in place
    * - ``codex``
      - ``codex plugin marketplace add <install>``, ``codex plugin add
-       reef@reef``
+       aster@aster``
      - after ``register`` runs again
 
-``reef-client harness`` asks ``GET /reef/harness?form=client&root=<install>``
+``reef-client harness`` asks ``GET /aster/harness?form=client&root=<install>``
 and installs the files under ``<install>``. It runs ``register`` once per
 installed artifact, and ``unregister`` on ``disconnect``. A snapshot that a
-person activates (``POST /reef/scenarios/<scenario>/activate``) installs at
+person activates (``POST /aster/scenarios/<scenario>/activate``) installs at
 the client's next sync. The layer's render starts each config target from
 nothing and skips the checks; ``layer_files`` adds what ``register`` names
 and the tree lacks, such as a marketplace, and drops files the install keeps
@@ -538,11 +538,11 @@ Connect a new agent
       at first.
    #. Add a ``TrajectoryReader`` with ``@register_trajectory_reader`` when the
       session log has a new format (`trajectory.py
-      <../../reef/harness/tasks/trajectory.py>`__). Give it ``to_atif``, so
+      <../../aster/harness/tasks/trajectory.py>`__). Give it ``to_atif``, so
       that a task's verifier can read the run. Wrap Harbor's converter for
       the agent when Harbor has one.
    #. Add the name to ``BUILTIN_ADAPTERS``, or register through the
-      ``reef.harness_adapters`` entry point.
+      ``aster.harness_adapters`` entry point.
    #. Add ``render.py`` only for what the file cannot state.
 
 Then check, in order:
@@ -575,7 +575,7 @@ Then check, in order:
 Native runner
 -------------
 
-``reef-native`` is Aster's own agent loop. It reads ``native/``:
+``aster-native`` is Aster's own agent loop. It reads ``native/``:
 ``RULES.md``, ``skills/``, ``models.json`` (filled in by the binding), and
 five parts that let a method change the loop itself. The starter tree is
 ``tutorials/evolve-your-harness/seeds/native/``.
@@ -640,20 +640,20 @@ A turn is ``turn/start``, then per step ``step/start``,
 ``request/header``, ``assistant/message``, ``tool/call``, ``tool/result``
 and ``step/end``, then ``turn/end`` with its reason (``completed``,
 ``gave_up``, ``max-steps``, ``error`` and others). A tool result over 20,000
-characters goes to ``.reef/tool-output/``.
+characters goes to ``.aster/tool-output/``.
 
 Run and serve modes
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-``reef-native -p`` runs one turn; runs use it. ``reef-native serve`` is
+``aster-native -p`` runs one turn; runs use it. ``aster-native serve`` is
 one resident process that follows the scenario's active harness artifact:
 
 - It mounts each new artifact between two steps, and keeps the current tree
   when a new one fails to load. With ``--follow pinned``, it mounts only the
-  artifact that ``reef-native mount <artifact_id>`` names.
+  artifact that ``aster-native mount <artifact_id>`` names.
 - Its model calls carry the scenario, the token and the ``artifact_id`` tag.
 - Tree code runs with the user's privileges; only tool calls are confined,
-  with ``REEF_NATIVE_ENFORCE=bwrap``.
+  with ``ASTER_NATIVE_ENFORCE=bwrap``.
 - ``--self-tools`` adds ``harness_inspect`` and ``harness_try``.
 - The socket ``native/serve.sock`` takes one JSON line per connection:
   ``{"turn": {...}}``, ``{"control": "status"}`` or ``{"control": "mount",

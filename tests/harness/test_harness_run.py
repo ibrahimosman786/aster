@@ -1,4 +1,4 @@
-"""Guarantees of reef.harness.tasks.run, hermetic: a fake harness binary is
+"""Guarantees of aster.harness.tasks.run, hermetic: a fake harness binary is
 driven through the real descriptor, render, and run path (CI installs
 neither pi nor opencode)."""
 
@@ -15,9 +15,9 @@ from pathlib import Path
 
 import pytest
 
-from reef.harness.adapters import get_adapter
-from reef.harness.tasks.run import TaskRunError, remove_run_root, run_task
-from reef.harness.tasks.trajectory import (
+from aster.harness.adapters import get_adapter
+from aster.harness.tasks.run import TaskRunError, remove_run_root, run_task
+from aster.harness.tasks.trajectory import (
     ClaudeSessionReader,
     CodexSessionReader,
     DeepseekSessionReader,
@@ -28,7 +28,7 @@ from reef.harness.tasks.trajectory import (
     read_pi_session,
     reader_for,
 )
-from reef.harness.tree import HarnessTree, render_tree
+from aster.harness.tree import HarnessTree, render_tree
 
 PI_FAKE = """\
 #!/usr/bin/env python3
@@ -95,7 +95,7 @@ data_dir.mkdir(parents=True)
 database = sqlite3.connect(data_dir / "opencode.db")
 database.execute("PRAGMA journal_mode=WAL")
 database.executescript(OPENCODE_TABLES)
-shell = {"status": "completed", "input": {"command": "echo reef-ok"}, "output": "reef-ok\\n"}
+shell = {"status": "completed", "input": {"command": "echo aster-ok"}, "output": "aster-ok\\n"}
 turns = [
     ("msg_01", {"role": "user", "agent": "build"}, [{"type": "text", "text": args[-1]}]),
     (
@@ -107,7 +107,7 @@ turns = [
     (
         "msg_03",
         {"parentID": "msg_01", "role": "assistant", "agent": "build", "finish": "stop"},
-        [{"type": "step-start"}, {"type": "text", "text": "reef-ok"}, {"type": "step-finish", "reason": "stop"}],
+        [{"type": "step-start"}, {"type": "text", "text": "aster-ok"}, {"type": "step-finish", "reason": "stop"}],
     ),
 ]
 for turn, (message_id, message, parts) in enumerate(turns):
@@ -127,7 +127,7 @@ npm_cache = Path(os.environ.get("npm_config_cache", Path.home() / ".npm"))
 (npm_cache / "_cacache" / "index").write_text("entry\\n")
 # A file nothing declared: the residue scan must report it.
 (config_dir.parent / "stray.txt").write_text("leak\\n")
-print(json.dumps({"type": "text", "sessionID": "ses_01", "part": {"messageID": "msg_03", "type": "text", "text": "reef-ok"}}))
+print(json.dumps({"type": "text", "sessionID": "ses_01", "part": {"messageID": "msg_03", "type": "text", "text": "aster-ok"}}))
 """.replace(
     "OPENCODE_TABLES", repr(OPENCODE_TABLES)
 )
@@ -146,7 +146,7 @@ prompt = args[10]
 codex_home = Path(os.environ["CODEX_HOME"])
 assert Path(os.environ["HOME"]) == codex_home.parent
 config = (codex_home / "config.toml").read_text()
-# The argv pins approvals off; config.toml leaves them to Codex's default for a person's reef-codex session.
+# The argv pins approvals off; config.toml leaves them to Codex's default for a person's aster-codex session.
 assert "approval_policy" not in config and 'web_search = "disabled"' in config
 run = codex_home / "sessions" / "2026" / "09" / "02" / "run.jsonl"
 run.parent.mkdir(parents=True)
@@ -244,7 +244,7 @@ def test_run_cleanup_failure_is_not_suppressed(tmp_path: Path, monkeypatch) -> N
     def fail(*_args, **_kwargs):
         raise OSError("locked")
 
-    monkeypatch.setattr("reef.harness.tasks.run.shutil.rmtree", fail)
+    monkeypatch.setattr("aster.harness.tasks.run.shutil.rmtree", fail)
     with pytest.raises(TaskRunError, match=r"cannot remove run root.*locked"):
         remove_run_root(root)
 
@@ -267,7 +267,7 @@ def test_opencode_run_grades_the_final_answer_of_its_session(tmp_path: Path) -> 
     """The reader joins each message to its parts, so the grader finds the text of the last assistant turn."""
     files = render_tree(HarnessTree({}), get_adapter("opencode"))
     result = run_task(get_adapter("opencode"), files, "Run it.", binary=fake_binary(tmp_path, OPENCODE_FAKE))
-    assert final_assistant_text(result.trajectory) == "reef-ok"
+    assert final_assistant_text(result.trajectory) == "aster-ok"
 
 
 def test_codex_run_collects_nested_run_and_whitelists_boot_state(tmp_path: Path) -> None:
@@ -387,17 +387,17 @@ def test_codex_reader_reads_nested_sessions_and_tolerates_one_torn_tail(tmp_path
     assert reader_for("codex-session-jsonl").format == "codex-session-jsonl"
 
 
-@pytest.mark.parametrize("answer", ["reef-ok", "wrong", None])
+@pytest.mark.parametrize("answer", ["aster-ok", "wrong", None])
 def test_codex_run_reads_only_assistant_output_text(tmp_path: Path, answer: str | None) -> None:
     events = [
         {
             "type": "response_item",
-            "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "reef-ok"}]},
+            "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "aster-ok"}]},
         },
-        {"type": "response_item", "payload": {"type": "function_call_output", "output": "reef-ok"}},
+        {"type": "response_item", "payload": {"type": "function_call_output", "output": "aster-ok"}},
         {
             "type": "response_item",
-            "payload": {"type": "reasoning", "summary": [{"type": "summary_text", "text": "reef-ok"}]},
+            "payload": {"type": "reasoning", "summary": [{"type": "summary_text", "text": "aster-ok"}]},
         },
     ]
     if answer is not None:
@@ -442,7 +442,7 @@ def test_deepseek_reader_lifts_each_events_data_so_the_final_assistant_text_is_f
     log.parent.mkdir(parents=True)
     message = {
         "role": "assistant",
-        "content": [{"type": "reasoning", "text": "run it"}, {"type": "text", "text": "The output:\n\nreef-ok"}],
+        "content": [{"type": "reasoning", "text": "run it"}, {"type": "text", "text": "The output:\n\naster-ok"}],
     }
     log.write_text(
         '{"type": "session", "version": 0}\n'
@@ -454,7 +454,7 @@ def test_deepseek_reader_lifts_each_events_data_so_the_final_assistant_text_is_f
     events = DeepseekSessionReader()(tmp_path)
     assert events[1] == {"type": "turn/start", "seq": 0, "time": 1, "turn": 1}
     assert events[2]["message"] == message and "data" not in events[2]
-    assert final_assistant_text(events) == "The output:\n\nreef-ok"
+    assert final_assistant_text(events) == "The output:\n\naster-ok"
 
 
 def test_hermes_reader_emits_a_session_event_then_one_event_per_message(tmp_path: Path) -> None:

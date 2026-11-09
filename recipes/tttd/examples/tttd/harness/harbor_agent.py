@@ -17,16 +17,16 @@ import yaml
 from harbor.agents.base import BaseAgent
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
-from reef_client import ReefClient
+from reef_client import AsterClient
 
-from .agent import ReefTTTDiscoverHarness
-from .run_controller import ReefTrainingStatusClient, TTTDRunController, TTTDRunIdentity, TTTDRunStateStore
+from .agent import AsterTTTDiscoverHarness
+from .run_controller import AsterTrainingStatusClient, TTTDRunController, TTTDRunIdentity, TTTDRunStateStore
 from .scorer import JudgeScorer, _codeblock_body
 from .search import TTTDChatRequestBuilder
 
-SERVICE_URL = "http://127.0.0.1:8900"  # the Reef run.sh started
+SERVICE_URL = "http://127.0.0.1:8900"  # the Aster run.sh started
 RECIPE = "tttd"  # matches serve.yaml
-TOKEN = "reef-local"  # matches serve.yaml
+TOKEN = "aster-local"  # matches serve.yaml
 JUDGE_URL = "http://127.0.0.1:8082"  # the task's judge, published by its compose file
 SOLUTION_PATH = "/workspace/solution.py"
 
@@ -35,7 +35,7 @@ TASK = os.environ.get("TTTD_TASK", "erdos_min_overlap")
 SCENARIO = "tttd-" + TASK.replace("_", "-")
 SEARCH_STATE_PATH = Path(__file__).resolve().parents[1] / "work" / TASK / "tttd-search-state.json"
 
-# The step grid, read from the stack config rather than repeated here: Reef
+# The step grid, read from the stack config rather than repeated here: Aster
 # trains only after exactly groups_per_step x rollouts_per_group reports
 # arrive, so a harness that disagreed would fail on the training timeout.
 # TTTD_STACK selects another stack file beside serve.yaml (serve-tinker.yaml runs on Tinker).
@@ -50,22 +50,22 @@ MAX_WORKERS = 256 if TASK.startswith("circle_packing") else 512  # packing needs
 
 
 class HarborAgent(BaseAgent):
-    """A Harbor agent that runs TTT-Discover PUCT search through Reef."""
+    """A Harbor agent that runs TTT-Discover PUCT search through Aster."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self._client = ReefClient(SERVICE_URL, token=TOKEN, timeout_s=7200)
+        self._client = AsterClient(SERVICE_URL, token=TOKEN, timeout_s=7200)
 
     @staticmethod
     def name() -> str:
-        return "reef-tttd"
+        return "aster-tttd"
 
     def version(self) -> str | None:
         return None
 
     async def setup(self, environment: BaseEnvironment) -> None:
         """Create the scenario if it does not exist yet: the inference routes serve only a scenario that exists."""
-        await asyncio.to_thread(self._client.post, "/reef/scenarios", SCENARIO, {"name": SCENARIO})
+        await asyncio.to_thread(self._client.post, "/aster/scenarios", SCENARIO, {"name": SCENARIO})
 
     async def run(
         self,
@@ -81,7 +81,7 @@ class HarborAgent(BaseAgent):
         exploration = 1.0
         invalid_reward = 0.0
 
-        harness = ReefTTTDiscoverHarness(
+        harness = AsterTTTDiscoverHarness(
             self._client,
             JudgeScorer(JUDGE_URL),
             instruction,
@@ -119,7 +119,7 @@ class HarborAgent(BaseAgent):
         )
         controller = TTTDRunController(
             harness,
-            ReefTrainingStatusClient(SERVICE_URL, token=TOKEN),
+            AsterTrainingStatusClient(SERVICE_URL, token=TOKEN),
             TTTDRunStateStore(SEARCH_STATE_PATH, identity),
             emit=lambda event: self.logger.info("TTTD event: %s", event),
         )
@@ -129,14 +129,14 @@ class HarborAgent(BaseAgent):
         program_code = _codeblock_body(best.solution)
 
         result = await environment.exec(
-            f"cat > {SOLUTION_PATH} <<'REEF_TTTD_EOF'\n{program_code}\nREEF_TTTD_EOF",
+            f"cat > {SOLUTION_PATH} <<'ASTER_TTTD_EOF'\n{program_code}\nASTER_TTTD_EOF",
         )
         if result.return_code != 0:
             raise RuntimeError(f"writing {SOLUTION_PATH} failed: {result.stderr}")
 
         valid_receipts = [r.agent_record_id for r in outcome.results if r.agent_record_id and r.solution]
         metadata = dict(context.metadata or {})
-        metadata["reef"] = {
+        metadata["aster"] = {
             "agent_record_ids": valid_receipts,
             "start_step": outcome.start_step,
             "next_step": outcome.next_step,

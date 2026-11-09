@@ -11,7 +11,7 @@ the person judge that. By default, a person activates a tree that changes an
 extension (the ``activation`` rule's ``review_kinds``).
 
 ``evolution.agent`` says where the coding agent that answers a request on
-pi runs (``reef.train.harness_backend.agent.settings``); Reefine adds
+pi runs (``aster.train.harness_backend.agent.settings``); Reefine adds
 ``trial_timeout_s`` to it, the limit of each trial, and runs its agent on the
 harness's own binary unless the section names another. ``multimodal`` is
 Reefine's own key: the gateway for images, embeddings, speech and decisions
@@ -30,12 +30,12 @@ from recipes.beta.reefine.answer import EXTENSION_ADAPTER
 from recipes.beta.reefine.method import ReefineMethod
 from recipes.beta.reefine.multimodal import MultimodalProvider, MultimodalSettings
 from recipes.beta.reefine.scorer import HEALTH_TASK_DIRECTORY, AnswerScorer
-from reef.harness.adapters import get_adapter
-from reef.harness.adapters.descriptor import DescriptorError
-from reef.recipe.config_fields import config_field
-from reef.recipe.errors import RecipeConfigError
-from reef.recipe.harness import HarnessEvolutionRecipe
-from reef.train.harness_backend.backend import HarnessBackend
+from aster.harness.adapters import get_adapter
+from aster.harness.adapters.descriptor import DescriptorError
+from aster.recipe.config_fields import config_field
+from aster.recipe.errors import RecipeConfigError
+from aster.recipe.harness import HarnessEvolutionRecipe
+from aster.train.harness_backend.backend import HarnessBackend
 
 #: The first tree of a new Reefine scenario: the starter skill.
 SEED_DIRECTORY = Path(__file__).with_name("seed")
@@ -63,7 +63,7 @@ class ReefineRecipe(HarnessEvolutionRecipe):
 
     Values: the fields of ``HarnessEvolutionRecipe``, read with Reefine's
     defaults merged in. ``multimodal`` is ``evolution.multimodal`` read,
-    ``None`` for no gateway: Reef relays the harness's image, embedding,
+    ``None`` for no gateway: Aster relays the harness's image, embedding,
     speech and decision calls to it with its key, unrecorded, and the
     agent's trials reach the same one. ``agent`` is ``evolution.agent``
     read, ``None`` when no agent answers requests (off pi, or where the host
@@ -153,7 +153,7 @@ class ReefineRecipe(HarnessEvolutionRecipe):
         component: str,
     ) -> HarnessBackend:
         """The scenario's backend. With an agent configured, its Reefine method runs the agent, bound here to pi
-        once per scenario as the evaluator is: the binary is resolved, and installed when missing, on the Reef
+        once per scenario as the evaluator is: the binary is resolved, and installed when missing, on the Aster
         host, or named in a cloud sandbox's image."""
         if self.agent is None or not isinstance(self.method, ReefineMethod):
             return super().build_backend(scenario, component)

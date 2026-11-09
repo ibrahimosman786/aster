@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from reef.core.records_types import AgentRecord, RequestType
+from aster.core.records_types import AgentRecord, RequestType
 
 
 def turn(index: int, filler: str = "") -> dict[str, str]:

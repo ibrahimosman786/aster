@@ -18,7 +18,7 @@
   "task_sampling": "provider defaults",
   "workers": {
     "heldout": 128,
-    "reef": 128,
+    "aster": 128,
     "reference": 128
   }
 }

@@ -1,8 +1,8 @@
 {
-  "name": "reef-harness",
+  "name": "aster-harness",
   "private": true,
   "pi": {
-    "extensions": ["extensions/reef/index.ts", "extensions"],
+    "extensions": ["extensions/aster/index.ts", "extensions"],
     "skills": ["skills"],
     "prompts": ["prompts"]
   }

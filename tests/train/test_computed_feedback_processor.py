@@ -21,15 +21,15 @@ from typing import Any
 import pytest
 from tests.support._trajectories import policy_trajectory
 
-from reef.core import AgentRecord, RequestType
-from reef.core.trajectories import source_record_id
-from reef.execution.jobs import BackgroundJobRunner, BackgroundJobWorker, Failed, JobContext, SupportsReceipt
-from reef.execution.sandbox.process import LocalExecutor, ProgramLaunchError
-from reef.pipeline_context import PipelineContext
-from reef.record2sample import JudgedSamples, RecordJudging
-from reef.sample2job import Sample2Job
-from reef.train.pipeline import TrainingPipeline
-from reef.train.types import JobData, Sample, TrajectorySample
+from aster.core import AgentRecord, RequestType
+from aster.core.trajectories import source_record_id
+from aster.execution.jobs import BackgroundJobRunner, BackgroundJobWorker, Failed, JobContext, SupportsReceipt
+from aster.execution.sandbox.process import LocalExecutor, ProgramLaunchError
+from aster.pipeline_context import PipelineContext
+from aster.record2sample import JudgedSamples, RecordJudging
+from aster.sample2job import Sample2Job
+from aster.train.pipeline import TrainingPipeline
+from aster.train.types import JobData, Sample, TrajectorySample
 
 pytestmark = pytest.mark.unit
 
@@ -285,7 +285,7 @@ class BlockingJobRunner(BackgroundJobRunner):
 
 
 def test_worker_cancels_queued_jobs_without_running_them(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("reef.execution.jobs.CLOSE_GRACE_S", 0.01)
+    monkeypatch.setattr("aster.execution.jobs.CLOSE_GRACE_S", 0.01)
     runner = BlockingJobRunner()
     worker = BackgroundJobWorker(runner, thread_name="queue-close", concurrency=1)
     assert worker.submit(SupportsReceipt("running"))
@@ -301,7 +301,7 @@ def test_worker_cancels_queued_jobs_without_running_them(monkeypatch: pytest.Mon
 
 
 def test_worker_reports_incomplete_close_until_runner_finishes(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("reef.execution.jobs.CLOSE_GRACE_S", 0.01)
+    monkeypatch.setattr("aster.execution.jobs.CLOSE_GRACE_S", 0.01)
     runner = BlockingJobRunner(defer_cancellation=True)
     worker = BackgroundJobWorker(runner, thread_name="deferred-close")
     worker.submit(SupportsReceipt("job"))
@@ -352,7 +352,7 @@ class ProcessJobRunner(BackgroundJobRunner):
 def test_worker_reaps_executor_process_before_publishing_cancellation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("reef.execution.jobs.CLOSE_GRACE_S", 0.01)
+    monkeypatch.setattr("aster.execution.jobs.CLOSE_GRACE_S", 0.01)
     worker = BackgroundJobWorker(ProcessJobRunner(tmp_path), thread_name="process-close")
     worker.submit(SupportsReceipt("job"))
     deadline = time.monotonic() + 5
@@ -389,7 +389,7 @@ class SaturatedJobRunner(BackgroundJobRunner):
 
 
 def test_worker_shutdown_does_not_need_an_available_executor_thread(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("reef.execution.jobs.CLOSE_GRACE_S", 0.01)
+    monkeypatch.setattr("aster.execution.jobs.CLOSE_GRACE_S", 0.01)
     runner = SaturatedJobRunner()
     worker = BackgroundJobWorker(runner, thread_name="saturated-worker", concurrency=1)
     worker.submit(SupportsReceipt("job"))
@@ -420,7 +420,7 @@ def test_repeated_receipts_are_distinct_submissions() -> None:
 
 
 def test_worker_lifecycle_wait_can_start_before_stop() -> None:
-    from reef.execution.lifecycle import Execution
+    from aster.execution.lifecycle import Execution
 
     worker = BackgroundJobWorker(_Answers(), thread_name="lifecycle-wait")
     lifecycle: Execution = worker
@@ -446,7 +446,7 @@ class ContextJobRunner(BlockingJobRunner):
 
 
 def test_job_execution_can_stop_without_stopping_its_worker() -> None:
-    from reef.execution.lifecycle import Execution
+    from aster.execution.lifecycle import Execution
 
     runner = ContextJobRunner()
     worker = BackgroundJobWorker(runner, thread_name="individual-job")

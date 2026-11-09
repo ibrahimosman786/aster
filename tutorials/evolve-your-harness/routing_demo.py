@@ -11,7 +11,7 @@ from pathlib import Path
 
 import httpx
 import yaml
-from reef_client import ReefClient
+from reef_client import AsterClient
 
 from harness.routing import expected, grade, task
 
@@ -23,8 +23,8 @@ def main():
     work = root / "work" / ("routing-" + time.strftime("%Y%m%d-%H%M%S"))
     work.mkdir(parents=True)
     config = yaml.safe_load((root / "configs/serve.yaml").read_text())
-    config["reef"]["port"] = 8902
-    config["reef"]["run-dir"] = str(work / "stack")
+    config["aster"]["port"] = 8902
+    config["aster"]["run-dir"] = str(work / "stack")
     evolution = config["recipe"]["config"]["evolution"]
     evolution["state_dir"] = str(work / "harness")
     validation = [task("CA", "enterprise", False), task("UK", "standard", True)]
@@ -45,7 +45,7 @@ def main():
     process_env = dict(os.environ, PYTHONPATH=str(root.parents[1]))
     with (work / "service.log").open("w") as log:
         service = subprocess.Popen(
-            [sys.executable, "-m", "reef", "serve", "-c", str(config_path)],
+            [sys.executable, "-m", "aster", "serve", "-c", str(config_path)],
             stdout=log, stderr=subprocess.STDOUT, env=process_env,
         )
         try:
@@ -73,10 +73,10 @@ def run(work, service, resume=False):
     else:
         raise TimeoutError("Service did not become healthy")
     scenario = "aster-routing"
-    client = ReefClient(url, token=os.environ.get("ASTER_TOKEN") or None, timeout_s=300)
-    client.post("/reef/scenarios", scenario, {"name": scenario})
+    client = AsterClient(url, token=os.environ.get("ASTER_TOKEN") or None, timeout_s=300)
+    client.post("/aster/scenarios", scenario, {"name": scenario})
     for _ in range(180):
-        state = client.get(f"/reef/scenarios/{scenario}/inference/status")["state"]
+        state = client.get(f"/aster/scenarios/{scenario}/inference/status")["state"]
         if state == "ready":
             break
         if state == "failed":
@@ -103,16 +103,16 @@ def run(work, service, resume=False):
     result = dict(task=prompt, before=answer, before_score=score, feedback=feedback)
     print(f"Original response score: {score}; submitting actual feedback", flush=True)
     client.report(scenario, {"score": score, "feedback": feedback}, references=[receipt])
-    headers = {"x-reef-scenario": scenario}
+    headers = {"x-aster-scenario": scenario}
     deadline = time.monotonic() + 900
     while time.monotonic() < deadline:
-        rows = client.get("/reef/harness/artifacts", extra_headers=headers)["artifacts"]
+        rows = client.get("/aster/harness/artifacts", extra_headers=headers)["artifacts"]
         training = [row for row in rows if row.get("operation") == "training"]
         if training:
             result["training"] = training
             break
         time.sleep(3)
-    manifest = client.get("/reef/harness", extra_headers=headers)
+    manifest = client.get("/aster/harness", extra_headers=headers)
     result["manifest"] = manifest
     (work / "result.json").write_text(json.dumps(result, indent=2))
     print("Training record saved: " + str(work / "result.json"), flush=True)
@@ -120,7 +120,7 @@ def run(work, service, resume=False):
 
 
 def verify_and_render(work, result, client, model, scenario):
-    manifest = client.get("/reef/harness", extra_headers={"x-reef-scenario": scenario})
+    manifest = client.get("/aster/harness", extra_headers={"x-aster-scenario": scenario})
     rules = manifest["files"]["plugin/rules.md"]
     prompt = task("DE", "standard", False)
     response, receipt = client.inference_with_record(scenario, "/v1/chat/completions", {

@@ -35,11 +35,11 @@ tell Aster how a session went, and see what Aster does with it.
 What runs where
 ---------------
 
-Two programs share the work. ``reef-client`` runs on your machine, next to
+Two programs share the work. The client runs on your machine, next to
 the agent. Aster runs as a service, on the same machine or on a server.
 
 .. figure:: ../assets/harness-tutorial-overview-light.svg
-   :alt: What runs where: your agent and reef-client on your machine; the method and the snapshots in Aster
+   :alt: What runs where: your agent and the client on your machine; the method and the snapshots in Aster
 
    The client installs Aster's version beside your own configuration and sends
    back what a session changed. Aster records the calls, evolves the harness,
@@ -57,9 +57,9 @@ deployment. It evolves the rules of the pi agent.
 
 .. code:: bash
 
-   export REEF_UPSTREAM_URL=https://api.moonshot.ai   # without /v1
-   export REEF_UPSTREAM_MODEL=kimi-k2.6
-   export REEF_UPSTREAM_API_KEY=sk-...
+   export ASTER_UPSTREAM_URL=https://api.moonshot.ai   # without /v1
+   export ASTER_UPSTREAM_MODEL=kimi-k2.6
+   export ASTER_UPSTREAM_API_KEY=sk-...
    aster serve -c tutorials/evolve-your-harness/configs/deployment.yaml
 
 Aster is ready when ``curl http://127.0.0.1:8901/healthz`` answers
@@ -76,7 +76,7 @@ one harness.
 
    pip install reef-client
    export SCENARIO=my-agent
-   reef-client harness connect $SCENARIO --reef http://127.0.0.1:8901
+   reef-client harness connect $SCENARIO --aster http://127.0.0.1:8901
 
 ``connect`` prints ``Done. Open a new terminal and run pi.`` It put the
 newest version under ``~/.local/share/reef-client/harness/my-agent``,
@@ -84,7 +84,7 @@ installed it as a pi package with ``pi install``, installed pi if your
 machine lacked it, and made your ``pi`` command run through Aster. Your own
 rules and settings stay as they are; ``reef-client harness disconnect``
 removes the package. When the deployment needs a token, ``connect`` asks
-for it, or reads ``REEF_TOKEN``.
+for it, or reads ``ASTER_TOKEN``.
 
 Use the agent
 -------------
@@ -104,15 +104,15 @@ that names its model calls: ``0`` for a failure, ``1`` for a success. The
 
 .. code:: bash
 
-   CALLS=$(curl -s "http://127.0.0.1:8901/reef/scenarios/$SCENARIO/records?request_type=inference&limit=100" \
+   CALLS=$(curl -s "http://127.0.0.1:8901/aster/scenarios/$SCENARIO/records?request_type=inference&limit=100" \
      | jq -c '[.records[].agent_record_id]')
-   curl -s -X POST http://127.0.0.1:8901/reef/report \
-     -H "x-reef-scenario: $SCENARIO" -H "Content-Type: application/json" \
+   curl -s -X POST http://127.0.0.1:8901/aster/report \
+     -H "x-aster-scenario: $SCENARIO" -H "Content-Type: application/json" \
      -d "{\"references\": $CALLS, \"score\": 0, \"feedback\": \"it said the test passed without running it\"}"
 
-With a deployment token, add ``-H "Authorization: Bearer $REEF_TOKEN"`` to
+With a deployment token, add ``-H "Authorization: Bearer $ASTER_TOKEN"`` to
 each ``curl``. A program that calls the model itself reads each call's
-record id from the ``x-reef-agent-record-id`` header.
+record id from the ``x-aster-agent-record-id`` header.
 
 What Aster does next
 -------------------
@@ -142,9 +142,9 @@ starts on it. List the steps and their results:
 
 .. code:: bash
 
-   curl -s -H "x-reef-scenario: $SCENARIO" http://127.0.0.1:8901/reef/harness/artifacts
+   curl -s -H "x-aster-scenario: $SCENARIO" http://127.0.0.1:8901/aster/harness/artifacts
 
-Each step has a page, ``/reef/harness/artifacts/<step>/page``. A change to
+Each step has a page, ``/aster/harness/artifacts/<step>/page``. A change to
 code, such as a pi extension, waits for you to promote it.
 
 When you and Aster change the same file

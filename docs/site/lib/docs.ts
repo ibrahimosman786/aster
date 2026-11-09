@@ -190,7 +190,7 @@ function escapeHtml(value: string) {
 // sets the block's background and text to the same variables the plain pre
 // styling uses, keeping shiki's inline styles in step with the chrome.
 const syntaxTheme = {
-  name: "reef",
+  name: "aster",
   settings: [
     { settings: { foreground: "var(--code-text)", background: "var(--code)" } },
     { scope: "comment", settings: { foreground: "var(--syntax-comment)", fontStyle: "italic" } },
@@ -240,7 +240,7 @@ function highlightedHtml(code: string, language: string) {
   if (!highlighter.getLoadedLanguages().includes(language)) return undefined;
   const html = highlighter.codeToHtml(code, {
     lang: language,
-    theme: "reef",
+    theme: "aster",
     transformers: [
       {
         pre(node) {

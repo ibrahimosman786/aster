@@ -5,16 +5,16 @@ import time
 
 import pytest
 
-from reef.core.artifact_selection import ArtifactSelection
-from reef.observability.base import (
+from aster.core.artifact_selection import ArtifactSelection
+from aster.observability.base import (
     ExperimentRun,
     TrainFromExperimentEvent,
     TrainingExperimentContext,
     TrainingExperimentEvent,
 )
-from reef.observability.operations import OperationMetrics
-from reef.observability.wandb import WandbConfig, WandbExperimentTracker
-from reef.service.deploy.service_config import service_config_from_mapping
+from aster.observability.operations import OperationMetrics
+from aster.observability.wandb import WandbConfig, WandbExperimentTracker
+from aster.service.deploy.service_config import service_config_from_mapping
 
 
 class _StubRun:
@@ -105,7 +105,7 @@ def _event(
 def _tracker(client: _StubClient, **overrides) -> WandbExperimentTracker:
     values = {
         "enabled": True,
-        "project": "reef-tests",
+        "project": "aster-tests",
         "entity": "has",
         "group_prefix": "pg",
         "name_prefix": "smoke",
@@ -137,7 +137,7 @@ def test_generic_wandb_provider_records_committed_backend_event() -> None:
 
     assert correlation == {
         "experiment/provider": "wandb",
-        "experiment/project": "reef-tests",
+        "experiment/project": "aster-tests",
         "experiment/group": "pg/math",
         "experiment/run_id": client.init_calls[0]["id"],
         "experiment/entity": "has",
@@ -149,7 +149,7 @@ def test_generic_wandb_provider_records_committed_backend_event() -> None:
     assert init["group"] == "pg/math"
     assert init["name"] == "smoke-segment-0"
     assert init["config"] == {
-        "reef": {
+        "aster": {
             "scenario": "math",
             "recipe": "openclawrl",
             "backend": None,
@@ -160,20 +160,20 @@ def test_generic_wandb_provider_records_committed_backend_event() -> None:
         "backend": {},
         "training": {"global_batch_size": 2, "lr": 1e-6},
     }
-    assert client.runs[0].config["reef"]["backend"] == "ExampleTrainingBackend"
+    assert client.runs[0].config["aster"]["backend"] == "ExampleTrainingBackend"
     assert client.runs[0].config["backend"] == {"runtime": "custom", "optimizer": "adamw"}
     logged, step = client.runs[0].logged[0]
     assert step is None
     assert logged["train/step"] == 0
-    assert logged["reef/step"] == 7
+    assert logged["aster/step"] == 7
     assert logged["train/loss"] == pytest.approx(0.25)
     assert logged["selection/score"] == pytest.approx(1.0)
     assert "selection/label" not in logged
-    assert logged["reef/source_artifact_ids"] == {"weights": "artifact:7"}
-    assert logged["reef/produced_artifact_ids"] == {"weights": "artifact:8"}
-    assert not {"reef/source_runtime_load_id", "reef/produced_runtime_load_id"} & logged.keys()
-    assert logged["reef/training_job_id"] == "job-7"
-    assert logged["reef/checkpoint_path"] == "/checkpoints/hf/7"
+    assert logged["aster/source_artifact_ids"] == {"weights": "artifact:7"}
+    assert logged["aster/produced_artifact_ids"] == {"weights": "artifact:8"}
+    assert not {"aster/source_runtime_load_id", "aster/produced_runtime_load_id"} & logged.keys()
+    assert logged["aster/training_job_id"] == "job-7"
+    assert logged["aster/checkpoint_path"] == "/checkpoints/hf/7"
     assert client.runs[0].artifacts == []
 
     tracker.close()
@@ -214,8 +214,8 @@ def test_train_from_finishes_one_curve_and_next_commit_starts_another_run() -> N
     )
 
     assert first_run.finished is True
-    assert first_run.summary["reef/ended_by"] == "train_from"
-    assert first_run.summary["reef/train_from_step"] == 8
+    assert first_run.summary["aster/ended_by"] == "train_from"
+    assert first_run.summary["aster/train_from_step"] == 8
     tracker.record(_event(step=9, run_segment=8, run_step=0))
 
     assert len(client.runs) == 2
@@ -313,11 +313,11 @@ def test_config_surface_is_generic_and_rejects_credentials() -> None:
 
     settings = service_config_from_mapping(
         {
-            "reef": {"recipe": "pg"},
+            "aster": {"recipe": "pg"},
             "observability": {
                 "wandb": {
                     "enabled": True,
-                    "project": "reef-smoke",
+                    "project": "aster-smoke",
                     "tags": ["baseline", "cpu", "baseline"],
                     "mode": "offline",
                 }
@@ -325,7 +325,7 @@ def test_config_surface_is_generic_and_rejects_credentials() -> None:
         }
     )
     config = WandbConfig.from_mapping(settings.wandb_config)
-    assert config.project == "reef-smoke"
+    assert config.project == "aster-smoke"
     assert config.tags == ("baseline", "cpu")
     assert config.active is True
 
@@ -361,10 +361,10 @@ def test_wandb_logs_every_optimizer_step_of_a_job_before_the_job_row() -> None:
     # Two jobs, five optimizer steps in a run-wide sequence, each job's rows before its summary row.
     assert [row["step/step"] for row in step_rows] == [0, 1, 2, 3, 4]
     assert [row["step/loss"] for row in step_rows] == pytest.approx([0.5, 0.4, 0.3, 0.25, 0.22])
-    assert [row["reef/step"] for row in step_rows] == [1, 1, 2, 2, 2]
+    assert [row["aster/step"] for row in step_rows] == [1, 1, 2, 2, 2]
     assert rows.index(job_rows[0]) == 2 and rows.index(job_rows[1]) == 6
     assert "train_steps" not in job_rows[0] and "step/loss" not in job_rows[0]
-    assert run.summary["reef/optimizer_steps"] == 5
+    assert run.summary["aster/optimizer_steps"] == 5
     assert (("step/*",), {"step_metric": "step/step"}) in run.defined
 
 
@@ -373,13 +373,13 @@ def test_wandb_optimizer_step_counter_resumes_from_the_run_summary() -> None:
     client = _StubClient()
     tracker = _tracker(client)
     tracker.record(_event(step=1))  # initializes the run
-    client.runs[0].summary["reef/optimizer_steps"] = 40  # a resumed run that logged 40 steps before restart
+    client.runs[0].summary["aster/optimizer_steps"] = 40  # a resumed run that logged 40 steps before restart
 
     tracker.record(dataclasses.replace(_event(step=2, run_step=1), metrics={"train_steps": [{"train/loss": 0.1}]}))
 
     step_rows = [m for m, _ in client.runs[0].logged if "step/step" in m]
     assert [row["step/step"] for row in step_rows] == [40]
-    assert client.runs[0].summary["reef/optimizer_steps"] == 41
+    assert client.runs[0].summary["aster/optimizer_steps"] == 41
 
 
 @pytest.mark.unit
@@ -421,7 +421,7 @@ def test_operational_metrics_use_wall_time_without_advancing_the_training_axis()
     rows = [metrics for metrics, _ in run.logged]
     assert [row["operations/records/unread_count"] for row in rows] == [2, 3]
     assert all(before <= row["operations/time_seconds"] <= time.time() for row in rows)
-    assert all("train/step" not in row and "reef/step" not in row for row in rows)
+    assert all("train/step" not in row and "aster/step" not in row for row in rows)
     assert (("operations/*",), {"step_metric": "operations/time_seconds"}) in run.defined
     tracker.record_train_from(
         TrainFromExperimentEvent(
@@ -470,12 +470,12 @@ def test_a_component_trainers_metrics_keep_their_own_names() -> None:
     logged, _ = run.logged[0]
     assert logged["harness/train/loss"] == pytest.approx(0.25)
     assert "train/loss" not in logged
-    assert logged["reef/component"] == "harness"
-    assert logged["train/step"] == 0 and logged["reef/step"] == 7
+    assert logged["aster/component"] == "harness"
+    assert logged["train/step"] == 0 and logged["aster/step"] == 7
     # The component's metrics sit on the run's train/step axis, and the config names each trainer's backend.
     assert (("harness/*",), {"step_metric": "train/step"}) in run.defined
-    assert run.config["reef"]["backend"] is None
-    assert run.config["reef"]["components"] == {"harness": {"backend": "ExampleTrainingBackend"}}
+    assert run.config["aster"]["backend"] is None
+    assert run.config["aster"]["components"] == {"harness": {"backend": "ExampleTrainingBackend"}}
     assert run.config["backend"] == {"harness": {"runtime": "custom", "optimizer": "adamw"}}
     weights = dataclasses.replace(
         event,
@@ -485,7 +485,7 @@ def test_a_component_trainers_metrics_keep_their_own_names() -> None:
     tracker.record(weights)
     assert run.defined.count((("harness/*",), {"step_metric": "train/step"})) == 1
     assert run.defined.count((("weights/*",), {"step_metric": "train/step"})) == 1
-    assert run.config["reef"]["components"] == {
+    assert run.config["aster"]["components"] == {
         "harness": {"backend": "ExampleTrainingBackend"},
         "weights": {"backend": "WeightsBackend"},
     }
@@ -494,8 +494,8 @@ def test_a_component_trainers_metrics_keep_their_own_names() -> None:
     stepped = dataclasses.replace(weights, metrics={**weights.metrics, "train_steps": [{"train/loss": 0.9}]})
     tracker.record(stepped)
     step_rows = [row for row, _ in run.logged if "weights/step/loss" in row]
-    assert step_rows == [{"weights/step/loss": 0.9, "weights/step/step": 0, "reef/step": 7}]
-    assert run.summary["reef/weights/optimizer_steps"] == 1 and "reef/optimizer_steps" not in run.summary
+    assert step_rows == [{"weights/step/loss": 0.9, "weights/step/step": 0, "aster/step": 7}]
+    assert run.summary["aster/weights/optimizer_steps"] == 1 and "aster/optimizer_steps" not in run.summary
     # The step key is bound exactly, once: a second glob under the prefix would overlap weights/* in W&B.
     assert (("weights/step/step",), {}) in run.defined
     assert run.defined.count((("weights/step/loss",), {"step_metric": "weights/step/step"})) == 1
@@ -516,7 +516,7 @@ def test_a_component_trainers_metrics_keep_their_own_names() -> None:
     tracker.record(refused)
     reward_rows = [row for row, _ in run.logged if "weights/step/reward" in row]
     assert [row["weights/step/step"] for row in reward_rows] == [2, 3]
-    assert run.summary["reef/weights/optimizer_steps"] == 4
+    assert run.summary["aster/weights/optimizer_steps"] == 4
     tracker.close()
 
 
@@ -528,9 +528,9 @@ def test_the_run_of_a_context_is_named_with_its_page_while_the_run_is_open() -> 
     run_id = client.init_calls[0]["id"]
     # An offline run gives no URL: the page is where the run is once it is synced, under the configured entity.
     assert tracker.experiment_run(_context()) == ExperimentRun(
-        "wandb", "reef-tests", run_id, "has", f"https://wandb.ai/has/reef-tests/runs/{run_id}"
+        "wandb", "aster-tests", run_id, "has", f"https://wandb.ai/has/aster-tests/runs/{run_id}"
     )
-    client.runs[0].url = f"https://wandb.ai/has-team/reef-tests/runs/{run_id}"
+    client.runs[0].url = f"https://wandb.ai/has-team/aster-tests/runs/{run_id}"
     assert tracker.experiment_run(_context()).url == client.runs[0].url
 
     no_entity = _tracker(_StubClient(), entity=None)

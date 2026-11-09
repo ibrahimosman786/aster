@@ -10,10 +10,10 @@ from typing import Any
 
 import pytest
 
-from reef.train.component import JobStatus, TrainingComponent
-from reef.train.slime_backend.reef_adapters.arguments import SlimeArguments
-from reef.train.slime_backend.reef_adapters.batches import TrainingBatchProcessor
-from reef.train.slime_backend.reef_adapters.training_job.storage import CheckpointStorage, RetentionConfig
+from aster.train.component import JobStatus, TrainingComponent
+from aster.train.slime_backend.aster_adapters.arguments import SlimeArguments
+from aster.train.slime_backend.aster_adapters.batches import TrainingBatchProcessor
+from aster.train.slime_backend.aster_adapters.training_job.storage import CheckpointStorage, RetentionConfig
 
 
 class FakeTrainGroup:
@@ -83,7 +83,7 @@ class RecordingBatchProcessor(TrainingBatchProcessor):
     """Keeps each job's rollout data instead of splitting it across data-parallel ranks."""
 
     def __init__(self) -> None:
-        super().__init__(SlimeArguments(custom_rollout_data_keys=(), reef_rollout_tensor_dtypes={}), {"dp_size": 1})
+        super().__init__(SlimeArguments(custom_rollout_data_keys=(), aster_rollout_tensor_dtypes={}), {"dp_size": 1})
         self.calls: list[dict[str, Any]] = []
 
     def prepare_external_train_data(self, data):

@@ -1,8 +1,8 @@
-"""The serve form: one resident process holds the tree live, follows Reef's head between steps, and lets the model inspect and try.
+"""The serve form: one resident process holds the tree live, follows Aster's head between steps, and lets the model inspect and try.
 
-A fake Reef on localhost plays the model (a scripted reply per request, the
+A fake Aster on localhost plays the model (a scripted reply per request, the
 receipt and release headers on every answer), the snapshot catalog, and one
-source tree per snapshot, so every path of ``reef-native serve`` runs
+source tree per snapshot, so every path of ``aster-native serve`` runs
 hermetically."""
 
 from __future__ import annotations
@@ -27,13 +27,13 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 from tests.support.harness_render import native_hook, native_json, native_tool
 
-from reef.harness.adapters import get_adapter
-from reef.harness.capture import CaptureProxy
-from reef.harness.runners.native import serve
-from reef.harness.runners.native.artifact_client import ArtifactClient, ArtifactClientError, HeadWatch
-from reef.harness.runners.native.serve import HARNESS_RELEASE_FILE, ServeError, Server
-from reef.harness.tree import HarnessTree, render_tree, validate_tree
-from reef.harness.tree.checks import NATIVE_RESERVED_TOOL_NAMES
+from aster.harness.adapters import get_adapter
+from aster.harness.capture import CaptureProxy
+from aster.harness.runners.native import serve
+from aster.harness.runners.native.artifact_client import ArtifactClient, ArtifactClientError, HeadWatch
+from aster.harness.runners.native.serve import HARNESS_RELEASE_FILE, ServeError, Server
+from aster.harness.tree import HarnessTree, render_tree, validate_tree
+from aster.harness.tree.checks import NATIVE_RESERVED_TOOL_NAMES
 
 SCENARIO = "serve-demo"
 NATIVE = get_adapter("native")
@@ -85,13 +85,13 @@ class _HeadMove:
     tree: Mapping[str, str]
     server: Any
 
-    def apply(self, reef: _FakeReef) -> None:
-        reef.head_move = None
-        reef.release(self.artifact_id, dict(self.tree), parent="r1")
+    def apply(self, aster: _FakeAster) -> None:
+        aster.head_move = None
+        aster.release(self.artifact_id, dict(self.tree), parent="r1")
         self.server._watch.poll_once()
 
 
-class _FakeReef(ThreadingHTTPServer):
+class _FakeAster(ThreadingHTTPServer):
     """The model, the snapshot catalog, and one source tree per snapshot."""
 
     def __init__(self) -> None:
@@ -142,52 +142,52 @@ class _Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:
-        reef: _FakeReef = self.server  # type: ignore[assignment]
+        aster: _FakeAster = self.server  # type: ignore[assignment]
         split = urlsplit(self.path)
-        if split.path == "/reef/harness/artifacts":
-            reef.polls += 1
-            if reef.fail_artifacts:
+        if split.path == "/aster/harness/artifacts":
+            aster.polls += 1
+            if aster.fail_artifacts:
                 self._json(500, {"error": {"message": "catalog down"}})
                 return
-            rows = [{k: v for k, v in reef.releases[rid].items() if k != "files"} for rid in reef.order]
+            rows = [{k: v for k, v in aster.releases[rid].items() if k != "files"} for rid in aster.order]
             for row in rows:
                 # Every snapshot here was published to serve, so each one was activated when it was made.
-                row["active"] = row["artifact_id"] == reef.head
+                row["active"] = row["artifact_id"] == aster.head
                 row["activated"] = True
             self._json(200, {"scenario": SCENARIO, "artifacts": rows})
-        elif split.path == "/reef/harness":
-            if reef.hang_manifest_s:
-                hang, reef.hang_manifest_s = reef.hang_manifest_s, 0.0
+        elif split.path == "/aster/harness":
+            if aster.hang_manifest_s:
+                hang, aster.hang_manifest_s = aster.hang_manifest_s, 0.0
                 time.sleep(hang)
             query = parse_qs(split.query)
-            artifact_id = query.get("artifact_id", query.get("release_id", [reef.head]))[0]
-            row = reef.releases.get(artifact_id)
+            artifact_id = query.get("artifact_id", query.get("release_id", [aster.head]))[0]
+            row = aster.releases.get(artifact_id)
             if row is None:
                 self._json(404, {"error": {"message": f"unknown snapshot {artifact_id}"}})
                 return
             manifest = {k: v for k, v in row.items() if k not in ("metrics", "operation")}
             if query.get("form", ["rendered"])[0] != "source":
-                # As Reef serves it: the snapshot rendered for the adapter; the serve process asks for the source.
+                # As Aster serves it: the snapshot rendered for the adapter; the serve process asks for the source.
                 manifest["files"] = render_tree(HarnessTree(row["files"]), NATIVE)
             manifest["evaluation"] = row["metrics"]
-            self._json(200, manifest, x_reef_artifact_id=artifact_id)
+            self._json(200, manifest, x_aster_artifact_id=artifact_id)
         else:
             self._json(404, {"error": {"message": "no route"}})
 
     def do_POST(self) -> None:
-        reef: _FakeReef = self.server  # type: ignore[assignment]
+        aster: _FakeAster = self.server  # type: ignore[assignment]
         body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
         if self.path.startswith("/v1/chat/completions"):
-            reef.requests.append({"headers": {k.lower(): v for k, v in self.headers.items()}, "body": body})
-            if reef.delay_s:
-                time.sleep(reef.delay_s)
-            message = reef.replies.pop(0) if reef.replies else _reply("done")
-            if reef.head_move is not None:
-                reef.head_move.apply(reef)
+            aster.requests.append({"headers": {k.lower(): v for k, v in self.headers.items()}, "body": body})
+            if aster.delay_s:
+                time.sleep(aster.delay_s)
+            message = aster.replies.pop(0) if aster.replies else _reply("done")
+            if aster.head_move is not None:
+                aster.head_move.apply(aster)
             self._json(
                 200,
                 {"choices": [{"message": message}]},
-                x_reef_agent_record_id=f"r-{len(reef.requests)}",
+                x_aster_agent_record_id=f"r-{len(aster.requests)}",
             )
         else:
             self._json(404, {"error": {"message": "no route"}})
@@ -197,20 +197,20 @@ class _Handler(BaseHTTPRequestHandler):
 
 
 @pytest.fixture
-def reef() -> Iterator[_FakeReef]:
-    with contextlib.closing(_FakeReef()) as server:
+def aster() -> Iterator[_FakeAster]:
+    with contextlib.closing(_FakeAster()) as server:
         yield server
 
 
-def _tree(tmp_path: Path, reef: _FakeReef, artifact_id: str) -> Path:
-    """The pulled tree: the model binding at the fake reef and the snapshot file naming ``artifact_id``.
+def _tree(tmp_path: Path, aster: _FakeAster, artifact_id: str) -> Path:
+    """The pulled tree: the model binding at the fake aster and the snapshot file naming ``artifact_id``.
 
     No source tree is stored yet, so the process fetches the snapshot's source tree at boot.
     """
-    dest = tmp_path / "reef-harness"
+    dest = tmp_path / "aster-harness"
     (dest / "native").mkdir(parents=True)
     (dest / "native" / "models.json").write_text(
-        json.dumps({"api": "openai", "base_url": reef.base_url, "api_key": "tok", "model": "fake"}) + "\n",
+        json.dumps({"api": "openai", "base_url": aster.base_url, "api_key": "tok", "model": "fake"}) + "\n",
         encoding="utf-8",
     )
     (dest / HARNESS_RELEASE_FILE).write_text(json.dumps({"artifact_id": artifact_id}) + "\n", encoding="utf-8")
@@ -276,10 +276,10 @@ def mounted_tools(server: Server) -> list[str]:
 # -- sessions and turns ------------------------------------------------------------------------------------
 
 
-def test_two_turns_in_one_session_keep_the_messages_and_number_the_turns(tmp_path: Path, reef: _FakeReef) -> None:
-    reef.release("r1", {**RULES, **_tool("shout", "    return 'LOUD'")})
-    reef.replies = [_reply("hi"), _reply(tool_calls=[_call("shout", {}, "c1")]), _reply("still here")]
-    with _running(_tree(tmp_path, reef, "r1")) as server:
+def test_two_turns_in_one_session_keep_the_messages_and_number_the_turns(tmp_path: Path, aster: _FakeAster) -> None:
+    aster.release("r1", {**RULES, **_tool("shout", "    return 'LOUD'")})
+    aster.replies = [_reply("hi"), _reply(tool_calls=[_call("shout", {}, "c1")]), _reply("still here")]
+    with _running(_tree(tmp_path, aster, "r1")) as server:
         first, streamed = _turn(server, "say hi")
         assert first == {"exit": 0, "session": first["session"], "turn": 1, "text": "hi", "receipts": ["r-1"]}
         assert len(first["session"]) == 12
@@ -295,7 +295,7 @@ def test_two_turns_in_one_session_keep_the_messages_and_number_the_turns(tmp_pat
         }
         assert server.status()["sessions"] == 1
 
-    assert [message["content"] for message in reef.requests[1]["body"]["messages"]] == [
+    assert [message["content"] for message in aster.requests[1]["body"]["messages"]] == [
         "Be brief.",
         "say hi",
         "hi",
@@ -313,28 +313,28 @@ def test_two_turns_in_one_session_keep_the_messages_and_number_the_turns(tmp_pat
     # One header for the whole session: nothing the model saw changed between the turns.
     assert len(_typed(events, "request/header")) == 1
     assert _typed(events, "tool/result")[0]["content"] == "LOUD"
-    assert {request["headers"]["x-reef-tag-artifact_id"] for request in reef.requests} == {"r1"}
-    assert {request["headers"]["x-reef-scenario"] for request in reef.requests} == {SCENARIO}
+    assert {request["headers"]["x-aster-tag-artifact_id"] for request in aster.requests} == {"r1"}
+    assert {request["headers"]["x-aster-scenario"] for request in aster.requests} == {SCENARIO}
     assert list(server.sessions_dir.glob("*/session.jsonl")) == [_session_file(server, first["session"])]
     # stop took the mounts and the socket down
     assert not server.mounts_dir.exists() and not server.socket_path.exists()
 
 
 def test_a_poll_during_a_turn_moves_the_head_and_the_mount_lands_between_two_steps(
-    tmp_path: Path, reef: _FakeReef
+    tmp_path: Path, aster: _FakeAster
 ) -> None:
-    reef.release("r1", {**RULES, **_tool("whisper", "    return 'quiet'")})
-    reef.replies = [
+    aster.release("r1", {**RULES, **_tool("whisper", "    return 'quiet'")})
+    aster.replies = [
         _reply(tool_calls=[_call("shout", {}, "c1")]),
         _reply(tool_calls=[_call("shout", {}, "c2")]),
         _reply("ok"),
     ]
-    dest = _tree(tmp_path, reef, "r1")
+    dest = _tree(tmp_path, aster, "r1")
     r2 = {**RULES, **_tool("whisper", "    return 'quiet'"), **_tool("shout", "    return 'LOUD'")}
     with _running(dest) as server:
         # The head moves during the first model call, and a poll finds it before the answer returns.
-        _wait(lambda: reef.polls >= 1)
-        reef.head_move = _HeadMove("r2", r2, server)
+        _wait(lambda: aster.polls >= 1)
+        aster.head_move = _HeadMove("r2", r2, server)
         result, _ = _turn(server, "shout")
         assert result["exit"] == 0 and server.status()["artifact_id"] == "r2"
         assert sorted(server.host.tools) == ["shout", "whisper"]
@@ -349,20 +349,20 @@ def test_a_poll_during_a_turn_moves_the_head_and_the_mount_lands_between_two_ste
     assert [[t["function"]["name"] for t in h["tools"]] for h in headers] == [["whisper"], ["shout", "whisper"]]
     results = _typed(events, "tool/result")
     assert results[0]["error"]["code"] == "UNKNOWN_TOOL" and results[1]["content"] == "LOUD"
-    assert [request["headers"]["x-reef-tag-artifact_id"] for request in reef.requests] == ["r1", "r2", "r2"]
+    assert [request["headers"]["x-aster-tag-artifact_id"] for request in aster.requests] == ["r1", "r2", "r2"]
     # What a restart boots from: the stored source tree and the snapshot file name the mounted artifact.
     assert json.loads((dest / HARNESS_RELEASE_FILE).read_text())["artifact_id"] == "r2"
     assert HarnessTree.read(dest / serve.SOURCE_DIR) == HarnessTree(r2)
 
 
-def test_a_restart_boots_from_the_stored_source_tree_without_asking_reef(tmp_path: Path, reef: _FakeReef) -> None:
-    reef.release("r1", {**RULES, **_tool("shout")})
-    dest = _tree(tmp_path, reef, "r1")
+def test_a_restart_boots_from_the_stored_source_tree_without_asking_aster(tmp_path: Path, aster: _FakeAster) -> None:
+    aster.release("r1", {**RULES, **_tool("shout")})
+    dest = _tree(tmp_path, aster, "r1")
     with _running(dest) as server:
         assert server.status()["artifact_id"] == "r1"
-    # Reef no longer knows r1: the next start boots from source/ as the snapshot file names it.
-    reef.releases.pop("r1")
-    reef.order.remove("r1")
+    # Aster no longer knows r1: the next start boots from source/ as the snapshot file names it.
+    aster.releases.pop("r1")
+    aster.order.remove("r1")
     with _running(dest) as server:
         log = server.sessions_dir / serve.SERVE_LOG
         assert server.status()["artifact_id"] == "r1" and list(server.host.tools) == ["shout"]
@@ -370,15 +370,15 @@ def test_a_restart_boots_from_the_stored_source_tree_without_asking_reef(tmp_pat
 
 
 def test_the_poll_mounts_a_new_head_at_the_turn_boundary_and_the_next_turn_runs_the_new_graph(
-    tmp_path: Path, reef: _FakeReef
+    tmp_path: Path, aster: _FakeAster
 ) -> None:
-    reef.release("r1", _graph(SEED_STAGES, SEED_EDGES))
-    reef.replies = [_reply("one"), _reply("two")]
-    with _running(_tree(tmp_path, reef, "r1"), poll_interval_s=0.1) as server:
+    aster.release("r1", _graph(SEED_STAGES, SEED_EDGES))
+    aster.replies = [_reply("one"), _reply("two")]
+    with _running(_tree(tmp_path, aster, "r1"), poll_interval_s=0.1) as server:
         first, _ = _turn(server, "first")
         stages = {**SEED_STAGES, "hello": {"kind": "message", "text": "Hello from r2."}}
         edges = [*SEED_EDGES, {"from": "hello", "when": "done", "to": "think"}]
-        reef.release("r2", _graph(stages, edges, start="hello"), parent="r1")
+        aster.release("r2", _graph(stages, edges, start="hello"), parent="r1")
         log = server.sessions_dir / serve.SERVE_LOG
         _wait(lambda: any(m["artifact_id"] == "r2" for m in _typed(_events(log), "harness/mount")))
         assert server.status()["artifact_id"] == "r2" and server.status()["pending_mount"] is None
@@ -388,17 +388,17 @@ def test_the_poll_mounts_a_new_head_at_the_turn_boundary_and_the_next_turn_runs_
     assert [m["source"] for m in _typed(_events(log), "harness/mount")] == ["boot", "release"]
     assert "harness/mount" not in {event["type"] for event in _events(_session_file(server, first["session"]))}
     assert [e["stage"] for e in _typed(streamed, "stage/enter")][:2] == ["hello", "think"]
-    assert reef.requests[1]["body"]["messages"][-1]["content"] == "Hello from r2."
+    assert aster.requests[1]["body"]["messages"][-1]["content"] == "Hello from r2."
 
 
-def test_a_failed_mount_keeps_the_previous_tree_serving(tmp_path: Path, reef: _FakeReef) -> None:
-    reef.release("r1", {**_tool("good"), **_tool("spare")})
-    reef.replies = [_reply(tool_calls=[_call("good", {}, "c1")]), _reply("fine")]
-    dest = _tree(tmp_path, reef, "r1")
+def test_a_failed_mount_keeps_the_previous_tree_serving(tmp_path: Path, aster: _FakeAster) -> None:
+    aster.release("r1", {**_tool("good"), **_tool("spare")})
+    aster.replies = [_reply(tool_calls=[_call("good", {}, "c1")]), _reply("fine")]
+    dest = _tree(tmp_path, aster, "r1")
     with _running(dest, poll_interval_s=0.1) as server:
         broken = native_tool("broken", "def helper(args, workdir):\n    return 1\n")
         # r2 changes good, drops spare and adds a file that cannot load: none of it may reach the host.
-        reef.release("r2", {**_tool("good", "    return 'changed'"), **broken}, parent="r1")
+        aster.release("r2", {**_tool("good", "    return 'changed'"), **broken}, parent="r1")
         log = server.sessions_dir / serve.SERVE_LOG
         _wait(lambda: bool(_typed(_events(log), "harness/mount-failed")))
         failed = _typed(_events(log), "harness/mount-failed")[0]
@@ -415,14 +415,14 @@ def test_a_failed_mount_keeps_the_previous_tree_serving(tmp_path: Path, reef: _F
 
     assert json.loads((dest / HARNESS_RELEASE_FILE).read_text())["artifact_id"] == "r1"
     assert [m["artifact_id"] for m in _typed(_events(log), "harness/mount")] == ["r1"]
-    assert reef.requests[0]["headers"]["x-reef-tag-artifact_id"] == "r1"
+    assert aster.requests[0]["headers"]["x-aster-tag-artifact_id"] == "r1"
 
 
-def test_follow_pinned_announces_the_head_and_the_mount_control_applies_it(tmp_path: Path, reef: _FakeReef) -> None:
-    reef.release("r1", _tool("one"))
-    dest = _tree(tmp_path, reef, "r1")
+def test_follow_pinned_announces_the_head_and_the_mount_control_applies_it(tmp_path: Path, aster: _FakeAster) -> None:
+    aster.release("r1", _tool("one"))
+    dest = _tree(tmp_path, aster, "r1")
     with _running(dest, follow="pinned", poll_interval_s=0.1) as server:
-        reef.release("r2", {**_tool("one"), **_tool("two")}, parent="r1")
+        aster.release("r2", {**_tool("one"), **_tool("two")}, parent="r1")
         log = server.sessions_dir / serve.SERVE_LOG
         _wait(lambda: bool(_typed(_events(log), "artifact/available")))
         assert _typed(_events(log), "artifact/available") == [{"artifact_id": "r2"}]
@@ -437,25 +437,25 @@ def test_follow_pinned_announces_the_head_and_the_mount_control_applies_it(tmp_p
     assert [m["artifact_id"] for m in _typed(_events(log), "harness/mount")] == ["r1", "r2"]
 
 
-def test_a_poll_failure_is_logged_with_backoff_and_the_process_keeps_serving(tmp_path: Path, reef: _FakeReef) -> None:
-    reef.release("r1", _tool("one"))
-    reef.replies = [_reply("served")]
-    reef.fail_artifacts = True
-    with _running(_tree(tmp_path, reef, "r1"), poll_interval_s=0.1) as server:
+def test_a_poll_failure_is_logged_with_backoff_and_the_process_keeps_serving(tmp_path: Path, aster: _FakeAster) -> None:
+    aster.release("r1", _tool("one"))
+    aster.replies = [_reply("served")]
+    aster.fail_artifacts = True
+    with _running(_tree(tmp_path, aster, "r1"), poll_interval_s=0.1) as server:
         log = server.sessions_dir / serve.SERVE_LOG
         _wait(lambda: len(_typed(_events(log), "artifact/poll-failed")) >= 2)
         failures = _typed(_events(log), "artifact/poll-failed")
         assert "500" in failures[0]["error"] and [f["retry_in_s"] for f in failures[:2]] == [0.1, 0.2]
         result, _ = _turn(server, "go")
         assert result["text"] == "served"
-        reef.fail_artifacts = False
-        reef.release("r2", {**_tool("one"), **_tool("two")}, parent="r1")
+        aster.fail_artifacts = False
+        aster.release("r2", {**_tool("one"), **_tool("two")}, parent="r1")
         _wait(lambda: server.status()["artifact_id"] == "r2")
 
 
-def test_a_poll_that_times_out_retries_at_the_interval_and_a_reef_that_is_down_backs_off() -> None:
-    """A catalog read that waits behind a running evolve step's lock times out: a busy Reef, polled again at
-    the interval so the head lands as soon as the step ends. Only a Reef that does not answer at all backs off."""
+def test_a_poll_that_times_out_retries_at_the_interval_and_a_aster_that_is_down_backs_off() -> None:
+    """A catalog read that waits behind a running evolve step's lock times out: a busy Aster, polled again at
+    the interval so the head lands as soon as the step ends. Only an Aster that does not answer at all backs off."""
 
     class _Client:
         def __init__(self, outcomes: list[Any]) -> None:
@@ -480,8 +480,8 @@ def test_a_poll_that_times_out_retries_at_the_interval_and_a_reef_that_is_down_b
         def write(self, type_: str, data: Any) -> None:
             events.append({"type": type_, **data})
 
-    busy = ArtifactClientError("GET /reef/harness/artifacts failed: TimeoutError: timed out", timed_out=True)
-    down = ArtifactClientError("GET /reef/harness/artifacts failed: URLError: Connection refused")
+    busy = ArtifactClientError("GET /aster/harness/artifacts failed: TimeoutError: timed out", timed_out=True)
+    down = ArtifactClientError("GET /aster/harness/artifacts failed: URLError: Connection refused")
     artifact_listener = _ArtifactListener()
     watch = HeadWatch(_Client([busy, busy, busy, down, down, "r2"]), artifact_listener, _Log(), 0.01, mounted="r1")  # type: ignore[arg-type]
     watch.start()
@@ -493,14 +493,14 @@ def test_a_poll_that_times_out_retries_at_the_interval_and_a_reef_that_is_down_b
     assert [event["retry_in_s"] for event in events] == [0.01, 0.01, 0.01, 0.01, 0.02]
 
 
-def test_a_manifest_fetch_that_times_out_is_retried_by_the_next_poll(tmp_path: Path, reef: _FakeReef) -> None:
+def test_a_manifest_fetch_that_times_out_is_retried_by_the_next_poll(tmp_path: Path, aster: _FakeAster) -> None:
     """The head moved, the poll saw it, and the manifest read then waited behind the next step's lock: the mount
     fails on the timeout, and the next poll that names the head announces it again instead of leaving it."""
-    reef.release("r1", _tool("one"))
-    with _running(_tree(tmp_path, reef, "r1"), poll_interval_s=0.1, release_timeout_s=0.2) as server:
+    aster.release("r1", _tool("one"))
+    with _running(_tree(tmp_path, aster, "r1"), poll_interval_s=0.1, release_timeout_s=0.2) as server:
         log = server.sessions_dir / serve.SERVE_LOG
-        reef.hang_manifest_s = 0.6
-        reef.release("r2", {**_tool("one"), **_tool("two")}, parent="r1")
+        aster.hang_manifest_s = 0.6
+        aster.release("r2", {**_tool("one"), **_tool("two")}, parent="r1")
         # The release ID changes before installation and the mount log write finish.
         _wait(
             lambda: any(m["artifact_id"] == "r2" for m in _typed(_events(log), "harness/mount")),
@@ -531,22 +531,22 @@ def test_a_release_request_that_times_out_is_marked_busy_and_a_refused_one_is_no
             listener.close()
 
 
-def test_the_turn_timeout_ends_the_turn_before_the_next_step(tmp_path: Path, reef: _FakeReef) -> None:
-    reef.release("r1", _tool("slow"))
-    reef.replies = [_reply(tool_calls=[_call("slow", {}, "c1")]), _reply("never")]
-    reef.delay_s = 0.15
-    with _running(_tree(tmp_path, reef, "r1"), turn_timeout_s=0.05) as server:
+def test_the_turn_timeout_ends_the_turn_before_the_next_step(tmp_path: Path, aster: _FakeAster) -> None:
+    aster.release("r1", _tool("slow"))
+    aster.replies = [_reply(tool_calls=[_call("slow", {}, "c1")]), _reply("never")]
+    aster.delay_s = 0.15
+    with _running(_tree(tmp_path, aster, "r1"), turn_timeout_s=0.05) as server:
         result, streamed = _turn(server, "go")
     assert result["exit"] == 0 and result["text"] == ""
     assert _typed(streamed, "turn/end") == [{"turn": 1, "reason": {"kind": "turn-timeout", "seconds": 0.05}}]
-    assert len(reef.requests) == 1 and len(_typed(streamed, "tool/result")) == 1
+    assert len(aster.requests) == 1 and len(_typed(streamed, "tool/result")) == 1
 
 
 def test_a_malformed_request_answers_an_error_and_the_socket_path_falls_back_to_tmp(
-    tmp_path: Path, reef: _FakeReef
+    tmp_path: Path, aster: _FakeAster
 ) -> None:
-    reef.release("r1", {})
-    dest = _tree(tmp_path, reef, "r1")
+    aster.release("r1", {})
+    dest = _tree(tmp_path, aster, "r1")
     with _running(dest) as server:
         assert serve.request(server.socket_path, {"nothing": 1}) == {
             "type": "error",
@@ -564,17 +564,17 @@ def test_a_malformed_request_answers_an_error_and_the_socket_path_falls_back_to_
     deep = tmp_path / ("d" * 60) / ("e" * 60)
     (deep / "native").mkdir(parents=True)
     (deep / "native" / "models.json").write_text("{}")
-    assert str(serve.socket_path(deep)).startswith("/tmp/reef-native-") and serve.socket_path(deep).suffix == ".sock"
+    assert str(serve.socket_path(deep)).startswith("/tmp/aster-native-") and serve.socket_path(deep).suffix == ".sock"
     assert serve.socket_path(deep) == serve.socket_path(deep / "native") != serve.socket_path(dest)
     assert serve.socket_path(dest, Path("/x/own.sock")) == Path("/x/own.sock")
     assert len(str(serve.socket_path(dest)).encode()) <= serve.MAX_SOCKET_PATH_BYTES
     assert serve.tree_layout(dest / "native") == (dest, dest / "native")
     with pytest.raises(ServeError, match="scenario is required"):
         Server(dest, scenario="")
-    # No stored source tree, and a snapshot Reef does not know: nothing to boot.
+    # No stored source tree, and a snapshot Aster does not know: nothing to boot.
     (dest / HARNESS_RELEASE_FILE).write_text(json.dumps({"artifact_id": "r9"}) + "\n", encoding="utf-8")
     shutil.rmtree(dest / serve.SOURCE_DIR)
-    with pytest.raises(ServeError, match=r"no source tree under .* and Reef answered none"):
+    with pytest.raises(ServeError, match=r"no source tree under .* and Aster answered none"):
         Server(dest, scenario=SCENARIO).start()
 
 
@@ -582,24 +582,24 @@ def test_a_malformed_request_answers_an_error_and_the_socket_path_falls_back_to_
 
 
 def _launcher(tmp_path: Path) -> Path:
-    """reef-native as the console script would be: this interpreter running the subcommand dispatch."""
+    """aster-native as the console script would be: this interpreter running the subcommand dispatch."""
     root = Path(__file__).resolve().parents[2]
-    path = tmp_path / "reef-native"
+    path = tmp_path / "aster-native"
     path.write_text(
         f"#!{sys.executable}\nimport sys\nsys.path.insert(0, {str(root)!r})\n"
-        "from reef.harness.runners.native.__main__ import main\nsys.exit(main())\n"
+        "from aster.harness.runners.native.__main__ import main\nsys.exit(main())\n"
     )
     path.chmod(0o755)
     return path
 
 
-def test_the_serve_status_turn_and_mount_subcommands_run_end_to_end(tmp_path: Path, reef: _FakeReef) -> None:
-    reef.release("r1", {**RULES, **_tool("shout", "    return 'LOUD'")})
-    reef.replies = [_reply("hello"), _reply(tool_calls=[_call("shout", {}, "c1")]), _reply("loud enough")]
-    dest = _tree(tmp_path, reef, "r1")
+def test_the_serve_status_turn_and_mount_subcommands_run_end_to_end(tmp_path: Path, aster: _FakeAster) -> None:
+    aster.release("r1", {**RULES, **_tool("shout", "    return 'LOUD'")})
+    aster.replies = [_reply("hello"), _reply(tool_calls=[_call("shout", {}, "c1")]), _reply("loud enough")]
+    dest = _tree(tmp_path, aster, "r1")
     binary = _launcher(tmp_path)
-    env = {**os.environ, "REEF_HARNESS_SCENARIO": SCENARIO}
-    env.pop("REEF_NATIVE_ENFORCE", None)
+    env = {**os.environ, "ASTER_HARNESS_SCENARIO": SCENARIO}
+    env.pop("ASTER_NATIVE_ENFORCE", None)
     process = subprocess.Popen(
         [str(binary), "serve", "--tree", str(dest), "--poll-interval", "0.1"],
         env=env,
@@ -634,9 +634,9 @@ def test_the_serve_status_turn_and_mount_subcommands_run_end_to_end(tmp_path: Pa
         assert lines[-1]["data"] == {"exit": 0, "session": session, "turn": 1, "text": "hello", "receipts": ["r-1"]}
         quiet = run("turn", "-p", "shout", "--session", session, "--quiet")
         assert (quiet.returncode, quiet.stdout) == (0, "loud enough\n")
-        assert len(reef.requests) == 3 and reef.requests[2]["body"]["messages"][1]["content"] == "say hello"
+        assert len(aster.requests) == 3 and aster.requests[2]["body"]["messages"][1]["content"] == "say hello"
 
-        reef.release("r2", {**RULES, **_tool("shout", "    return 'LOUD'"), **_tool("hum")}, parent="r1")
+        aster.release("r2", {**RULES, **_tool("shout", "    return 'LOUD'"), **_tool("hum")}, parent="r1")
         # The wait reads the status over the socket, so it starts no process per poll.
         _wait(lambda: serve.request(socket_path, {"control": "status"})["data"]["artifact_id"] == "r2", timeout_s=10.0)
         mounted = run("mount", "r1")
@@ -653,7 +653,7 @@ def test_the_serve_status_turn_and_mount_subcommands_run_end_to_end(tmp_path: Pa
     assert not socket_path.exists() and not (dest / "native" / "mounts").exists()
     # The run form and its flags are untouched behind the dispatch.
     version = subprocess.run([str(binary), "--version"], capture_output=True, text=True, env=env)
-    assert version.returncode == 0 and version.stdout.startswith("reef-native ")
+    assert version.returncode == 0 and version.stdout.startswith("aster-native ")
 
 
 # -- the self tools ----------------------------------------------------------------------------------------
@@ -661,15 +661,15 @@ def test_the_serve_status_turn_and_mount_subcommands_run_end_to_end(tmp_path: Pa
 WHISPER = _tool("whisper", "    return 'quiet'")
 
 
-def test_a_trial_mount_tags_its_calls_and_is_unmounted_at_turn_end(tmp_path: Path, reef: _FakeReef) -> None:
+def test_a_trial_mount_tags_its_calls_and_is_unmounted_at_turn_end(tmp_path: Path, aster: _FakeAster) -> None:
     served = {**RULES, **_tool("shout", "    return 'LOUD'")}
-    reef.release("r1", served)
-    reef.replies = [
+    aster.release("r1", served)
+    aster.replies = [
         _reply(tool_calls=[_call("harness_try", {"patch": WHISPER}, "c1")]),
         _reply(tool_calls=[_call("whisper", {}, "c2")]),
         _reply("done"),
     ]
-    dest = _tree(tmp_path, reef, "r1")
+    dest = _tree(tmp_path, aster, "r1")
     with _running(dest, self_tools=True) as server:
         assert sorted(server.host.tools) == ["harness_inspect", "harness_try", "shout"]
         result, streamed = _turn(server, "try a whisper")
@@ -690,29 +690,29 @@ def test_a_trial_mount_tags_its_calls_and_is_unmounted_at_turn_end(tmp_path: Pat
     types = [event["type"] for event in streamed]
     assert types.index("harness/unmount") > types.index("turn/end")
     assert _typed(streamed, "harness/unmount")[0]["try_id"] == tried["try_id"]
-    assert [r["headers"].get("x-reef-tag-trial") for r in reef.requests] == [None, tried["try_id"], tried["try_id"]]
-    assert {r["headers"]["x-reef-tag-artifact_id"] for r in reef.requests} == {"r1"}
+    assert [r["headers"].get("x-aster-tag-trial") for r in aster.requests] == [None, tried["try_id"], tried["try_id"]]
+    assert {r["headers"]["x-aster-tag-artifact_id"] for r in aster.requests} == {"r1"}
     # A trial is not served: the snapshot file and the stored source tree still name r1.
     assert json.loads((dest / HARNESS_RELEASE_FILE).read_text())["artifact_id"] == "r1"
     assert HarnessTree.read(dest / serve.SOURCE_DIR) == HarnessTree(served)
 
 
-def test_a_turns_receipts_leave_out_the_calls_a_trial_made(tmp_path: Path, reef: _FakeReef) -> None:
-    reef.release("r1", {**RULES, **_tool("shout", "    return 'LOUD'")})
-    reef.replies = [
+def test_a_turns_receipts_leave_out_the_calls_a_trial_made(tmp_path: Path, aster: _FakeAster) -> None:
+    aster.release("r1", {**RULES, **_tool("shout", "    return 'LOUD'")})
+    aster.replies = [
         _reply(tool_calls=[_call("harness_try", {"patch": WHISPER}, "c1")]),
         _reply(tool_calls=[_call("whisper", {}, "c2")]),
         _reply("done"),
     ]
-    with _running(_tree(tmp_path, reef, "r1"), self_tools=True) as server:
+    with _running(_tree(tmp_path, aster, "r1"), self_tools=True) as server:
         result, _ = _turn(server, "try a whisper")
     assert result["receipts"] == ["r-1"]
 
 
 def test_a_trial_that_fails_validation_or_load_is_refused_and_the_served_tree_stays(
-    tmp_path: Path, reef: _FakeReef
+    tmp_path: Path, aster: _FakeAster
 ) -> None:
-    reef.release("r1", _tool("shout", "    return 'LOUD'"))
+    aster.release("r1", _tool("shout", "    return 'LOUD'"))
     off_layout = {"native/tools/shout.md": "not a tool"}
     broken = native_tool("whisper", "def helper(args, workdir):\n    return 1\n")
     # Validation passes it (listen is bound, EVENT is a literal), and its top level raises when the mount imports it.
@@ -720,7 +720,7 @@ def test_a_trial_that_fails_validation_or_load_is_refused_and_the_served_tree_st
         "boom", "pre_step", "raise RuntimeError('boom')\ndef listen(payload, next):\n    return next()\n"
     )
     loop = native_json("graphs", {"name": "x"}) | {"native/loops/main.py": "def run_turn(ctx):\n    return\n"}
-    reef.replies = [
+    aster.replies = [
         _reply(tool_calls=[_call("harness_try", {"patch": off_layout}, "c1")]),
         _reply(tool_calls=[_call("harness_try", {"patch": broken}, "c2")]),
         _reply(tool_calls=[_call("harness_try", {"patch": raising}, "c6")]),
@@ -729,7 +729,7 @@ def test_a_trial_that_fails_validation_or_load_is_refused_and_the_served_tree_st
         _reply(tool_calls=[_call("harness_try", {"patch": "nope"}, "c5")]),
         _reply("done"),
     ]
-    with _running(_tree(tmp_path, reef, "r1"), self_tools=True) as server:
+    with _running(_tree(tmp_path, aster, "r1"), self_tools=True) as server:
         result, streamed = _turn(server, "try things")
         assert result["exit"] == 0 and server.live_tree() == HarnessTree(_tool("shout", "    return 'LOUD'"))
     results = _typed(streamed, "tool/result")
@@ -746,20 +746,20 @@ def test_a_trial_that_fails_validation_or_load_is_refused_and_the_served_tree_st
     failed = _typed(streamed, "harness/mount-failed")
     assert [f["source"] for f in failed] == ["try"]
     assert "harness/unmount" not in {event["type"] for event in streamed}
-    assert [r["headers"].get("x-reef-tag-trial") for r in reef.requests] == [None] * 7
+    assert [r["headers"].get("x-aster-tag-trial") for r in aster.requests] == [None] * 7
 
 
-def test_harness_inspect_reads_the_tree_the_graphs_the_results_and_the_status(tmp_path: Path, reef: _FakeReef) -> None:
-    reef.release("r0", _tool("shout"))
+def test_harness_inspect_reads_the_tree_the_graphs_the_results_and_the_status(tmp_path: Path, aster: _FakeAster) -> None:
+    aster.release("r0", _tool("shout"))
     rejected = [{"step": 2, "patch": {"skills/x/SKILL.md": "# x"}, "reason": "lost"}]
     served = {**_tool("shout"), **_graph(SEED_STAGES, SEED_EDGES)}
-    reef.release("r1", served, parent="r0", rejected=rejected)
-    reef.replies = [
+    aster.release("r1", served, parent="r0", rejected=rejected)
+    aster.replies = [
         _reply(tool_calls=[_call("harness_inspect", {"what": what}, f"c-{what}")])
         for what in ("tree", "graph", "results", "status", "nope")
     ]
-    reef.replies.append(_reply("looked"))
-    with _running(_tree(tmp_path, reef, "r1"), self_tools=True) as server:
+    aster.replies.append(_reply("looked"))
+    with _running(_tree(tmp_path, aster, "r1"), self_tools=True) as server:
         result, streamed = _turn(server, "look around")
         socket_path = server.socket_path
     assert result["text"] == "looked"
@@ -784,11 +784,11 @@ def test_harness_inspect_reads_the_tree_the_graphs_the_results_and_the_status(tm
     assert nope["error"]["code"] == "TOOL_FAILED" and "what must be one of" in nope["content"]
 
 
-def test_a_tree_tool_with_a_self_tools_name_does_not_mount(tmp_path: Path, reef: _FakeReef) -> None:
-    reef.release("r1", _tool("shout"))
-    dest = _tree(tmp_path, reef, "r1")
+def test_a_tree_tool_with_a_self_tools_name_does_not_mount(tmp_path: Path, aster: _FakeAster) -> None:
+    aster.release("r1", _tool("shout"))
+    dest = _tree(tmp_path, aster, "r1")
     with _running(dest, self_tools=True, poll_interval_s=0.1) as server:
-        reef.release("r2", {**_tool("shout"), **_tool(NATIVE_RESERVED_TOOL_NAMES[0])}, parent="r1")
+        aster.release("r2", {**_tool("shout"), **_tool(NATIVE_RESERVED_TOOL_NAMES[0])}, parent="r1")
         log = server.sessions_dir / serve.SERVE_LOG
         _wait(lambda: bool(_typed(_events(log), "harness/mount-failed")))
         failed = _typed(_events(log), "harness/mount-failed")[0]
@@ -812,11 +812,11 @@ def test_validation_refuses_a_tree_tool_with_a_self_tools_name() -> None:
 # -- the pieces on their own -------------------------------------------------------------------------------
 
 
-def test_the_capture_proxy_tags_calls_live_and_drains_each_capture_with_its_tags(reef: _FakeReef) -> None:
+def test_the_capture_proxy_tags_calls_live_and_drains_each_capture_with_its_tags(aster: _FakeAster) -> None:
     import urllib.request
 
-    reef.release("r1", {})
-    proxy = CaptureProxy(reef.base_url, SCENARIO, "tok", tags={"artifact_id": "r1"})
+    aster.release("r1", {})
+    proxy = CaptureProxy(aster.base_url, SCENARIO, "tok", tags={"artifact_id": "r1"})
     proxy.start()
     try:
 
@@ -839,14 +839,14 @@ def test_the_capture_proxy_tags_calls_live_and_drains_each_capture_with_its_tags
         second = [(capture["receipt"], capture["tags"]) for capture in proxy.drain()]
     finally:
         proxy.stop()
-    tags = [(r["headers"].get("x-reef-tag-artifact_id"), r["headers"].get("x-reef-tag-trial")) for r in reef.requests]
+    tags = [(r["headers"].get("x-aster-tag-artifact_id"), r["headers"].get("x-aster-tag-trial")) for r in aster.requests]
     assert tags == [("r1", None), ("r1", "t1"), ("r1", None)]
-    assert {r["headers"]["authorization"] for r in reef.requests} == {"Bearer tok"}
+    assert {r["headers"]["authorization"] for r in aster.requests} == {"Bearer tok"}
     assert first == [("r-1", {"artifact_id": "r1"}), ("r-2", {"artifact_id": "r1", "trial": "t1"})]
     assert second == [("r-3", {"artifact_id": "r1"})]
 
 
-def test_a_mount_that_orphans_the_pinned_graph_closes_the_turn_with_an_error(tmp_path: Path, reef: _FakeReef) -> None:
+def test_a_mount_that_orphans_the_pinned_graph_closes_the_turn_with_an_error(tmp_path: Path, aster: _FakeAster) -> None:
     helper = native_json("agents", {"name": "helper", "prompt": "You help.", "max_steps": 1})
     stages = {
         "think": {"kind": "model"},
@@ -863,14 +863,14 @@ def test_a_mount_that_orphans_the_pinned_graph_closes_the_turn_with_an_error(tmp
             for outcome in ("completed", "gave_up", "budget", "ask")
         ),
     ]
-    reef.release("r1", {**_tool("shout", "    return 'LOUD'"), **helper, **_graph(stages, edges)})
-    dest = _tree(tmp_path, reef, "r1")
+    aster.release("r1", {**_tool("shout", "    return 'LOUD'"), **helper, **_graph(stages, edges)})
+    dest = _tree(tmp_path, aster, "r1")
     # The first answer names r2, which drops the helper and the delegate stage; the graph this turn walks is r1's.
-    reef.replies = [_reply(tool_calls=[_call("shout", {}, "c1")]), _reply("thinking done"), _reply("helper")]
+    aster.replies = [_reply(tool_calls=[_call("shout", {}, "c1")]), _reply("thinking done"), _reply("helper")]
     with _running(dest) as server:
-        _wait(lambda: reef.polls >= 1)
+        _wait(lambda: aster.polls >= 1)
         tree = {**_tool("shout", "    return 'LOUD'"), **_graph(SEED_STAGES, SEED_EDGES)}
-        reef.head_move = _HeadMove("r2", tree, server)
+        aster.head_move = _HeadMove("r2", tree, server)
         result, streamed = _turn(server, "go")
         assert result["exit"] == 1 and result["text"] == ""
         ended = _typed(streamed, "turn/end")[-1]
@@ -878,13 +878,13 @@ def test_a_mount_that_orphans_the_pinned_graph_closes_the_turn_with_an_error(tmp
         assert "helper" in ended["reason"]["error"]["message"]
         assert server.status()["artifact_id"] == "r2"
         # The process and the session both survive: the next turn runs the mounted graph.
-        reef.replies = [_reply("second")]
+        aster.replies = [_reply("second")]
         again, _ = _turn(server, "again", session=result["session"])
         assert again["exit"] == 0 and again["text"] == "second" and again["turn"] == 2
 
 
 def test_a_failed_mount_keeps_the_current_host_without_importing_it_again(
-    tmp_path: Path, reef: _FakeReef, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, aster: _FakeAster, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     marker = tmp_path / "once.marker"
     monkeypatch.setenv("ONCE_MARKER", str(marker))
@@ -895,11 +895,11 @@ def test_a_failed_mount_keeps_the_current_host_without_importing_it_again(
         "pre_step",
         "import os\nopen(os.environ['ONCE_MARKER'], 'x').close()\n\n\ndef listen(payload, next):\n    return next()\n",
     )
-    reef.release("r1", {**once, **_tool("other")})
-    dest = _tree(tmp_path, reef, "r1")
+    aster.release("r1", {**once, **_tool("other")})
+    dest = _tree(tmp_path, aster, "r1")
     with _running(dest, poll_interval_s=0.1) as server:
         assert [hook.name for hook in server.host.hooks["pre_step"]] == ["once"] and marker.exists()
-        reef.release("r2", native_tool("broken", "def helper(args, workdir):\n    return 1\n"), parent="r1")
+        aster.release("r2", native_tool("broken", "def helper(args, workdir):\n    return 1\n"), parent="r1")
         log = server.sessions_dir / serve.SERVE_LOG
         _wait(lambda: bool(_typed(_events(log), "harness/mount-failed")))
         # The new tree was built beside the current one, so the current host stands as it was.
@@ -908,19 +908,19 @@ def test_a_failed_mount_keeps_the_current_host_without_importing_it_again(
         assert [m["artifact_id"] for m in _typed(_events(log), "harness/mount")] == ["r1"]
         # A mount of a tree with the hook imports it afresh in its own directory.
         marker.unlink()
-        reef.release("r3", {**once, **_tool("other")}, parent="r1")
+        aster.release("r3", {**once, **_tool("other")}, parent="r1")
         _wait(lambda: server.status()["artifact_id"] == "r3")
         assert [hook.name for hook in server.host.hooks["pre_step"]] == ["once"] and marker.exists()
 
 
-def test_a_session_from_a_previous_process_is_not_silently_resumed(tmp_path: Path, reef: _FakeReef) -> None:
-    reef.release("r1", _graph(SEED_STAGES, SEED_EDGES))
-    dest = _tree(tmp_path, reef, "r1")
-    reef.replies = [_reply("first")]
+def test_a_session_from_a_previous_process_is_not_silently_resumed(tmp_path: Path, aster: _FakeAster) -> None:
+    aster.release("r1", _graph(SEED_STAGES, SEED_EDGES))
+    dest = _tree(tmp_path, aster, "r1")
+    aster.replies = [_reply("first")]
     with _running(dest) as server:
         first, _ = _turn(server, "one", session="abc123")
         assert first["turn"] == 1
-    reef.replies = [_reply("second")]
+    aster.replies = [_reply("second")]
     with _running(dest) as server:
         payload = {"turn": {"prompt": "two", "session": "abc123", "workdir": str(dest)}}
         reply = serve.request(server.socket_path, payload, _Lines())
@@ -950,17 +950,17 @@ def test_the_release_client_poll_reads_the_active_row() -> None:
 
 
 def test_the_self_tools_run_in_process_when_the_environment_names_bwrap(
-    tmp_path: Path, reef: _FakeReef, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, aster: _FakeAster, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     fake = tmp_path / "fakebin"
     fake.mkdir()
     (fake / "bwrap").write_text("#!/bin/sh\necho 'bwrap: must not run for a built-in tool' >&2\nexit 1\n")
     (fake / "bwrap").chmod(0o755)
     monkeypatch.setenv("PATH", f"{fake}{os.pathsep}{os.environ.get('PATH', '')}")
-    monkeypatch.setenv("REEF_NATIVE_ENFORCE", "bwrap")
-    reef.release("r1", {**_tool("shout"), **_graph(SEED_STAGES, SEED_EDGES)})
-    reef.replies = [_reply(tool_calls=[_call("harness_inspect", {"what": "status"}, "c1")]), _reply("seen")]
-    with _running(_tree(tmp_path, reef, "r1"), self_tools=True) as server:
+    monkeypatch.setenv("ASTER_NATIVE_ENFORCE", "bwrap")
+    aster.release("r1", {**_tool("shout"), **_graph(SEED_STAGES, SEED_EDGES)})
+    aster.replies = [_reply(tool_calls=[_call("harness_inspect", {"what": "status"}, "c1")]), _reply("seen")]
+    with _running(_tree(tmp_path, aster, "r1"), self_tools=True) as server:
         result, streamed = _turn(server, "look")
     assert result["text"] == "seen"
     status = _typed(streamed, "tool/result")[0]
@@ -970,11 +970,11 @@ def test_the_self_tools_run_in_process_when_the_environment_names_bwrap(
 
 
 def test_a_legacy_install_resolves_its_snapshot_before_writing_artifact_metadata(
-    tmp_path: Path, reef: _FakeReef
+    tmp_path: Path, aster: _FakeAster
 ) -> None:
-    reef.release("artifact:harness", {**RULES, **_tool("shout")})
-    reef.releases["storage:old"] = reef.releases["artifact:harness"]
-    dest = _tree(tmp_path, reef, "artifact:harness")
+    aster.release("artifact:harness", {**RULES, **_tool("shout")})
+    aster.releases["storage:old"] = aster.releases["artifact:harness"]
+    dest = _tree(tmp_path, aster, "artifact:harness")
     (dest / HARNESS_RELEASE_FILE).write_text(json.dumps({"artifact_id": "storage:old"}))
     with _running(dest) as server:
         assert server.artifact_id == "artifact:harness"

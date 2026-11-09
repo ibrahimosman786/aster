@@ -1,7 +1,7 @@
 """Regression coverage for the bridge-export backup naming translation.
 
 Slime f655e13d (#2251) switched the actor backup to global parameter names
-unconditionally, while Bridge conversion tasks (and Reef's lookups) key on
+unconditionally, while Bridge conversion tasks (and Aster's lookups) key on
 ``vp_stages.{vp}.{local_name}``. ``rekey_backup_to_vp_stages`` translates the
 former into the latter by zipping slime's two enumerators. These tests stub
 the two slime modules that the function imports.
@@ -72,7 +72,7 @@ def slime_naming_stubs(monkeypatch):
 
 @pytest.mark.unit
 def test_global_named_backup_is_rekeyed_to_vp_stages(slime_naming_stubs) -> None:
-    from reef.train.slime_backend.reef_adapters.megatron.hf_export import rekey_backup_to_vp_stages
+    from aster.train.slime_backend.aster_adapters.megatron.hf_export import rekey_backup_to_vp_stages
 
     # The backup as slime >= #2251 hands it over, already module-stripped.
     backup = {
@@ -95,7 +95,7 @@ def test_global_named_backup_is_rekeyed_to_vp_stages(slime_naming_stubs) -> None
 
 @pytest.mark.unit
 def test_vp_stages_keys_pass_through_and_win(slime_naming_stubs) -> None:
-    from reef.train.slime_backend.reef_adapters.megatron.hf_export import rekey_backup_to_vp_stages
+    from aster.train.slime_backend.aster_adapters.megatron.hf_export import rekey_backup_to_vp_stages
 
     backup = {
         "decoder.final_layernorm.weight": "from-translation",
@@ -111,7 +111,7 @@ def test_vp_stages_keys_pass_through_and_win(slime_naming_stubs) -> None:
 
 @pytest.mark.unit
 def test_missing_globals_are_skipped_not_fabricated(slime_naming_stubs) -> None:
-    from reef.train.slime_backend.reef_adapters.megatron.hf_export import rekey_backup_to_vp_stages
+    from aster.train.slime_backend.aster_adapters.megatron.hf_export import rekey_backup_to_vp_stages
 
     backup = {"decoder.layers.0.self_attention.linear_qkv.weight": "qkv"}
 

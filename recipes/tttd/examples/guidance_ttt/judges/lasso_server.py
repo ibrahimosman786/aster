@@ -24,12 +24,12 @@ class LassoJudge(Judge):
     def __call__(self, pid: str, language: str, code: str) -> dict:
         if pid != "lasso_path" or language != "python":
             return {"valid": False, "score": 0, "message": "expected lasso_path and a Python wrapper"}
-        with tempfile.TemporaryDirectory(prefix="reef-lasso-") as directory:
+        with tempfile.TemporaryDirectory(prefix="aster-lasso-") as directory:
             root = Path(directory)
             (root / "candidate").mkdir()
             (root / "output").mkdir()
             (root / "candidate/solution.py").write_text(code)
-            name = f"reef-lasso-{uuid4().hex}"
+            name = f"aster-lasso-{uuid4().hex}"
             command = [
                 "docker",
                 "run",
@@ -82,7 +82,7 @@ class LassoJudge(Judge):
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--image", default="reef-guidance-lasso")
+    parser.add_argument("--image", default="aster-guidance-lasso")
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8082)
     args = parser.parse_args()

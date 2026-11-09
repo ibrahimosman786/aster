@@ -7,10 +7,10 @@ from typing import Any
 import pytest
 from tests.support.chat_templates import CharTemplate
 
-from reef.core.chat_rendering import RenderedTrajectory, TeacherRequest, render_trajectory, rendered_job_data
-from reef.core.job_data import JobData, TrajectorySample
-from reef.core.records_types import AgentRecord, RequestType
-from reef.core.trajectories import make_trajectory
+from aster.core.chat_rendering import RenderedTrajectory, TeacherRequest, render_trajectory, rendered_job_data
+from aster.core.job_data import JobData, TrajectorySample
+from aster.core.records_types import AgentRecord, RequestType
+from aster.core.trajectories import make_trajectory
 
 
 def step(source: str, message: str, **fields: Any) -> dict[str, Any]:

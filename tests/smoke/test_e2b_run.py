@@ -1,7 +1,7 @@
-"""Opt-in cloud acceptance: REEF_TEST_E2B=1, E2B_API_KEY and OPENROUTER_API_KEY.
+"""Opt-in cloud acceptance: ASTER_TEST_E2B=1, E2B_API_KEY and OPENROUTER_API_KEY.
 
 Only a short synthetic prompt is sent to OpenRouter. The provider key stays in
-the test process; the sandbox reaches a temporary model endpoint over Reef's tunnel.
+the test process; the sandbox reaches a temporary model endpoint over Aster's tunnel.
 """
 
 import os
@@ -13,18 +13,18 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
-from reef.evaluation.harness import TaskEvaluationWorker, TaskScorer
-from reef.evaluation.harness.runner import TaskRun
-from reef.execution.sandbox.config import build_executor
-from reef.execution.sandbox.e2b import E2BExecutor
-from reef.execution.sandbox.process import ProgramTimeout
-from reef.harness.adapters import get_adapter
-from reef.harness.tasks.model_binding import ModelBinding, ModelBindings
-from reef.harness.tasks.run import run_task
-from reef.harness.tasks.vendor_install import AdapterProgram
-from reef.harness.tree import HarnessTree, render_tree
+from aster.evaluation.harness import TaskEvaluationWorker, TaskScorer
+from aster.evaluation.harness.runner import TaskRun
+from aster.execution.sandbox.config import build_executor
+from aster.execution.sandbox.e2b import E2BExecutor
+from aster.execution.sandbox.process import ProgramTimeout
+from aster.harness.adapters import get_adapter
+from aster.harness.tasks.model_binding import ModelBinding, ModelBindings
+from aster.harness.tasks.run import run_task
+from aster.harness.tasks.vendor_install import AdapterProgram
+from aster.harness.tree import HarnessTree, render_tree
 
-pytestmark = pytest.mark.skipif(os.environ.get("REEF_TEST_E2B") != "1", reason="opt-in paid E2B/OpenRouter test")
+pytestmark = pytest.mark.skipif(os.environ.get("ASTER_TEST_E2B") != "1", reason="opt-in paid E2B/OpenRouter test")
 
 
 def bound_files(binding: ModelBinding, adapter: str) -> dict[str, str]:
@@ -38,7 +38,7 @@ class MarkerScorer(TaskScorer):
     def score(self, task, result):
         for event in result.trajectory:
             message = event.get("message", event)
-            if message.get("role") == "assistant" and "REEF_E2B_OK" in str(message.get("content", "")):
+            if message.get("role") == "assistant" and "ASTER_E2B_OK" in str(message.get("content", "")):
                 return 1.0
         return 0.0
 
@@ -94,7 +94,7 @@ def test_real_agent_rollout_through_generic_executor(adapter, api, model_endpoin
     executor, _ = configured.for_program(AdapterProgram(descriptor))
     binding = ModelBinding(
         base_url=f"http://127.0.0.1:{model_endpoint}",
-        model=os.environ.get("REEF_E2B_TEST_MODEL", "openai/gpt-4.1-mini"),
+        model=os.environ.get("ASTER_E2B_TEST_MODEL", "openai/gpt-4.1-mini"),
         api_key="rollout-test",
         api=api,
         max_output_tokens=256,
@@ -102,14 +102,14 @@ def test_real_agent_rollout_through_generic_executor(adapter, api, model_endpoin
     result = run_task(
         descriptor,
         bound_files(binding, adapter),
-        "Reply exactly REEF_E2B_OK. Do not use tools.",
+        "Reply exactly ASTER_E2B_OK. Do not use tools.",
         executor=executor,
         timeout=180,
         keep_dir=tmp_path / "trajectory",
     )
     assert result.exit_code == 0, result.stderr[-2000:]
     assert result.trajectory, result.stdout[-2000:]
-    assert "REEF_E2B_OK" in result.stdout
+    assert "ASTER_E2B_OK" in result.stdout
     assert not result.residue
     assert any((tmp_path / "trajectory").rglob("*.jsonl"))
 
@@ -172,15 +172,15 @@ def test_the_evaluation_worker_scores_a_real_remote_rollout(model_endpoint, tmp_
     executor, _ = configured.for_program(AdapterProgram(descriptor))
     binding = ModelBinding(
         base_url=f"http://127.0.0.1:{model_endpoint}",
-        model=os.environ.get("REEF_E2B_TEST_MODEL", "openai/gpt-4.1-mini"),
+        model=os.environ.get("ASTER_E2B_TEST_MODEL", "openai/gpt-4.1-mini"),
         api_key="rollout-test",
         max_output_tokens=256,
     )
     scorer = MarkerScorer()
-    task = "Reply exactly REEF_E2B_OK. Do not use tools."
+    task = "Reply exactly ASTER_E2B_OK. Do not use tools."
     worker = TaskEvaluationWorker(descriptor, scorer, None, 180, executor, True)
     record_dir = tmp_path / "rollout"
     scored = worker.run(TaskRun(bound_files(binding, "pi"), task, record_dir), ModelBindings(binding))
     assert scored.score.value == 1.0 and scored.failure is None
-    assert scored.reply is not None and "REEF_E2B_OK" in scored.reply
+    assert scored.reply is not None and "ASTER_E2B_OK" in scored.reply
     assert (record_dir / "rollout.json").is_file()

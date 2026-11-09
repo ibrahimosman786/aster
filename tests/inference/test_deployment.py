@@ -4,9 +4,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from reef.core.errors import DeployConfigError
-from reef.inference import deployment
-from reef.inference.deployment import InferenceService
+from aster.core.errors import DeployConfigError
+from aster.inference import deployment
+from aster.inference.deployment import InferenceService
 
 
 class Receiver(InferenceService):
@@ -56,7 +56,7 @@ def test_receiver_factory_requires_explicit_service_inheritance():
 
 def test_installed_receiver_definition_is_selected_by_name(monkeypatch):
     def installed(*, group, name):
-        assert group == "reef.inference_backends"
+        assert group == "aster.inference_backends"
         assert name == "custom"
         return (SimpleNamespace(value=f"{__name__}:Receiver"),)
 

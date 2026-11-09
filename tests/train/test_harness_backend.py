@@ -29,20 +29,20 @@ from tests.support.harness_steps import (
     marker_score,
 )
 
-import reef.evaluation.harness.runner as harness_runner
-from reef.core.evaluation import RolloutScore
-from reef.core.job_data import TaskSample
-from reef.core.tasks import HarborTask, write_harbor_task
-from reef.core.training_request import TrainingRequest
-from reef.evaluation.harness import FloorPolicy, RunRecord
-from reef.harness.adapters import get_adapter
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tree import HarnessTree, TreePatch
-from reef.harness.tree.checks import RECORD_TEXT_CAP
-from reef.train.harness_backend import Workspace
-from reef.train.harness_backend.state import HarnessState
-from reef.train.harness_backend.workspace import StepOutput
-from reef.train.types import JobData, NoArtifactPublication, SavedArtifactPublication, TrainingCommit
+import aster.evaluation.harness.runner as harness_runner
+from aster.core.evaluation import RolloutScore
+from aster.core.job_data import TaskSample
+from aster.core.tasks import HarborTask, write_harbor_task
+from aster.core.training_request import TrainingRequest
+from aster.evaluation.harness import FloorPolicy, RunRecord
+from aster.harness.adapters import get_adapter
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tree import HarnessTree, TreePatch
+from aster.harness.tree.checks import RECORD_TEXT_CAP
+from aster.train.harness_backend import Workspace
+from aster.train.harness_backend.state import HarnessState
+from aster.train.harness_backend.workspace import StepOutput
+from aster.train.types import JobData, NoArtifactPublication, SavedArtifactPublication, TrainingCommit
 
 MARKER = TreePatch(changed_rules("marker rules\n"))
 PLAIN = TreePatch(changed_rules("plain rules\n"))
@@ -176,7 +176,7 @@ def test_a_harness_file_that_cannot_be_read_skips_the_step_and_the_state_still_c
 def test_a_state_that_cannot_be_committed_skips_the_step_and_keeps_the_previous_one(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, write, problem: str
 ) -> None:
-    monkeypatch.setattr("reef.train.harness_backend.workspace.MAX_STATE_BYTES", 16)
+    monkeypatch.setattr("aster.train.harness_backend.workspace.MAX_STATE_BYTES", 16)
 
     def step(workspace, services):
         write(workspace.state)
@@ -230,7 +230,7 @@ def test_the_workspace_holds_the_head_the_material_and_the_step_record(tmp_path:
         "path": "rules.md",
         "format": "text",
         "renders": "plugin/rules.md",
-        "holds": "the instructions that Reef's extension adds to pi's system prompt in every session",
+        "holds": "the instructions that Aster's extension adds to pi's system prompt in every session",
         "review": False,
     }
     step_dir = Path(result.metrics["step_record"])
@@ -494,7 +494,7 @@ def test_the_requires_a_method_adds_join_the_persons_in_the_commit(tmp_path: Pat
         {"name": "SMTP_HOST", "kind": "env"},
         # The person's item stands: a method only adds names.
         {"name": "TWILIO_SID", "kind": "env", "check": "OTHER_SID"},
-        {"name": "REEF_AWAY_PHONE", "kind": "env", "prompt": "The phone number to text, with the country code"},
+        {"name": "ASTER_AWAY_PHONE", "kind": "env", "prompt": "The phone number to text, with the country code"},
     )
     backend, _ = harness_backend(tmp_path, marking(requires=added))
     result = backend_step(backend, data(1, request=replace(REQUEST, requires=person)), HarnessState().to_json())

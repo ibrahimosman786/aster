@@ -9,11 +9,11 @@ from types import SimpleNamespace
 import pytest
 from tests.support._trajectories import policy_trajectory
 
-from reef.train.algos.schedule import StepScheduling
-from reef.train.slime_backend.algorithm import PolicyGradientWeight
-from reef.train.slime_backend.distill import DistillSettings
-from reef.train.slime_backend.reef_adapters.preparation import prepare_slime_job
-from reef.train.slime_backend.score_centering import (
+from aster.train.algos.schedule import StepScheduling
+from aster.train.slime_backend.algorithm import PolicyGradientWeight
+from aster.train.slime_backend.distill import DistillSettings
+from aster.train.slime_backend.aster_adapters.preparation import prepare_slime_job
+from aster.train.slime_backend.score_centering import (
     ROLLOUT_KEYS,
     TOPK_INDICES_KEY,
     TOPK_LOG_PROBS_KEY,
@@ -21,7 +21,7 @@ from reef.train.slime_backend.score_centering import (
     sampler_topk_columns,
     settings_from_args,
 )
-from reef.train.types import JobData
+from aster.train.types import JobData
 
 
 def log_probs_fixture(*probabilities: float) -> list[float]:
@@ -29,7 +29,7 @@ def log_probs_fixture(*probabilities: float) -> list[float]:
 
 
 def sao_args(**overrides: object) -> SimpleNamespace:
-    """The namespace fields ``configure_reef_loss_args`` reads for SAO with score centering on."""
+    """The namespace fields ``configure_aster_loss_args`` reads for SAO with score centering on."""
     values: dict[str, object] = {
         "loss_family": "sao",
         "custom_rollout_data_keys": None,
@@ -44,7 +44,7 @@ def sao_args(**overrides: object) -> SimpleNamespace:
         "eps_clip": 0.2,
         "eps_clip_high": 0.28,
         "advantage_estimator": "grpo",
-        "reef_configured_advantage_estimator": None,
+        "aster_configured_advantage_estimator": None,
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -79,12 +79,12 @@ def test_settings_reject_invalid_values(field: str, value: object) -> None:
 def test_flags_are_off_by_default_and_travel_onto_args() -> None:
     # slime_arguments imports the Megatron LoRA adapter, which needs torch.
     pytest.importorskip("torch")
-    from reef.train.slime_backend.reef_adapters.slime_arguments import add_reef_slime_arguments
+    from aster.train.slime_backend.aster_adapters.slime_arguments import add_aster_slime_arguments
 
     parser = argparse.ArgumentParser()
     # Slime's own parser registers the top-K.
     parser.add_argument("--score-centering-top-k", type=int, default=128)
-    parser = add_reef_slime_arguments(parser)
+    parser = add_aster_slime_arguments(parser)
     assert settings_from_args(parser.parse_args([])) is None
     args = parser.parse_args(["--score-centering", "--score-centering-top-k", "32"])
     assert settings_from_args(args) == ScoreCenteringSettings(top_k=32, min_tail_mass=1e-6)
@@ -93,22 +93,22 @@ def test_flags_are_off_by_default_and_travel_onto_args() -> None:
 @pytest.mark.unit
 def test_driver_adds_the_rollout_keys_for_a_family_that_declares_its_weight() -> None:
     pytest.importorskip("torch")
-    from reef.train.slime_backend.reef_adapters.slime_arguments import configure_reef_loss_args
+    from aster.train.slime_backend.aster_adapters.slime_arguments import configure_aster_loss_args
 
     args = sao_args()
-    configure_reef_loss_args(args)
+    configure_aster_loss_args(args)
     # SAO's own wire keys stay; the term's join them.
     assert args.custom_rollout_data_keys == ("action_masks", *ROLLOUT_KEYS)
-    assert args.reef_rollout_tensor_dtypes == {
+    assert args.aster_rollout_tensor_dtypes == {
         "action_masks": "int",
         TOPK_INDICES_KEY: "long",
         TOPK_LOG_PROBS_KEY: "float32",
     }
-    assert args.reef_external_batch_keys == ("action_masks", *ROLLOUT_KEYS)
-    assert set(ROLLOUT_KEYS) <= set(args.reef_rollout_log_skip_keys)
+    assert args.aster_external_batch_keys == ("action_masks", *ROLLOUT_KEYS)
+    assert set(ROLLOUT_KEYS) <= set(args.aster_rollout_log_skip_keys)
 
     off = sao_args(score_centering=False)
-    configure_reef_loss_args(off)
+    configure_aster_loss_args(off)
     assert off.custom_rollout_data_keys == ("action_masks",)
 
 
@@ -126,10 +126,10 @@ def test_driver_adds_the_rollout_keys_for_a_family_that_declares_its_weight() ->
 )
 def test_driver_refuses_what_the_term_cannot_correct(overrides: dict, message: str) -> None:
     pytest.importorskip("torch")
-    from reef.train.slime_backend.reef_adapters.slime_arguments import configure_reef_loss_args
+    from aster.train.slime_backend.aster_adapters.slime_arguments import configure_aster_loss_args
 
     with pytest.raises(RuntimeError, match=message):
-        configure_reef_loss_args(sao_args(**overrides))
+        configure_aster_loss_args(sao_args(**overrides))
 
 
 @pytest.mark.unit
@@ -137,8 +137,8 @@ def test_driver_refuses_what_the_term_cannot_correct(overrides: dict, message: s
 @pytest.mark.parametrize("cap", [0.0, 1.2])
 def test_driver_accepts_sampled_opd_and_ships_sampler_heads(family: str, cap: float) -> None:
     pytest.importorskip("torch")
-    from reef.train.slime_backend.loss_families import resolve_loss_family
-    from reef.train.slime_backend.reef_adapters.slime_arguments import configure_reef_loss_args
+    from aster.train.slime_backend.loss_families import resolve_loss_family
+    from aster.train.slime_backend.aster_adapters.slime_arguments import configure_aster_loss_args
 
     spec = resolve_loss_family(family)
     args = sao_args(loss_family=family)
@@ -150,13 +150,13 @@ def test_driver_accepts_sampled_opd_and_ships_sampler_heads(family: str, cap: fl
         importance_sampling_level="token",
     )
     spec.apply_driver_options(args, settings)
-    configure_reef_loss_args(args)
+    configure_aster_loss_args(args)
 
     expected = PolicyGradientWeight("none") if cap == 0 else PolicyGradientWeight("truncated", upper=cap)
     assert spec.policy_gradient_weight(args) == expected
-    assert set(ROLLOUT_KEYS) <= set(args.reef_external_batch_keys)
+    assert set(ROLLOUT_KEYS) <= set(args.aster_external_batch_keys)
     assert set(ROLLOUT_KEYS) <= set(args.custom_rollout_data_keys)
-    assert "distill_teacher_sampled_log_probs" in args.reef_external_batch_keys
+    assert "distill_teacher_sampled_log_probs" in args.aster_external_batch_keys
     assert spec.advantages == "forbidden"  # The teacher signal is computed inside the loss.
 
 
@@ -174,7 +174,7 @@ def test_driver_accepts_sampled_opd_and_ships_sampler_heads(family: str, cap: fl
 def test_driver_refuses_other_distillation_losses(changes: dict[str, object]) -> None:
     pytest.importorskip("torch")
     from recipes.sdft.slime import SdftAlgorithm, SdftSettings
-    from reef.train.slime_backend.reef_adapters.slime_arguments import configure_reef_loss_args
+    from aster.train.slime_backend.aster_adapters.slime_arguments import configure_aster_loss_args
 
     args = sao_args(loss_family="sdft")
     settings = SdftSettings(
@@ -187,10 +187,10 @@ def test_driver_refuses_other_distillation_losses(changes: dict[str, object]) ->
     )
     SdftAlgorithm().apply_driver_options(args, settings)
     with pytest.raises(RuntimeError, match="score centering for distillation requires"):
-        configure_reef_loss_args(args)
+        configure_aster_loss_args(args)
 
     args.score_centering = False
-    configure_reef_loss_args(args)  # Existing configurations remain valid when centering is off.
+    configure_aster_loss_args(args)  # Existing configurations remain valid when centering is off.
 
 
 @pytest.mark.unit
@@ -247,7 +247,7 @@ def wire_data(
 
 def attached(top_k: int, data: dict, payload: dict) -> dict:
     pytest.importorskip("torch")
-    from reef.train.slime_backend.score_centering.heads import attach_sampler_heads
+    from aster.train.slime_backend.score_centering.heads import attach_sampler_heads
 
     attach_sampler_heads(data, payload, ScoreCenteringSettings(top_k=top_k))
     return data
@@ -256,7 +256,7 @@ def attached(top_k: int, data: dict, payload: dict) -> dict:
 @pytest.mark.unit
 def test_bridge_keeps_the_first_top_k_entries_and_pads_untrained_positions() -> None:
     pytest.importorskip("torch")
-    from reef.train.slime_backend.score_centering.heads import PADDING_LOG_PROB
+    from aster.train.slime_backend.score_centering.heads import PADDING_LOG_PROB
 
     data = attached(2, *wire_data(loss_mask=[0, 1]))
     assert [ids.tolist() for ids in data[TOPK_INDICES_KEY]] == [[[0, 0], [9, 6]]]
@@ -315,7 +315,7 @@ def test_bridge_checks_alignment_only_against_recorded_rollout_log_probs() -> No
 @pytest.mark.unit
 def test_the_term_is_added_to_the_family_loss_and_reported(monkeypatch: pytest.MonkeyPatch) -> None:
     torch = pytest.importorskip("torch")
-    from reef.train.slime_backend.score_centering import term
+    from aster.train.slime_backend.score_centering import term
 
     seen: list[PolicyGradientWeight] = []
 

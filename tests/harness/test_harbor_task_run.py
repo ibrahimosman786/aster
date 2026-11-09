@@ -15,10 +15,10 @@ import pytest
 from aiohttp import web
 from harbor.models.agent.context import AgentContext
 
-from reef.evaluation.harness.evaluator import container_binding
-from reef.evaluation.harness.scoring import verifier_reward
-from reef.harness.adapters import get_adapter
-from reef.harness.harbor.agent import (
+from aster.evaluation.harness.evaluator import container_binding
+from aster.evaluation.harness.scoring import verifier_reward
+from aster.harness.adapters import get_adapter
+from aster.harness.harbor.agent import (
     CONTAINER_ROOT,
     AdapterAgent,
     TreeAgent,
@@ -28,10 +28,10 @@ from reef.harness.harbor.agent import (
     task_agent_tools,
     tree_agent,
 )
-from reef.harness.harbor.rollouts import RolloutRow, TaskLab
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tasks.run import TaskRunError
-from reef.harness.tasks.trajectory import failed_trial_error
+from aster.harness.harbor.rollouts import RolloutRow, TaskLab
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tasks.run import TaskRunError
+from aster.harness.tasks.trajectory import failed_trial_error
 
 SESSION_EVENT = {"type": "message", "message": {"role": "assistant", "content": [{"type": "text", "text": "391"}]}}
 
@@ -84,7 +84,7 @@ def test_the_agent_plays_the_task_in_its_container_and_the_verifier_reward_score
     assert (tmp_path / "kept" / "session.jsonl").is_file()
     (agent,) = lab.agents
     kwargs = agent["kwargs"]
-    assert agent["import_path"] == "reef.harness.harbor.agent:AdapterAgent"
+    assert agent["import_path"] == "aster.harness.harbor.agent:AdapterAgent"
     assert (kwargs["package"], kwargs["version"]) == (pi.install.package, pi.install.version)
     assert kwargs["argv"] == list(pi.argv) and kwargs["sessions"] == pi.trajectory_path
     # The run's environment points the agent at the root in the container, where the tree lands.
@@ -152,7 +152,7 @@ def test_the_python_adapter_installs_uv_and_runs_its_program_with_the_instructio
     assert f"curl -LsSf https://astral.sh/uv/{python.install.version}/install.sh" in install
     assert 'agent="$HOME/.local/bin/uv"' in run
     assert f"\"$agent\" run --script {CONTAINER_ROOT}/program/main.py 'Play the scene.'" in run
-    assert f"REEF_PROGRAM_SESSION_DIR={CONTAINER_ROOT}/program/sessions" in run
+    assert f"ASTER_PROGRAM_SESSION_DIR={CONTAINER_ROOT}/program/sessions" in run
 
 
 class BridgedContainer(RecordingEnvironment):
@@ -204,12 +204,12 @@ def test_a_bridged_agent_answers_the_relayed_calls_from_the_proxy_port_while_its
     container = asyncio.run(run())
     relay = next(command for command in container.commands if "relay.py" in command)
     assert "--tunnel-port 47811 --tunnel-host 127.0.0.1" in relay
-    assert container.uploads["/tmp/reef-relay/relay.py"].startswith('"""The relay a remote sandbox')
-    piece = json.loads(container.uploads["/tmp/reef-relay/replies/c1.json"])
+    assert container.uploads["/tmp/aster-relay/relay.py"].startswith('"""The relay a remote sandbox')
+    piece = json.loads(container.uploads["/tmp/aster-relay/replies/c1.json"])
     assert (piece["status"], piece["end"], piece["sequence"]) == (200, True, 0)
     assert json.loads(base64.b64decode(piece["data"])) == {"answer": "42?"}
     assert piece["headers"]["X-Model"] == "m"
-    assert any(command.endswith("c1 /tmp/reef-relay/replies/c1.json") for command in container.exchanges)
+    assert any(command.endswith("c1 /tmp/aster-relay/replies/c1.json") for command in container.exchanges)
 
 
 def test_a_tree_agent_bridges_the_port_of_its_loopback_binding(tmp_path: Path) -> None:
@@ -219,14 +219,14 @@ def test_a_tree_agent_bridges_the_port_of_its_loopback_binding(tmp_path: Path) -
     spec = tree_agent(
         python, api="openai", tree_dir=tmp_path / "tree", files_dir=tmp_path / "files", timeout=60.0, bridge=True
     )
-    kwargs = {**spec["kwargs"], "model": "m", "base_url": "http://127.0.0.1:8901", "api_key": "reef"}
+    kwargs = {**spec["kwargs"], "model": "m", "base_url": "http://127.0.0.1:8901", "api_key": "aster"}
     assert TreeAgent(tmp_path / "logs", **kwargs).bridge_port == 8901
 
 
 def test_a_container_reaches_a_loopback_model_route_at_the_agent_host() -> None:
-    route = ModelBinding(base_url="http://127.0.0.1:8901/reef/scenarios/s/evaluation", model="m")
+    route = ModelBinding(base_url="http://127.0.0.1:8901/aster/scenarios/s/evaluation", model="m")
     assert container_binding(route, "host.docker.internal").base_url == (
-        "http://host.docker.internal:8901/reef/scenarios/s/evaluation"
+        "http://host.docker.internal:8901/aster/scenarios/s/evaluation"
     )
     public = ModelBinding(base_url="https://api.example.com", model="m")
     assert container_binding(public, "host.docker.internal") == public

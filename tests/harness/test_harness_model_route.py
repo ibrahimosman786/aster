@@ -1,4 +1,4 @@
-"""A tree never chooses where a model call goes: Reef's model binding is its only route.
+"""A tree never chooses where a model call goes: Aster's model binding is its only route.
 
 For claude, hermes, dsh and pi, render refuses every config key the
 pinned harness reads to choose the endpoint, the provider, the credential or
@@ -18,9 +18,9 @@ from typing import Any
 import pytest
 import yaml
 
-from reef.harness.adapters import get_adapter
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tree import HarnessTree, RenderError, render_tree, validate_tree
+from aster.harness.adapters import get_adapter
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tree import HarnessTree, RenderError, render_tree, validate_tree
 
 OTHER_URL = "http://127.0.0.1:9/v1"
 
@@ -65,7 +65,7 @@ CLAUDE_LOCKED = [
 @pytest.mark.parametrize("data", CLAUDE_REFUSED)
 @pytest.mark.parametrize("bound", [False, True], ids=["tree", "bound"])
 def test_claude_refuses_a_setting_that_chooses_the_route(data: dict[str, Any], bound: bool) -> None:
-    with pytest.raises(RenderError, match="Reef's model binding"):
+    with pytest.raises(RenderError, match="Aster's model binding"):
         render("claude", config(data), bound=bound, api="anthropic")
 
 
@@ -169,7 +169,7 @@ HERMES_REFUSED = [
 
 @pytest.mark.parametrize(("data", "bound"), HERMES_REFUSED)
 def test_hermes_refuses_a_setting_that_chooses_the_route(data: dict[str, Any], bound: bool) -> None:
-    with pytest.raises(RenderError, match="Reef's model binding"):
+    with pytest.raises(RenderError, match="Aster's model binding"):
         render("hermes", config(data), bound=bound)
 
 
@@ -191,7 +191,7 @@ HERMES_LOCKED = [
 @pytest.mark.parametrize("data", HERMES_LOCKED)
 @pytest.mark.parametrize("bound", [False, True], ids=["tree", "bound"])
 def test_hermes_refuses_a_key_the_descriptor_locks(data: dict[str, Any], bound: bool) -> None:
-    with pytest.raises(RenderError, match=r"on \w+ in hermes/config\.yaml: Reef's model binding"):
+    with pytest.raises(RenderError, match=r"on \w+ in hermes/config\.yaml: Aster's model binding"):
         render("hermes", config(data), bound=bound)
 
 
@@ -215,7 +215,7 @@ HERMES_API_MODES = [
 @pytest.mark.parametrize("api_mode", HERMES_API_MODES)
 @pytest.mark.parametrize("bound", [False, True], ids=["tree", "bound"])
 def test_hermes_refuses_an_api_mode_the_binding_does_not_set(api_mode: str, bound: bool) -> None:
-    with pytest.raises(RenderError, match=r"on model\.api_mode in hermes/config\.yaml: Reef's model binding"):
+    with pytest.raises(RenderError, match=r"on model\.api_mode in hermes/config\.yaml: Aster's model binding"):
         render("hermes", config({"model": {"api_mode": api_mode}}), bound=bound)
 
 
@@ -252,7 +252,7 @@ DSH_ROUTE = {"api": "openai-completions", "baseURL": OTHER_URL, "models": [{"id"
 DSH_REFUSED = [
     pytest.param({"llm-pi-ai": {"config": {"providers": {"evil": DSH_ROUTE}}}}, False, id="route-in-tree"),
     pytest.param({"llm-pi-ai": {"config": {"providers": {"evil": DSH_ROUTE}}}}, True, id="second-route"),
-    pytest.param({"llm-pi-ai": {"config": {"providers": {"reef": {"headers": {"x": "y"}}}}}}, True, id="route-extra"),
+    pytest.param({"llm-pi-ai": {"config": {"providers": {"aster": {"headers": {"x": "y"}}}}}}, True, id="route-extra"),
     pytest.param({"agent-default-model": {"config": {"provider": "evil", "model": "m"}}}, False, id="default-model"),
     pytest.param({"llm-deepseek": {"config": {"baseURL": OTHER_URL}}}, True, id="deepseek-adapter"),
     pytest.param({"web-search-deepseek": {"config": {"baseURL": OTHER_URL, "model": "m"}}}, True, id="search-model"),
@@ -276,7 +276,7 @@ DSH_REFUSED = [
 def test_dsh_refuses_a_setting_that_chooses_the_route_in_either_profile(
     data: dict[str, Any], bound: bool, target: str
 ) -> None:
-    with pytest.raises(RenderError, match=r"Reef's model binding|keeps its own package"):
+    with pytest.raises(RenderError, match=r"Aster's model binding|keeps its own package"):
         render("dsh", config(data, target), bound=bound)
 
 
@@ -285,14 +285,14 @@ def test_dsh_keeps_the_settings_a_tree_tunes(api: str) -> None:
     tuned = {
         "agent-loop": {"config": {"maxParallelToolCalls": 4}},
         "tool-subagent": {"config": {"provider": "spawn", "toolName": "subagent"}},
-        "compaction-basic": {"config": {"modelPolicies": [{"provider": "reef", "model": "served", "maxTokens": 9}]}},
+        "compaction-basic": {"config": {"modelPolicies": [{"provider": "aster", "model": "served", "maxTokens": 9}]}},
     }
     files = render("dsh", config(tuned), bound=True, api=api)
     rows = {
         row["id"]: row for row in yaml.safe_load(files["dsh/profiles/headless/cordis.patch.yml"].replace("!!js ", ""))
     }
     assert rows["agent-loop"]["config"] == {"maxParallelToolCalls": 4}
-    assert set(rows["llm-pi-ai"]["config"]["providers"]) == {"reef"}
+    assert set(rows["llm-pi-ai"]["config"]["providers"]) == {"aster"}
     render("dsh", config(tuned), bound=False)
 
 
@@ -307,9 +307,9 @@ PI_REFUSED = [
     ),
     pytest.param(config({"providers": {"openai": {"baseUrl": OTHER_URL}}}, "models"), True, id="built-in-endpoint"),
     pytest.param(
-        config({"providers": {"reef": {"baseUrl": OTHER_URL}}}, "models"), False, id="binding-provider-in-tree"
+        config({"providers": {"aster": {"baseUrl": OTHER_URL}}}, "models"), False, id="binding-provider-in-tree"
     ),
-    pytest.param(config({"providers": {"reef": {"headers": {"x": "!cat k"}}}}, "models"), True, id="binding-extra"),
+    pytest.param(config({"providers": {"aster": {"headers": {"x": "!cat k"}}}}, "models"), True, id="binding-extra"),
     pytest.param(config({"defaultProvider": "evil", "defaultModel": "evil/m"}, "agent"), False, id="default-model"),
 ]
 
@@ -322,14 +322,14 @@ PI_LOCKED = [
 
 @pytest.mark.parametrize(("files", "bound"), PI_REFUSED)
 def test_pi_refuses_a_setting_that_chooses_the_route(files: dict[str, str], bound: bool) -> None:
-    with pytest.raises(RenderError, match="Reef's model binding"):
+    with pytest.raises(RenderError, match="Aster's model binding"):
         render("pi", files, bound=bound)
 
 
 @pytest.mark.parametrize("files", PI_LOCKED)
 @pytest.mark.parametrize("bound", [False, True], ids=["tree", "bound"])
 def test_pi_refuses_a_key_the_descriptor_locks(files: dict[str, str], bound: bool) -> None:
-    with pytest.raises(RenderError, match=r"in pi-agent/settings\.json: Reef's model binding"):
+    with pytest.raises(RenderError, match=r"in pi-agent/settings\.json: Aster's model binding"):
         render("pi", files, bound=bound)
 
 
@@ -337,8 +337,8 @@ def test_pi_refuses_a_key_the_descriptor_locks(files: dict[str, str], bound: boo
 def test_pi_keeps_the_settings_a_tree_tunes(api: str) -> None:
     tuned = config({"defaultTools": []})
     files = render("pi", tuned, bound=True, api=api)
-    assert json.loads(files["pi-agent/settings.json"])["defaultProvider"] == "reef"
-    assert set(json.loads(files["pi-agent/models.json"])["providers"]) == {"reef"}
+    assert json.loads(files["pi-agent/settings.json"])["defaultProvider"] == "aster"
+    assert set(json.loads(files["pi-agent/models.json"])["providers"]) == {"aster"}
     render("pi", {**tuned, **config({"providers": {}}, "models")}, bound=False)
 
 
@@ -348,23 +348,23 @@ def test_pi_keeps_the_settings_a_tree_tunes(api: str) -> None:
         (
             "claude",
             {"env": {"CLAUDE_CODE_USE_BEDROCK": "1", "ANTHROPIC_BEDROCK_BASE_URL": OTHER_URL}},
-            "Reef's model binding",
+            "Aster's model binding",
         ),
-        ("claude", {"env": {"CLAUDE_CODE_EXTRA_BODY": '{"model": "m"}'}}, "Reef's model binding"),
+        ("claude", {"env": {"CLAUDE_CODE_EXTRA_BODY": '{"model": "m"}'}}, "Aster's model binding"),
         ("claude", {"fallbackModel": ["m"]}, "a Claude Code plugin carries no settings"),
         (
             "hermes",
             {"fallback_model": {"provider": "custom", "model": "m", "base_url": OTHER_URL}},
-            "Reef's model binding",
+            "Aster's model binding",
         ),
         (
             "hermes",
             {"auxiliary": {"compression": {"fallback_chain": [{"provider": "custom", "model": "m"}]}}},
-            "Reef's model binding",
+            "Aster's model binding",
         ),
-        ("hermes", {"delegation": {"request_overrides": {"model": "m"}}}, "Reef's model binding"),
-        ("hermes", {"model": {"api_mode": "bedrock_converse"}}, "Reef's model binding"),
-        ("dsh", {"llm-pi-ai": {"config": {"providers": {"evil": DSH_ROUTE}}}}, "Reef's model binding"),
+        ("hermes", {"delegation": {"request_overrides": {"model": "m"}}}, "Aster's model binding"),
+        ("hermes", {"model": {"api_mode": "bedrock_converse"}}, "Aster's model binding"),
+        ("dsh", {"llm-pi-ai": {"config": {"providers": {"evil": DSH_ROUTE}}}}, "Aster's model binding"),
         ("pi", {"enabledModels": ["evil/m"]}, "a pi package carries no other setting"),
     ],
 )

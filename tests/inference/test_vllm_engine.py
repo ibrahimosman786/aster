@@ -1,4 +1,4 @@
-"""The vLLM engine actor maps Reef's control vocabulary onto vLLM's HTTP routes."""
+"""The vLLM engine actor maps Aster's control vocabulary onto vLLM's HTTP routes."""
 
 from __future__ import annotations
 
@@ -7,9 +7,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from reef.inference.vllm import engine as engine_module
-from reef.inference.vllm.config import REEF_CONNECTOR_CONFIG, VLLMConfig
-from reef.inference.vllm.engine import ReefVLLMEngine
+from aster.inference.vllm import engine as engine_module
+from aster.inference.vllm.config import ASTER_CONNECTOR_CONFIG, VLLMConfig
+from aster.inference.vllm.engine import AsterVLLMEngine
 
 
 class FakeHTTP:
@@ -49,12 +49,12 @@ def engine(monkeypatch):
     monkeypatch.setattr(engine_module.requests, "get", http.get)
     monkeypatch.setattr(engine_module.requests, "post", http.post)
     config = VLLMConfig("model", 2, 2, 8, options={"max-model-len": 4096, "enable_lora": True})
-    engine = ReefVLLMEngine(config, rank=0, gpu_ids=(6, 7))
+    engine = AsterVLLMEngine(config, rank=0, gpu_ids=(6, 7))
     engine.server_host, engine.server_port = "10.0.0.5", 18900
     return engine, http
 
 
-def test_server_command_line_carries_placement_reef_requirements_then_options(engine):
+def test_server_command_line_carries_placement_aster_requirements_then_options(engine):
     engine, _ = engine
     arguments = engine.server_arguments("[10.0.0.5]", 18900)
     assert arguments[:6] == ["--host", "10.0.0.5", "--port", "18900", "--tensor-parallel-size", "2"]
@@ -62,23 +62,23 @@ def test_server_command_line_carries_placement_reef_requirements_then_options(en
     assert arguments[arguments.index("--max-model-len") + 1] == "4096"
     assert "--enable-lora" in arguments
     assert "--no-enable-prefix-caching" in arguments
-    assert json.loads(arguments[arguments.index("--kv-transfer-config") + 1]) == REEF_CONNECTOR_CONFIG
+    assert json.loads(arguments[arguments.index("--kv-transfer-config") + 1]) == ASTER_CONNECTOR_CONFIG
     environment = engine.server_environment()
     assert environment["CUDA_VISIBLE_DEVICES"] == "6,7"
     assert environment["VLLM_ALLOW_RUNTIME_LORA_UPDATING"] == "1"
     with pytest.raises(ValueError, match="needs 2 GPUs"):
-        ReefVLLMEngine(engine.config, rank=1, gpu_ids=(3,))
+        AsterVLLMEngine(engine.config, rank=1, gpu_ids=(3,))
 
 
 def test_version_round_trips_through_vllm_weight_routes(engine):
     engine, http = engine
     http.answer({"weight_version": "default"})
     assert engine.get_runtime_load_id() == "default"
-    http.answer({"success": True, "new_version": "reef:1"})
-    assert engine.set_runtime_load_id("reef:1")["new_version"] == "reef:1"
+    http.answer({"success": True, "new_version": "aster:1"})
+    assert engine.set_runtime_load_id("aster:1")["new_version"] == "aster:1"
     assert http.calls == [
         ("GET", "weight_info", None, None),
-        ("POST", "update_weight_version", None, {"new_version": "reef:1"}),
+        ("POST", "update_weight_version", None, {"new_version": "aster:1"}),
     ]
     http.answer({})
     with pytest.raises(RuntimeError, match="no weight_version"):
@@ -111,8 +111,8 @@ def test_pause_keeps_requests_and_retract_also_frees_their_kv(engine):
 def test_weights_reload_and_adapters_report_vllm_answers(engine):
     engine, http = engine
     http.answer({"results": [None]})
-    http.answer({"success": True, "new_version": "reef:2"})
-    engine.update_weights_from_disk("/ckpt/step-2", runtime_load_id="reef:2")
+    http.answer({"success": True, "new_version": "aster:2"})
+    engine.update_weights_from_disk("/ckpt/step-2", runtime_load_id="aster:2")
     http.answer(text="Success: LoRA adapter 'a' added successfully.")
     assert engine.load_lora_adapter_from_disk("a", "/ckpt/adapter") == {
         "success": True,
@@ -122,7 +122,7 @@ def test_weights_reload_and_adapters_report_vllm_answers(engine):
     assert engine.unload_lora_adapter("b")["success"] is False
     assert http.calls[:2] == [
         ("POST", "collective_rpc", None, {"method": "reload_weights", "kwargs": {"weights_path": "/ckpt/step-2"}}),
-        ("POST", "update_weight_version", None, {"new_version": "reef:2"}),
+        ("POST", "update_weight_version", None, {"new_version": "aster:2"}),
     ]
     assert http.calls[2][1:] == ("v1/load_lora_adapter", None, {"lora_name": "a", "lora_path": "/ckpt/adapter"})
     http.answer({"detail": "engine busy"}, status=503)
@@ -134,7 +134,7 @@ def test_server_process_stays_in_the_actor_session_and_shutdown_kills_the_tree(m
     import subprocess
     import sys
 
-    from reef.inference.vllm import process as process_module
+    from aster.inference.vllm import process as process_module
 
     captured = {}
     real_popen = subprocess.Popen
@@ -167,7 +167,7 @@ def test_init_launches_the_server_and_waits_for_its_health_route(monkeypatch):
         engine_module, "wait_ready", lambda url, proc, timeout, path: waited.append((url, proc, timeout, path))
     )
     monkeypatch.setattr(engine_module, "check_server_owner", lambda *args: waited.append(args))
-    engine = ReefVLLMEngine(VLLMConfig("model", 1, 1, 1, startup_timeout=7), rank=0, gpu_ids=(0,))
+    engine = AsterVLLMEngine(VLLMConfig("model", 1, 1, 1, startup_timeout=7), rank=0, gpu_ids=(0,))
     engine.init("10.0.0.5", 18900)
     assert engine.get_url() == "http://10.0.0.5:18900"
     assert launched[0][0] == "model" and launched[0][2]["CUDA_VISIBLE_DEVICES"] == "0"

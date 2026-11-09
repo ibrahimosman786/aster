@@ -18,7 +18,7 @@ from recipes.openclawrl.examples.openclawrl.user_sim.personas import (
 )
 from recipes.openclawrl.judging import OpenClawRLJudgingSettings
 from recipes.openclawrl.processor import OpenClawRLJobSettings, OpenClawRLSamples
-from reef.train.pipeline import TrainingPipeline
+from aster.train.pipeline import TrainingPipeline
 
 CLEAN_REPLY = """Sure, here is the working.
 
@@ -97,7 +97,7 @@ class _FakeWorker:
 def _judged_turns(processor, worker, artifact_ids: list[str], score: float = 1.0) -> None:
     """One single-turn session per producing artifact entry, judged with ``score``."""
     from recipes.openclawrl.turns import TurnJudgment
-    from reef.core.records_types import AgentRecord, RequestType
+    from aster.core.records_types import AgentRecord, RequestType
 
     for index, artifact_id in enumerate(artifact_ids):
         first = [{"role": "user", "content": f"q-{index}"}]
@@ -132,7 +132,7 @@ def _judged_turns(processor, worker, artifact_ids: list[str], score: float = 1.0
 @pytest.mark.unit
 def test_openclawrl_processor_drops_unfillable_stale_artifact_candidates() -> None:
     from recipes.openclawrl import OpenClawRLJobData
-    from reef.pipeline_context import PipelineContext
+    from aster.pipeline_context import PipelineContext
 
     worker = _FakeWorker()
     context = PipelineContext("s")
@@ -157,7 +157,7 @@ def test_openclawrl_processor_drops_unfillable_stale_artifact_candidates() -> No
 @pytest.mark.unit
 def test_openclawrl_processor_keeps_single_artifact_queue_intact() -> None:
     from recipes.openclawrl import OpenClawRLJobData
-    from reef.pipeline_context import PipelineContext
+    from aster.pipeline_context import PipelineContext
 
     worker = _FakeWorker()
     context = PipelineContext("s")

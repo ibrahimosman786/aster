@@ -17,11 +17,11 @@ from typing import Any
 import pytest
 from tests.support._trajectories import policy_trajectory
 
-from reef.core.trajectories import source_record_id
-from reef.train.slime_backend.data_builder import to_slime_rollout_data
-from reef.train.slime_backend.distill import DistillAlgorithm, DistillSettings, settings_from_args
-from reef.train.slime_backend.loss_families import register_loss_family, resolve_loss_family, unregister_loss_family
-from reef.train.types import TrajectorySample
+from aster.core.trajectories import source_record_id
+from aster.train.slime_backend.data_builder import to_slime_rollout_data
+from aster.train.slime_backend.distill import DistillAlgorithm, DistillSettings, settings_from_args
+from aster.train.slime_backend.loss_families import register_loss_family, resolve_loss_family, unregister_loss_family
+from aster.train.types import TrajectorySample
 
 STUDENT_TOKENS = [5, 6, 7, 1, 2, 3]  # three prompt ids, three response ids
 STUDENT_LOSS_MASK = [1, 1, 1]
@@ -264,15 +264,15 @@ def test_the_payload_rejects_a_teacher_sequence_that_does_not_end_with_the_respo
 @pytest.mark.unit
 def test_the_base_registers_no_family_and_imports_no_adapters() -> None:
     # The base is backend machinery: recipes register their families on it,
-    # and it stays family-blind toward reef_adapters like the rest of the backend contract.
-    package = Path(__file__).resolve().parents[2] / "reef" / "train" / "slime_backend" / "distill"
+    # and it stays family-blind toward aster_adapters like the rest of the backend contract.
+    package = Path(__file__).resolve().parents[2] / "aster" / "train" / "slime_backend" / "distill"
     for path in sorted(package.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and node.module:
-                assert "reef_adapters" not in node.module, path
-                assert node.module != "reef.train.slime_backend.loss_families", path
+                assert "aster_adapters" not in node.module, path
+                assert node.module != "aster.train.slime_backend.loss_families", path
             if isinstance(node, ast.Import):
-                assert all("reef_adapters" not in alias.name for alias in node.names), path
+                assert all("aster_adapters" not in alias.name for alias in node.names), path
     with pytest.raises(Exception, match="available families"):
         resolve_loss_family("distill")

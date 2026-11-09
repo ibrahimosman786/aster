@@ -31,10 +31,10 @@ from tests.support.harness_render import (
 )
 from tests.support.harness_steps import build_harness_backend, head_of
 
-from reef.evaluation.harness import ComparePolicy, EvaluationSettings, NoEvaluationPolicy
-from reef.execution.sandbox.process import SandboxExecutor
-from reef.harness.adapters import available_adapters, get_adapter
-from reef.harness.runners.native import (
+from aster.evaluation.harness import ComparePolicy, EvaluationSettings, NoEvaluationPolicy
+from aster.execution.sandbox.process import SandboxExecutor
+from aster.harness.adapters import available_adapters, get_adapter
+from aster.harness.runners.native import (
     _DEFAULTS,
     MAX_COMPLETION_TOKENS,
     MAX_RESULT_CHARS,
@@ -50,19 +50,19 @@ from reef.harness.runners.native import (
     load_tools,
     run_loop,
 )
-from reef.harness.runners.native.enforce import BwrapEnforcer
-from reef.harness.runners.native.graph import SEED_GRAPH
-from reef.harness.runners.native.host import NativeHost
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tasks.run import run_task
-from reef.harness.tasks.trajectory import reader_for
-from reef.harness.tree import HarnessTree, RenderError, TreePatch, render_tree, validate_tree
-from reef.harness.tree.checks import validate_native_agent, validate_native_graph
-from reef.inference.http import InferenceProxyRuntime
-from reef.recipe.harness import EvolutionSettings, HarnessEvolutionRecipe
-from reef.train.harness_backend.backend import HarnessBackend
-from reef.train.harness_backend.state import HarnessState
-from reef.train.types import JobData
+from aster.harness.runners.native.enforce import BwrapEnforcer
+from aster.harness.runners.native.graph import SEED_GRAPH
+from aster.harness.runners.native.host import NativeHost
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tasks.run import run_task
+from aster.harness.tasks.trajectory import reader_for
+from aster.harness.tree import HarnessTree, RenderError, TreePatch, render_tree, validate_tree
+from aster.harness.tree.checks import validate_native_agent, validate_native_graph
+from aster.inference.http import InferenceProxyRuntime
+from aster.recipe.harness import EvolutionSettings, HarnessEvolutionRecipe
+from aster.train.harness_backend.backend import HarnessBackend
+from aster.train.harness_backend.state import HarnessState
+from aster.train.types import JobData
 
 NATIVE = get_adapter("native")
 SHOUT_PARAMETERS = {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}
@@ -178,15 +178,15 @@ def fake_model():
 
 
 def _launcher(tmp_path: Path) -> str:
-    """The run binary: this interpreter running the native loop, like an installed reef-native.
+    """The run binary: this interpreter running the native loop, like an installed aster-native.
 
     The child gets no PYTHONPATH from the run engine, so the source
     checkout is put on sys.path the way pytest does for this process."""
     root = Path(__file__).resolve().parents[2]
-    path = tmp_path / "reef-native"
+    path = tmp_path / "aster-native"
     path.write_text(
         f"#!{sys.executable}\nimport sys\nsys.path.insert(0, {str(root)!r})\n"
-        "from reef.harness.runners.native import main\nsys.exit(main())\n"
+        "from aster.harness.runners.native import main\nsys.exit(main())\n"
     )
     path.chmod(0o755)
     return str(path)
@@ -238,7 +238,7 @@ def fake_bwrap(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, body: str) -> No
     (fake / "bwrap").write_text(f"#!{sys.executable}\n{body}")
     (fake / "bwrap").chmod(0o755)
     monkeypatch.setenv("PATH", f"{fake}{os.pathsep}{os.environ.get('PATH', '')}")
-    monkeypatch.setenv("REEF_NATIVE_ENFORCE", "bwrap")
+    monkeypatch.setenv("ASTER_NATIVE_ENFORCE", "bwrap")
 
 
 #: A bwrap that only runs the command after "--": it stands in for the jail, so a test checks the loop's side.
@@ -268,7 +268,7 @@ def problems(files, descriptor=NATIVE) -> tuple[str, ...]:
 
 def test_native_adapter_is_bundled_and_renders_tool_files_as_written() -> None:
     assert "native" in available_adapters()
-    assert NATIVE.binary == "reef-native" and NATIVE.trajectory_format == "native-jsonl"
+    assert NATIVE.binary == "aster-native" and NATIVE.trajectory_format == "native-jsonl"
     # The session directory is the one path the sandbox opens, so the loop can write its log inside the jail.
     assert NATIVE.writable_paths == ("native", "native/sessions") and NATIVE.trajectory_path == "native/sessions"
     files = render_tree(HarnessTree({"rules.md": "Be brief.", **TOOL, **HOOK}), NATIVE)
@@ -444,15 +444,15 @@ def test_tool_results_carry_closed_error_codes_and_validate_arguments(tmp_path: 
     assert len(long["content"]) == MAX_RESULT_CHARS and long["meta"]["truncated"] is True
     # With a full output path the whole result lands on disk and the model reads head, marker, and tail within the cap.
     saved_output = _invoke(
-        tools, "shout", '{"text": "long"}', tmp_path, full_output_path=tmp_path / ".reef" / "tool-output" / "1-c1.txt"
+        tools, "shout", '{"text": "long"}', tmp_path, full_output_path=tmp_path / ".aster" / "tool-output" / "1-c1.txt"
     )
-    assert (tmp_path / ".reef" / "tool-output" / "1-c1.txt").read_text() == "x" * (MAX_RESULT_CHARS + 5)
+    assert (tmp_path / ".aster" / "tool-output" / "1-c1.txt").read_text() == "x" * (MAX_RESULT_CHARS + 5)
     assert (
         saved_output["meta"]["truncated"] is True
-        and saved_output["meta"]["output_file"] == ".reef/tool-output/1-c1.txt"
+        and saved_output["meta"]["output_file"] == ".aster/tool-output/1-c1.txt"
     )
     assert len(saved_output["content"]) <= MAX_RESULT_CHARS
-    assert "[5 characters omitted; the full result is in .reef/tool-output/1-c1.txt]" in saved_output["content"]
+    assert "[5 characters omitted; the full result is in .aster/tool-output/1-c1.txt]" in saved_output["content"]
     assert saved_output["content"].startswith("x" * 100) and saved_output["content"].endswith(
         "x" * TOOL_OUTPUT_TAIL_CHARS
     )
@@ -672,9 +672,9 @@ def test_a_long_tool_result_is_saved_under_the_workspace(tmp_path: Path) -> None
         result = loop_turn(tmp_path, rendered(model, {**NATIVE_SEED_TOOLS, **dump}))
     assert result.exit_code == 0
     logged = _events(result.trajectory, "tool/result")[0]["data"]
-    assert logged["meta"]["output_file"] == ".reef/tool-output/1-c1.txt" and logged["meta"]["truncated"] is True
+    assert logged["meta"]["output_file"] == ".aster/tool-output/1-c1.txt" and logged["meta"]["truncated"] is True
     assert len(logged["content"]) <= MAX_RESULT_CHARS
-    assert "[5000 characters omitted; the full result is in .reef/tool-output/1-c1.txt]" in logged["content"]
+    assert "[5000 characters omitted; the full result is in .aster/tool-output/1-c1.txt]" in logged["content"]
     # The clipped content is what the model read on its next request.
     assert model.requests[1]["messages"][-1] == {"role": "tool", "tool_call_id": "c1", "content": logged["content"]}
 
@@ -1039,7 +1039,7 @@ def test_random_admitted_graphs_terminate_within_the_transition_bound(tmp_path: 
     """Property: any graph admission accepts ends within (max_steps + 1) * 16 transitions, whatever the model does."""
     import random
 
-    from reef.harness.runners.native import graph as graphs
+    from aster.harness.runners.native import graph as graphs
 
     rng = random.Random(7)
     texts = ("a", "b", "c")
@@ -1304,7 +1304,7 @@ def test_a_compact_stage_summarizes_the_older_span_and_logs_the_policy(tmp_path:
 
 
 def test_a_compact_stage_below_the_ratio_or_without_a_summary_drops_nothing(tmp_path: Path) -> None:
-    from reef.harness.runners.native import graph as graphs
+    from aster.harness.runners.native import graph as graphs
 
     messages = [{"role": "system", "content": "s"}, {"role": "user", "content": "t"}]
     for i in range(6):
@@ -1384,11 +1384,11 @@ def test_the_loop_runs_every_call_through_the_enforcer_the_environment_names(
         return [json.loads(line) for line in (tmp_path / name / "session.jsonl").read_text().splitlines()]
 
     # A mode the loop has no enforcer for is a load error, not a run with nothing enforced.
-    monkeypatch.setenv("REEF_NATIVE_ENFORCE", "seccomp")
+    monkeypatch.setenv("ASTER_NATIVE_ENFORCE", "seccomp")
     assert run_loop(task, root, tmp_path / "s1", work) == 1
     assert session("s1")[-1]["data"]["reason"]["error"] == {
         "code": "LOAD_ERROR",
-        "message": "REEF_NATIVE_ENFORCE='seccomp' names no enforcer; use none or bwrap",
+        "message": "ASTER_NATIVE_ENFORCE='seccomp' names no enforcer; use none or bwrap",
     }
     fake_bwrap(tmp_path, monkeypatch, PASS_THROUGH_BWRAP)
     assert run_loop(task, root, tmp_path / "s2", work) == 0
@@ -1631,7 +1631,7 @@ def test_a_subagent_stage_runs_the_agent_in_its_own_session_and_hands_its_text_b
         checker_request = next(r for r in model.requests if "You are the checker" in r["messages"][0]["content"])
         assert [t["function"]["name"] for t in checker_request["tools"]] == ["read_file"]
         # Per agent work, as the verdict will carry it.
-        from reef.harness.tasks.trajectory import agent_work
+        from aster.harness.tasks.trajectory import agent_work
 
         assert agent_work(result.trajectory) == {
             "checker": {
@@ -1787,7 +1787,7 @@ def test_a_tool_modules_top_level_runs_nowhere_when_the_tree_loads(tmp_path: Pat
         {"type": "function", "function": {"name": "probe", "description": description, "parameters": parameters}}
     ]
     # The in process enforcer loads through the same static read.
-    monkeypatch.delenv("REEF_NATIVE_ENFORCE")
+    monkeypatch.delenv("ASTER_NATIVE_ENFORCE")
     assert run_loop(task, root / "native", tmp_path / "s2", work) == 0
     assert not marker.exists()
 
@@ -1860,7 +1860,7 @@ def test_a_tool_whose_top_level_exits_fails_each_call_and_the_turn_ends(tmp_path
 def test_a_builtin_tool_runs_in_process_whatever_enforcer_is_named(tmp_path: Path) -> None:
     tools = {
         "harness_inspect": ToolModule(
-            "harness_inspect", "reef's own", {}, _ConstantToolRun("tree"), builtin_tool=True
+            "harness_inspect", "aster's own", {}, _ConstantToolRun("tree"), builtin_tool=True
         ),
         "shout": ToolModule("shout", "the tree's", {}, _ConstantToolRun("loud")),
     }
@@ -1901,7 +1901,7 @@ def test_the_binding_rides_in_the_run_render_and_the_published_tree_is_the_sourc
 
 
 def test_bounded_search_answers_ordinary_patterns_and_gives_up_on_one_that_never_finishes() -> None:
-    from reef.harness.runners.native.graph import bounded_search
+    from aster.harness.runners.native.graph import bounded_search
 
     assert bounded_search(r"-?\d+(\.\d+)?", "the answer is 9592.5") is True
     assert bounded_search(r"^\s*(yes|no)\s*$", "maybe") is False
@@ -1933,7 +1933,7 @@ def test_bounded_search_answers_ordinary_patterns_and_gives_up_on_one_that_never
 def test_a_search_with_no_answer_is_a_miss_named_in_the_stage_detail(tmp_path: Path, monkeypatch) -> None:
     """A pattern that never finishes, in a branch case and in a verify check: the turn goes on, the case does not
     hold, the check fails, and each stage's detail says why; a child that cannot start reads the same way."""
-    from reef.harness.runners.native import graph as graphs
+    from aster.harness.runners.native import graph as graphs
 
     class _LongA(_FakeModel):
         def script(self, body: dict) -> dict:

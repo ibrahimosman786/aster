@@ -18,13 +18,13 @@ from typing import Any
 
 from tests.support.harness_steps import make_pi_binary
 
-from reef.evaluation.harness import TaskScorer
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tasks.run import TaskResult
-from reef.harness.tree import HarnessTree
-from reef.inference.http import InferenceProxyRuntime
-from reef.recipe.harness import HarnessEvolutionRecipe
-from reef.recipe.registry import build_recipe
+from aster.evaluation.harness import TaskScorer
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tasks.run import TaskResult
+from aster.harness.tree import HarnessTree
+from aster.inference.http import InferenceProxyRuntime
+from aster.recipe.harness import HarnessEvolutionRecipe
+from aster.recipe.registry import build_recipe
 
 #: What the scorer looks for in the rules a run completed with.
 MARKER = "META-HARNESS-WINNER"
@@ -81,7 +81,7 @@ def meta_harness_sections(tmp_path: Path, *, adapter: str = "pi", **method: Any)
     if not seed.exists():
         SEED.write(seed)
     return {
-        "implementation": "reef.recipe.harness:HarnessEvolutionRecipe",
+        "implementation": "aster.recipe.harness:HarnessEvolutionRecipe",
         "model": {"path": "served-model"},
         "evolution": {
             "adapter": adapter,

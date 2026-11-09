@@ -20,17 +20,17 @@ import pytest
 from tests.support.harness_service import backend_step
 from tests.support.harness_steps import TreeArtifacts, build_harness_backend, harness_recipe
 
-from reef.core.plugins import PluginConfigError
-from reef.execution.sandbox.e2b import E2BExecutor
-from reef.execution.sandbox.modal import ModalExecutor
-from reef.execution.sandbox.process import LocalExecutor, SandboxExecutor, SandboxUnavailable
-from reef.execution.sandbox.remote import deployment_owner
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.recipe.errors import RecipeConfigError
-from reef.train.harness_backend import AgentMethod
-from reef.train.harness_backend.agent.settings import AgentSettings, agent_settings
-from reef.train.harness_backend.state import HarnessState
-from reef.train.types import JobData
+from aster.core.plugins import PluginConfigError
+from aster.execution.sandbox.e2b import E2BExecutor
+from aster.execution.sandbox.modal import ModalExecutor
+from aster.execution.sandbox.process import LocalExecutor, SandboxExecutor, SandboxUnavailable
+from aster.execution.sandbox.remote import deployment_owner
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.recipe.errors import RecipeConfigError
+from aster.train.harness_backend import AgentMethod
+from aster.train.harness_backend.agent.settings import AgentSettings, agent_settings
+from aster.train.harness_backend.state import HarnessState
+from aster.train.types import JobData
 
 FAKE_AGENT = textwrap.dedent(
     """\
@@ -39,7 +39,7 @@ FAKE_AGENT = textwrap.dedent(
 
     def call(route, body=None):
         data = None if body is None else json.dumps(body).encode()
-        request = urllib.request.Request(os.environ["REEF_AGENT_URL"] + route, data=data,
+        request = urllib.request.Request(os.environ["ASTER_AGENT_URL"] + route, data=data,
                                          headers={{"content-type": "application/json"}})
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({{}}))
         try:
@@ -146,9 +146,9 @@ def test_the_agent_edits_the_workspace_through_its_tools_and_its_notes_become_th
     seen = notes["seen"]
     assert first.artifact is not None and first.metrics["method_summary"] == "Added the marker to the rules."
     assert notes["agent"]["exit_code"] == 0 and "dropped" not in json.dumps(notes["agent"])
-    # Reef's protocol rules come before the method's own, with the step and the history filled in.
+    # Aster's protocol rules come before the method's own, with the step and the history filled in.
     assert seen["prompt"] == "Step 1: improve the rules. The history is at ../../history.\n"
-    assert "Reef runs you in step 1" in seen["rules"] and seen["rules"].endswith("Prefer small edits.\n")
+    assert "Aster runs you in step 1" in seen["rules"] and seen["rules"].endswith("Prefer small edits.\n")
     assert seen["skill"] and seen["tools"] == ["check", "evaluate"]
     assert seen["outside"][0] == 400 and "outside the step's workspace" in seen["outside"][1]["error"]
     assert seen["check"] == [200, {"passed": True, "problems": []}]
@@ -196,11 +196,11 @@ def test_agent_settings_choose_the_adapter_and_the_isolation(monkeypatch, tmp_pa
     assert (settings.adapter, settings.binary, settings.timeout_s) == ("pi", None, 60.0)
     claude = agent_settings({"sandbox": "none", "adapter": "claude", "binary": "/opt/claude"}, {}, state_dir=state_dir)
     assert claude is not None and (claude.adapter, claude.binary) == ("claude", "/opt/claude")
-    unset = agent_settings({}, {"REEF_AGENT_SANDBOX": "none"}, state_dir=state_dir)
+    unset = agent_settings({}, {"ASTER_AGENT_SANDBOX": "none"}, state_dir=state_dir)
     assert unset is not None and isinstance(unset.executor, LocalExecutor)
     # The variable's old name would be ignored, and the agent run with another isolation: it is refused.
-    with pytest.raises(ValueError, match="set REEF_AGENT_SANDBOX instead"):
-        agent_settings({}, {"REEF_PROPOSER_SANDBOX": "none"}, state_dir=state_dir)
+    with pytest.raises(ValueError, match="set ASTER_AGENT_SANDBOX instead"):
+        agent_settings({}, {"ASTER_PROPOSER_SANDBOX": "none"}, state_dir=state_dir)
     with pytest.raises(ValueError, match="one of 'bwrap', 'e2b', 'modal', 'none'"):
         agent_settings({"sandbox": "docker"}, {}, state_dir=state_dir)
     with pytest.raises(ValueError, match="positive number"):
@@ -224,9 +224,9 @@ def test_agent_settings_choose_the_adapter_and_the_isolation(monkeypatch, tmp_pa
     assert (configured.executor.api_key, configured.executor.template) == ("e2b-cfg", "mine")
     # Modal: the provider's options from the section, the deployment that names its sandboxes, and the timeout.
     monkeypatch.setattr(ModalExecutor, "preflight", lambda self: None)
-    modal = agent_settings({"sandbox": "modal", "modal_app": "reef-agents", "timeout_s": 90}, {}, state_dir=state_dir)
+    modal = agent_settings({"sandbox": "modal", "modal_app": "aster-agents", "timeout_s": 90}, {}, state_dir=state_dir)
     assert modal is not None and isinstance(modal.executor, ModalExecutor)
-    assert (modal.executor.app_name, modal.executor.timeout_s) == ("reef-agents", 90.0)
+    assert (modal.executor.app_name, modal.executor.timeout_s) == ("aster-agents", 90.0)
     assert modal.executor.owner == deployment_owner(state_dir)
     monkeypatch.undo()
 

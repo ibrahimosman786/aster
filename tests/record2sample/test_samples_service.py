@@ -6,7 +6,7 @@ import time
 
 import pytest
 
-from reef.record2sample.service import (
+from aster.record2sample.service import (
     BACKGROUND_POLL_SECONDS,
     RECORD_SELECTION_KIND,
     SAMPLES_QUEUE,
@@ -17,7 +17,7 @@ from reef.record2sample.service import (
     selection_key,
     selection_triggers,
 )
-from reef.storage.sql_coordination import SQLiteCoordinationDatabase, SQLWorkQueue, memory_coordination
+from aster.storage.sql_coordination import SQLiteCoordinationDatabase, SQLWorkQueue, memory_coordination
 
 
 class Producers(SampleProducers):
@@ -208,12 +208,12 @@ def test_a_running_selection_writes_its_counts_so_far_for_its_attempt():
 def test_a_background_job_that_a_selection_submits_asks_for_the_next_selection_when_it_ends(monkeypatch):
     import threading
 
-    from reef.record2sample.service import worker as samples_worker
+    from aster.record2sample.service import worker as samples_worker
 
     # A long fallback look, so only the job's end can make the next selection available soon.
     monkeypatch.setattr(samples_worker, "BACKGROUND_POLL_SECONDS", 600.0)
 
-    from reef.execution.jobs import BackgroundJobRunner, BackgroundJobWorker, SupportsReceipt
+    from aster.execution.jobs import BackgroundJobRunner, BackgroundJobWorker, SupportsReceipt
 
     release = threading.Event()
 

@@ -1,9 +1,9 @@
-"""Smoke the pinned Codex CLI through Reef's complete harness path.
+"""Smoke the pinned Codex CLI through Aster's complete harness path.
 
 The hermetic suite uses a scripted binary. These tests exercise the real CLI
 against a local Responses API stub: the runs prove rules, skills, binding,
 trajectory collection, cleanup, and temporary proxy path. The workflow
-supplies the pinned binary through ``REEF_REAL_CODEX_BINARY``.
+supplies the pinned binary through ``ASTER_REAL_CODEX_BINARY``.
 """
 
 from __future__ import annotations
@@ -21,25 +21,25 @@ from typing import Any
 import pytest
 from tests.support.harness_render import write_layer
 
-from reef.core.model_metadata import ModelMetadata
-from reef.harness.adapters import get_adapter
-from reef.harness.sync import layer_install
-from reef.harness.tasks.model_binding import ModelBinding
-from reef.harness.tasks.run import run_task
-from reef.harness.tasks.trajectory import final_assistant_text
-from reef.harness.tree import HarnessTree, render_tree
+from aster.core.model_metadata import ModelMetadata
+from aster.harness.adapters import get_adapter
+from aster.harness.sync import layer_install
+from aster.harness.tasks.model_binding import ModelBinding
+from aster.harness.tasks.run import run_task
+from aster.harness.tasks.trajectory import final_assistant_text
+from aster.harness.tree import HarnessTree, render_tree
 
-REAL_CODEX = os.environ.get("REEF_REAL_CODEX_BINARY", "")
+REAL_CODEX = os.environ.get("ASTER_REAL_CODEX_BINARY", "")
 
-pytestmark = pytest.mark.skipif(not REAL_CODEX, reason="REEF_REAL_CODEX_BINARY does not name a real Codex binary")
+pytestmark = pytest.mark.skipif(not REAL_CODEX, reason="ASTER_REAL_CODEX_BINARY does not name a real Codex binary")
 
 MODEL = "smoke-model"
-SKILL_MARKER = "The Reef Codex skill marker is TIDEPOOL-SKILL-27."
+SKILL_MARKER = "The Aster Codex skill marker is TIDEPOOL-SKILL-27."
 
 
 def _response(status: str, output: list[dict[str, Any]]) -> dict[str, Any]:
     return {
-        "id": "resp_reef_smoke",
+        "id": "resp_aster_smoke",
         "object": "response",
         "created_at": 1,
         "status": status,
@@ -99,7 +99,7 @@ class StubHandler(BaseHTTPRequestHandler):
         self.server.requests.append((self.path, self.headers.get("Authorization", ""), body))
 
         message = {
-            "id": "msg_reef_smoke",
+            "id": "msg_aster_smoke",
             "type": "message",
             "status": "completed",
             "role": "assistant",
@@ -130,7 +130,7 @@ def _server() -> tuple[StubResponses, str]:
 
 
 def model_binding(base_url: str) -> ModelBinding:
-    return ModelBinding(base_url=base_url, model=MODEL, api_key="reef-smoke-key", api="responses").with_metadata()
+    return ModelBinding(base_url=base_url, model=MODEL, api_key="aster-smoke-key", api="responses").with_metadata()
 
 
 def _bound_files(files: Mapping[str, str] | None = None, *, binding: ModelBinding) -> dict[str, str]:
@@ -157,12 +157,12 @@ def test_real_codex_renders_runs_collects_and_cleans_up(tmp_path: Path) -> None:
     try:
         files = _bound_files(
             {
-                "skills/reef-smoke/SKILL.md": f"# Reef smoke skill\n\n{SKILL_MARKER}",
-                "commands/reef-command.md": "Reef smoke command",
+                "skills/aster-smoke/SKILL.md": f"# Aster smoke skill\n\n{SKILL_MARKER}",
+                "commands/aster-command.md": "Aster smoke command",
             },
             binding=model_binding(base_url),
         )
-        capture = Path(os.environ.get("REEF_REAL_CODEX_SESSION_OUT", tmp_path / "real-codex-session.jsonl"))
+        capture = Path(os.environ.get("ASTER_REAL_CODEX_SESSION_OUT", tmp_path / "real-codex-session.jsonl"))
         result = run_task(
             get_adapter("codex"),
             files,
@@ -183,12 +183,12 @@ def test_real_codex_renders_runs_collects_and_cleans_up(tmp_path: Path) -> None:
     assert server.requests
     path, authorization, body = server.requests[0]
     assert path == "/v1/responses"
-    assert authorization == "Bearer reef-smoke-key"
+    assert authorization == "Bearer aster-smoke-key"
     # Codex advertises skill metadata first and reads the body only when the
     # model chooses the skill; discovery is the adapter contract here. The
-    # skills come from the plugin reef, and a command is a skill there too.
-    assert "reef:reef-smoke: Reef smoke skill" in body
-    assert "reef:reef-command: Reef smoke command" in body
+    # skills come from the plugin aster, and a command is a skill there too.
+    assert "aster:aster-smoke: Aster smoke skill" in body
+    assert "aster:aster-command: Aster smoke command" in body
     # config.toml sets no approval_policy; the run still runs with approval never, so it never waits.
     assert "Approval policy is currently never" in body and "# Escalation Requests" not in body
     assert any(event.get("type") == "session_meta" for event in result.trajectory)
@@ -296,7 +296,7 @@ def model_request_config(request_json: str) -> dict[str, object]:
 
 
 def test_codex_bundled_model_catalog_matches_the_pin() -> None:
-    from reef.harness.adapters.codex.render import bundled_model_catalog
+    from aster.harness.adapters.codex.render import bundled_model_catalog
 
     descriptor = get_adapter("codex")
     result = run_task(
@@ -382,7 +382,7 @@ def test_codex_native_model_applies_capabilities_and_keeps_instructions(model: s
 #: A tree with a marker in each part codex's adapter evolves.
 CODEX_PARTS = {
     "skills/probe/SKILL.md": f"---\nname: probe\ndescription: {SKILL_MARKER}\n---\nProbe.\n",
-    "commands/ship.md": "---\ndescription: The Reef Codex command marker is TIDEPOOL-COMMAND-33.\n---\nShip.\n",
+    "commands/ship.md": "---\ndescription: The Aster Codex command marker is TIDEPOOL-COMMAND-33.\n---\nShip.\n",
 }
 
 
@@ -395,7 +395,7 @@ def test_real_codex_takes_every_part_of_a_tree_in_an_run_and_over_a_persons_own_
     Unregistering leaves the person's config without the plugin."""
     server, base_url = _server()
     descriptor = get_adapter("codex")
-    binding = ModelBinding(base_url=base_url, model="gpt-6-astra", api_key="reef-smoke-key", api="responses")
+    binding = ModelBinding(base_url=base_url, model="gpt-6-astra", api_key="aster-smoke-key", api="responses")
     try:
         if form == "run":
             files = _bound_files(CODEX_PARTS, binding=binding)
@@ -413,7 +413,7 @@ def test_real_codex_takes_every_part_of_a_tree_in_an_run_and_over_a_persons_own_
             assert done.returncode == 0, done.stderr
             for command in layer.unregister:
                 subprocess.run([REAL_CODEX, *command], env=env, check=True, capture_output=True)
-            assert "reef" not in (own / "config.toml").read_text()
+            assert "aster" not in (own / "config.toml").read_text()
     finally:
         server.shutdown()
         server.server_close()

@@ -24,9 +24,9 @@ trace_exporter = "none"
 [sandbox_workspace_write]
 network_access = false
 
-[marketplaces.reef]
+[marketplaces.aster]
 source_type = "local"
 source = "{root}"
 
-[plugins."reef@reef"]
+[plugins."aster@aster"]
 enabled = true

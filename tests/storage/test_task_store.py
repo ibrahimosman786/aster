@@ -11,14 +11,14 @@ from typing import Any, Self
 import pytest
 from sqlalchemy import Column, MetaData, Table, Text, inspect
 
-from reef.core.config import config_option
-from reef.core.plugins import PluginSettings
-from reef.core.tasks import HarborTask, read_harbor_task, write_harbor_task
-from reef.service.assembly import build_dispatcher
-from reef.service.deploy.service_config import ServiceConfig
-from reef.storage.postgres import PostgresScenarioStorage
-from reef.storage.sqlite import SQLiteScenarioStorage
-from reef.storage.tasks import (
+from aster.core.config import config_option
+from aster.core.plugins import PluginSettings
+from aster.core.tasks import HarborTask, read_harbor_task, write_harbor_task
+from aster.service.assembly import build_dispatcher
+from aster.service.deploy.service_config import ServiceConfig
+from aster.storage.postgres import PostgresScenarioStorage
+from aster.storage.sqlite import SQLiteScenarioStorage
+from aster.storage.tasks import (
     GenerationState,
     LocalTaskFileStore,
     StoredTask,
@@ -346,7 +346,7 @@ def test_the_deployment_selects_the_task_file_store(tmp_path, backend, files_roo
 
 @pytest.mark.parametrize(
     "backend",
-    ["unknown", "reef.storage.tasks:TaskFileStore", {"module": "reef.storage.sqlite:SQLiteScenarioStorage"}],
+    ["unknown", "aster.storage.tasks:TaskFileStore", {"module": "aster.storage.sqlite:SQLiteScenarioStorage"}],
 )
 def test_the_deployment_rejects_an_invalid_task_file_backend(backend):
     with pytest.raises(ValueError, match="task_file_backend"):

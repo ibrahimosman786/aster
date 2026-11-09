@@ -56,7 +56,7 @@ def read_numeric_csv(path: Path):
     with path.open(newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
     return [
-        {key: value if key in {"task", "reef/outcome"} else float(value) for key, value in row.items() if value != ""}
+        {key: value if key in {"task", "aster/outcome"} else float(value) for key, value in row.items() if value != ""}
         for row in rows
     ]
 
@@ -125,11 +125,11 @@ def plot_packings():
 
 
 def task_history(rows, task):
-    selected = sorted((row for row in rows if row["task"] == task), key=lambda row: row["reef/step"])
-    steps = [int(row["reef/step"]) for row in selected]
+    selected = sorted((row for row in rows if row["task"] == task), key=lambda row: row["aster/step"])
+    steps = [int(row["aster/step"]) for row in selected]
     if steps != list(range(1, 51)):
         raise RuntimeError(f"{task} W&B history does not contain committed steps 1 through 50")
-    if any(row.get("reef/outcome") != "committed" for row in selected):
+    if any(row.get("aster/outcome") != "committed" for row in selected):
         raise RuntimeError(f"{task} W&B history contains a non-committed result")
     return selected
 
@@ -148,7 +148,7 @@ def plot_wandb_metrics():
         axis = axes.flat[index]
         for task, history in histories.items():
             axis.plot(
-                [row["reef/step"] for row in history],
+                [row["aster/step"] for row in history],
                 [transform(row[metric]) for row in history],
                 color=COLORS[task],
                 label=LABELS[task],
@@ -156,7 +156,7 @@ def plot_wandb_metrics():
         axis.set_title(title)
         axis.set_xlabel("Committed training step")
     axes[0, 0].legend()
-    figure.suptitle("REEF-TTT training metrics exported from W&B", fontsize=15, fontweight="bold")
+    figure.suptitle("ASTER-TTT training metrics exported from W&B", fontsize=15, fontweight="bold")
     figure.savefig(ROOT / "wandb_training_metrics.png", dpi=180)
     plt.close(figure)
 

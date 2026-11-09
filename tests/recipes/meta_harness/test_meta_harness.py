@@ -1,4 +1,4 @@
-"""Meta-Harness on Reef's harness backend: the prompt it builds from the history, and its checks.
+"""Meta-Harness on Aster's harness backend: the prompt it builds from the history, and its checks.
 
 Each step answers a training request, as in a deployment that trains in
 ``manual`` mode, and runs through the phases the trainer runs
@@ -35,18 +35,18 @@ from tests.support.records import memory_records
 import recipes.meta_harness
 from recipes.meta_harness import MetaHarness, MetaHarnessSettings
 from recipes.meta_harness.method import parse_proposal
-from reef.core.plugins import PluginConfigError
-from reef.core.training_request import TrainingRequest
-from reef.evaluation.harness import ComparePolicy
-from reef.harness.tree import HarnessTree
-from reef.recipe.harness import HarnessEvolutionRecipe
-from reef.recipe.registry import build_recipe
-from reef.train.backend import ComponentArtifacts
-from reef.train.harness_backend import AgentMethod
-from reef.train.harness_backend.backend import HarnessBackend
-from reef.train.harness_backend.state import HarnessState
-from reef.train.trainer import Trainer
-from reef.train.types import JobData, TrainingCommit
+from aster.core.plugins import PluginConfigError
+from aster.core.training_request import TrainingRequest
+from aster.evaluation.harness import ComparePolicy
+from aster.harness.tree import HarnessTree
+from aster.recipe.harness import HarnessEvolutionRecipe
+from aster.recipe.registry import build_recipe
+from aster.train.backend import ComponentArtifacts
+from aster.train.harness_backend import AgentMethod
+from aster.train.harness_backend.backend import HarnessBackend
+from aster.train.harness_backend.state import HarnessState
+from aster.train.trainer import Trainer
+from aster.train.types import JobData, TrainingCommit
 
 #: A tree without the marker: it scores 0 like the seed, so compare rejects it.
 LOSER = HarnessTree({"rules.md": "Answer quickly.\n"})
@@ -280,11 +280,11 @@ def test_terminus_extension_uses_shared_recipe_run_runner_and_publication(tmp_pa
     from harbor.agents.terminus_2 import Terminus2
     from harbor.models.trial.config import TrialConfig
     from harbor.utils.import_path import import_class
-    from reef_terminus import runner
+    from aster_terminus import runner
 
-    from reef.execution.sandbox.process import ISOLATION_ENV, ProcessOutcome, SandboxExecutor
+    from aster.execution.sandbox.process import ISOLATION_ENV, ProcessOutcome, SandboxExecutor
 
-    code = (Path(__file__).parents[3] / "recipes/meta_harness/results/reef_harness.py").read_text()
+    code = (Path(__file__).parents[3] / "recipes/meta_harness/results/aster_harness.py").read_text()
     proposed = HarnessTree({**SEED.files, "extensions/agent.py": code})
     launches, agents = [], []
     monkeypatch.setattr(Terminus2, "_get_completion_confirmation_message", lambda self, output: "stock")
@@ -312,7 +312,7 @@ def test_terminus_extension_uses_shared_recipe_run_runner_and_publication(tmp_pa
 
     def launch(self, argv, *, root, workspace, env, timeout, writable_paths, readonly_paths):
         launches.append(root)
-        assert argv[0] == "reef-terminus" and timeout == 17
+        assert argv[0] == "aster-terminus" and timeout == 17
         assert set(writable_paths) == {root / "terminus/sessions", root / "terminus/trials"}
         assert root / "terminus/config.json" in readonly_paths
         with monkeypatch.context() as context:
@@ -328,12 +328,12 @@ def test_terminus_extension_uses_shared_recipe_run_runner_and_publication(tmp_pa
     evolution.pop("binary")
     evolution.update(
         executor="sandbox",
-        sandbox={"egress_hosts": ["api.e2b.dev"], "env_from": ["REEF_TERMINUS_ENVIRONMENT", "E2B_API_KEY"]},
+        sandbox={"egress_hosts": ["api.e2b.dev"], "env_from": ["ASTER_TERMINUS_ENVIRONMENT", "E2B_API_KEY"]},
     )
     evolution["evaluation"].update(task_timeout_s=17, forbid_residue=True, tasks=["test/hello-world"])
     recipe = build_recipe(
         config["implementation"],
-        {"REEF_TERMINUS_ENVIRONMENT": "e2b", "E2B_API_KEY": "test-only"},
+        {"ASTER_TERMINUS_ENVIRONMENT": "e2b", "E2B_API_KEY": "test-only"},
         config=config,
         runtime=served_runtime(),
     )

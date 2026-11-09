@@ -20,21 +20,21 @@ mkdir -p "$GUIDANCE_STATE_DIR"
 if [ ! -f "$GUIDANCE_MODEL_PATH/config.json" ]; then
     hf download "$GUIDANCE_MODEL" --local-dir "$GUIDANCE_MODEL_PATH"
 fi
-export REEF_INFERENCE_HOST="${REEF_INFERENCE_HOST:-$(hostname -I | awk '{print $1}')}"
-export NO_PROXY="${NO_PROXY:+$NO_PROXY,}127.0.0.1,localhost,$REEF_INFERENCE_HOST"
-python3 -m reef serve -c "$GUIDANCE_CONFIG" > "$GUIDANCE_STATE_DIR/reef.log" 2>&1 &
-reef_pid=$!
+export ASTER_INFERENCE_HOST="${ASTER_INFERENCE_HOST:-$(hostname -I | awk '{print $1}')}"
+export NO_PROXY="${NO_PROXY:+$NO_PROXY,}127.0.0.1,localhost,$ASTER_INFERENCE_HOST"
+python3 -m aster serve -c "$GUIDANCE_CONFIG" > "$GUIDANCE_STATE_DIR/aster.log" 2>&1 &
+aster_pid=$!
 cleanup() {
-    kill "$reef_pid" 2>/dev/null || true
-    wait "$reef_pid" 2>/dev/null || true
+    kill "$aster_pid" 2>/dev/null || true
+    wait "$aster_pid" 2>/dev/null || true
 }
 trap cleanup EXIT
 service_url="$(python3 -c 'from harness.config import RunConfig; print(RunConfig.load().service_url)')"
 ready_deadline=$((SECONDS + 3600))
 while ! curl -sf "$service_url/healthz" > /dev/null; do
-    if ! kill -0 "$reef_pid" 2>/dev/null || (( SECONDS >= ready_deadline )); then
-        tail -n 100 "$GUIDANCE_STATE_DIR/reef.log" >&2
-        echo "run.sh: the Reef stack did not become ready" >&2
+    if ! kill -0 "$aster_pid" 2>/dev/null || (( SECONDS >= ready_deadline )); then
+        tail -n 100 "$GUIDANCE_STATE_DIR/aster.log" >&2
+        echo "run.sh: the Aster stack did not become ready" >&2
         exit 1
     fi
     sleep 5

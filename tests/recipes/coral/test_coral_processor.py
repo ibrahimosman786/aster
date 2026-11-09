@@ -1,6 +1,6 @@
 """CoralJobData: CORAL sibling groups -> grouped policy batches.
 
-Requires the reef package (and its train stack) importable; skipped
+Requires the aster package (and its train stack) importable; skipped
 otherwise so the adapter suite stays standalone.
 """
 
@@ -9,16 +9,16 @@ from __future__ import annotations
 import pytest
 from tests.support.conversations import conversation
 
-from reef.core.trajectories import trajectory_reward
-from reef.train.types import trajectory_groups
+from aster.core.trajectories import trajectory_reward
+from aster.train.types import trajectory_groups
 
-reef_types = pytest.importorskip("reef.train.types", reason="requires a reef checkout")
+aster_types = pytest.importorskip("aster.train.types", reason="requires an aster checkout")
 
 from recipes.beta.coral.processor import ROOT_GROUP, CoralJobData, CoralSamples, CoralSettings
-from reef.core import AgentRecord, RequestType
-from reef.pipeline_context import PipelineContext
-from reef.train.pipeline import TrainingPipeline
-from reef.train.types import JobData
+from aster.core import AgentRecord, RequestType
+from aster.pipeline_context import PipelineContext
+from aster.train.pipeline import TrainingPipeline
+from aster.train.types import JobData
 
 SCENARIO = "coral-demo"
 

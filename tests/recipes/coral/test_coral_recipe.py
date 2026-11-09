@@ -1,6 +1,6 @@
 """CoralRecipe: deployment wiring for the CORAL example.
 
-Requires the reef checkout (recipe base + cookbook registrations); skipped
+Requires the aster checkout (recipe base + cookbook registrations); skipped
 otherwise.
 """
 
@@ -12,11 +12,11 @@ import pytest
 import yaml
 from tests.support.runtime_stubs import runtime_bindings
 
-reef_recipe = pytest.importorskip("reef.recipe.base", reason="requires a reef checkout")
+aster_recipe = pytest.importorskip("aster.recipe.base", reason="requires an aster checkout")
 
-from reef.pipeline_context import PipelineContext
-from reef.recipe.errors import RecipeConfigError
-from reef.train.slime_backend.objectives import resolve_slime_objective
+from aster.pipeline_context import PipelineContext
+from aster.recipe.errors import RecipeConfigError
+from aster.train.slime_backend.objectives import resolve_slime_objective
 
 
 def _recipe_cls():

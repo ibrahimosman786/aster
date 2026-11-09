@@ -18,12 +18,12 @@ from tests.support.samples_service import make_samples
 from tests.support.task_service_stubs import task_for
 from tests.train.test_record_stage_job_data_parity import counting_jobs, inference, report
 
-from reef.artifact import SnapshotRef
-from reef.core import AgentRecord, RequestType
-from reef.core.job_data import JobOutcome
-from reef.core.tasks import write_harbor_task
-from reef.core.training_request import TrainingRequest
-from reef.record2sample import (
+from aster.artifact import SnapshotRef
+from aster.core import AgentRecord, RequestType
+from aster.core.job_data import JobOutcome
+from aster.core.tasks import write_harbor_task
+from aster.core.training_request import TrainingRequest
+from aster.record2sample import (
     GroupDecision,
     InferenceRecordSamples,
     NoSamples,
@@ -36,13 +36,13 @@ from reef.record2sample import (
     SingleRecordSet,
     SkippedReport,
 )
-from reef.sample2job import Sample2Job, Sample2JobSettings
-from reef.storage.commits import CommitRecord
-from reef.storage.data import MAX_QUERY_LIMIT, NewItem
-from reef.storage.samples import SampleStore, consumed_sample_id, stage_item_id
-from reef.train import PipelineContext, Trainer
-from reef.train.pipeline import TrainingPipeline
-from reef.train.types import JobData, Sample, TaskSample, TrajectorySample
+from aster.sample2job import Sample2Job, Sample2JobSettings
+from aster.storage.commits import CommitRecord
+from aster.storage.data import MAX_QUERY_LIMIT, NewItem
+from aster.storage.samples import SampleStore, consumed_sample_id, stage_item_id
+from aster.train import PipelineContext, Trainer
+from aster.train.pipeline import TrainingPipeline
+from aster.train.types import JobData, Sample, TaskSample, TrajectorySample
 
 
 class RecordingSamples(InferenceRecordSamples):

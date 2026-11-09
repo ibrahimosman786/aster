@@ -21,12 +21,12 @@ from recipes.openclawrl.prm import (
 )
 from recipes.openclawrl.processor import OpenClawRLJobData, OpenClawRLJobSettings, OpenClawRLSamples
 from recipes.openclawrl.turns import TurnJob
-from reef.core.chat_rendering import rendered_job_data
-from reef.core.trajectories import source_record_id
-from reef.train.algos.schedule import StepScheduling
-from reef.train.pipeline import TrainingPipeline
-from reef.train.slime_backend.reef_adapters.preparation import prepare_slime_job
-from reef.train.types import JobData, TrajectorySample
+from aster.core.chat_rendering import rendered_job_data
+from aster.core.trajectories import source_record_id
+from aster.train.algos.schedule import StepScheduling
+from aster.train.pipeline import TrainingPipeline
+from aster.train.slime_backend.aster_adapters.preparation import prepare_slime_job
+from aster.train.types import JobData, TrajectorySample
 
 pytestmark = pytest.mark.unit
 
@@ -186,7 +186,7 @@ def test_actor_init_on_resume_needs_the_base_checkpoint(tmp_path, topk_objective
 
 
 def test_topk_preserves_external_advantages_through_slime_hook(topk_objective) -> None:
-    from reef.train.slime_backend.algorithm import resolve_objective_paths
+    from aster.train.slime_backend.algorithm import resolve_objective_paths
 
     args = SimpleNamespace(loss_family="openclawrl")
     resolve_objective_paths(args)
@@ -274,7 +274,7 @@ class TestOpenclawrlWireRow:
 
     def test_a_row_of_another_shape_is_refused(self):
         from recipes.openclawrl.slime import build_openclawrl_rollout_data
-        from reef.train.slime_backend.loss_families import resolve_loss_family
+        from aster.train.slime_backend.loss_families import resolve_loss_family
 
         spec = resolve_loss_family("openclawrl")
         # The retired 8-column row that carried the sampler's top-K: the builder refuses it at the wire boundary.
@@ -290,7 +290,7 @@ class TestOpenclawrlWireRow:
 
     def test_the_payload_builder_ships_candidate_sequences(self):
         from recipes.openclawrl.slime import build_openclawrl_rollout_data
-        from reef.train.slime_backend.loss_families import resolve_loss_family
+        from aster.train.slime_backend.loss_families import resolve_loss_family
 
         spec = resolve_loss_family("openclawrl")
 
@@ -462,7 +462,7 @@ REQUEST = ({"role": "user", "content": "do my homework"},)
 
 
 def _judge_one_turn(judge):
-    from reef.pipeline_context import PipelineContext
+    from aster.pipeline_context import PipelineContext
 
     context = PipelineContext("s")
 
@@ -515,8 +515,8 @@ class TestHybridDispatch:
 def test_processor_attaches_teacher_candidates_that_the_component_renders() -> None:
     from recipes.openclawrl import OpenClawRLJobData
     from recipes.openclawrl.turns import TurnJudgment
-    from reef.core.records_types import AgentRecord, RequestType
-    from reef.pipeline_context import PipelineContext
+    from aster.core.records_types import AgentRecord, RequestType
+    from aster.pipeline_context import PipelineContext
 
     class FakeWorker:
         def __init__(self) -> None:

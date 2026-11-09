@@ -18,7 +18,7 @@
 from recipes.openclawrl.judging import OpenClawRLJudgingSettings
 from recipes.openclawrl.processor import OpenClawRLJobData, OpenClawRLJobSettings, OpenClawRLSamples
 from recipes.openclawrl.recipe import OpenClawRLRecipe
-from reef.train.algos.registry import register_loss_family_ref, register_objective_ref
+from aster.train.algos.registry import register_loss_family_ref, register_objective_ref
 
 register_objective_ref("openclawrl", "recipes.openclawrl.slime:OpenClawRLObjective")
 register_loss_family_ref("openclawrl", "recipes.openclawrl.slime:OpenclawrlAlgorithm")

@@ -11,7 +11,7 @@ request: the inference service forwards each request to the engine that
 ``served_models`` names (see `Run the services in separate processes
 <../user-guide/operate.rst#run-the-services-in-separate-processes>`__).
 
-:For: recipe authors who declare a new component, and anyone reading ``reef/artifact/components.py``
+:For: recipe authors who declare a new component, and anyone reading ``aster/artifact/components.py``
 :Before you start: the ``ScenarioComponents`` fields from `Python API <../reference/python-api.rst#scenario-components>`__
 :You will have: what each field does, where Aster reads it, what the built-in recipes declare, and how to declare your own
 
@@ -71,7 +71,7 @@ Fields and where Aster reads them
 |                                  |                                     | artifact evaluation. ``None`` declares no kind.                      |
 +----------------------------------+-------------------------------------+----------------------------------------------------------------------+
 
-``activate_snapshot`` (``reef.scenario.binding``) calls the runtime's
+``activate_snapshot`` (``aster.scenario.binding``) calls the runtime's
 ``InferenceRuntime.activate_checkpoint`` for the loaded component. The inference
 worker calls it for each selection that control queues, after the commit that
 makes the snapshot active. Without a runtime or a loaded component, moving the
@@ -112,18 +112,18 @@ scenario's adapter revision under its own model name
 (``InferenceRuntime.served_model_name``), and control writes that name to the
 scenario's row in ``served_models``, so every request reaches that revision.
 After a restart, each scenario's snapshot loads again under a new runtime load
-ID. ``adapter_name(scenario, runtime_load_id)`` in ``reef.inference.residency``
+ID. ``adapter_name(scenario, runtime_load_id)`` in ``aster.inference.residency``
 names a revision on the engine, and ``parse_adapter_name`` inverts it, so a
 recorded ``lora_path`` names exactly one (scenario, revision). The serving
 runtime owns one ``AdapterResidencyManager``, which keeps at most
 ``adapter_capacity`` adapters loaded. It evicts a leaked adapter first, then
 the oldest-activated adapter that is no scenario's current one.
 
-**Harness file trees.** ``HarnessFiles`` (``reef.harness.sync``) serves each
+**Harness file trees.** ``HarnessFiles`` (``aster.harness.sync``) serves each
 snapshot of the ``harness`` component. A snapshot stores the harness source
 tree, and a read renders it for the descriptor's adapter without a model
 binding, so the client gets the files its agent reads and binds its own model.
-``GET /reef/harness?form=source`` reads the stored source tree instead (see
+``GET /aster/harness?form=source`` reads the stored source tree instead (see
 `Rendering <harness-adapters.rst#rendering>`__).
 
 Declaring components
@@ -133,8 +133,8 @@ A recipe returns a ``ScenarioComponents`` from ``build_components``:
 
 .. code:: python
 
-   from reef.artifact import ArtifactValidator
-   from reef.artifact.components import ComponentSpec, ScenarioComponents, TextFileTree
+   from aster.artifact import ArtifactValidator
+   from aster.artifact.components import ComponentSpec, ScenarioComponents, TextFileTree
 
 
    class PromptValidator(ArtifactValidator):
@@ -163,7 +163,7 @@ committer carries the other forward from the previous checkpoint:
            )
 
 The root snapshot of such a scenario keeps one directory per component
-(``weights/``, ``harness/``). ``CompositeRecipe`` (``reef.recipe.composite``)
+(``weights/``, ``harness/``). ``CompositeRecipe`` (``aster.recipe.composite``)
 builds exactly this from existing flat recipes, one per component, and runs
 each one's trainer as its own worker; see `configuration
 <../reference/configuration.rst#recipe-configuration>`__ for its layout.
@@ -172,7 +172,7 @@ Remote weight snapshots
 -----------------------
 
 An inference runtime implements ``activate_checkpoint(artifact)``. The
-saved-weight serving runtimes (``reef.inference.serving``) load the snapshot's
+saved-weight serving runtimes (``aster.inference.serving``) load the snapshot's
 files into the engines. A proxy runtime loads nothing and returns the release
 ID. An inference runtime that serves immutable remote snapshots validates the
 checkpoint and binds its remote sampler. Tinker's inference runtime uses this
