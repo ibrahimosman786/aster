@@ -1,0 +1,66 @@
+# Each area lists a primary owner followed by a backup owner. GitHub requests
+# review from every listed owner, and one approval from any of them is enough.
+# The last matching rule wins, so the more specific area rules below override
+# the default.
+
+# Default owners for files without a more specific area rule.
+* @BobbyZhouZijian @quao627
+
+# Community process, repository automation, packaging, and deployment.
+/.github/ @BobbyZhouZijian @Benjamin-eecs
+/docker/ @BobbyZhouZijian @MikeZheng777
+/pyproject.toml @BobbyZhouZijian @Benjamin-eecs
+/README.md @BobbyZhouZijian @Benjamin-eecs
+/README.zh.md @BobbyZhouZijian @Benjamin-eecs
+/README.i18n.yaml @BobbyZhouZijian @Benjamin-eecs
+
+# Core product areas. Keep these entries separate so ownership can be
+# delegated one subsystem at a time as the maintainer group grows.
+/reef/service/ @BobbyZhouZijian @quao627
+/reef/scenario/ @BobbyZhouZijian @quao627
+/reef/dispatcher/ @BobbyZhouZijian @hanfeiyu
+/reef/core/ @BobbyZhouZijian @quao627
+/recipes/basic/ @BobbyZhouZijian @quao627
+/third_party/ @BobbyZhouZijian @Benjamin-eecs
+
+# Harness-facing product layer.
+/reef/harness/ @Benjamin-eecs @quao627
+/recipes/sao/ @Benjamin-eecs @MikeZheng777
+/recipes/tttd/ @Benjamin-eecs @MikeZheng777
+/recipes/openclawrl/ @Benjamin-eecs @MikeZheng777
+/reef/train/harness_backend/ @Benjamin-eecs @hanfeiyu
+/tutorials/evolve-your-harness/ @Benjamin-eecs @quao627
+/recipes/gepa/ @simonucl @Benjamin-eecs
+
+# Runnable examples of the weight methods (the method packages above stay
+# with the product layer).
+/recipes/sao/examples/ @BobbyZhouZijian @MikeZheng777
+/recipes/tttd/examples/ @BobbyZhouZijian @MikeZheng777
+/recipes/openclawrl/examples/ @BobbyZhouZijian @MikeZheng777
+
+# Training execution, artifact handling, and pipeline reliability.
+/reef/train/ @hanfeiyu @MikeZheng777
+/reef/execution/executor/ @hanfeiyu @MikeZheng777
+/reef/inference/interfaces.py @hanfeiyu @MikeZheng777
+/reef/inference/registry.py @hanfeiyu @MikeZheng777
+/reef/inference/serving.py @hanfeiyu @MikeZheng777
+/reef/inference/residency.py @hanfeiyu @MikeZheng777
+/reef/inference/recovery.py @hanfeiyu @MikeZheng777
+/reef/artifact/ @hanfeiyu @MikeZheng777
+/reef/artifact/components.py @Benjamin-eecs @quao627
+/recipes/openclawrl/examples/openclawrl/serve.yaml @hanfeiyu @MikeZheng777
+
+# Documentation defaults to these owners. Domain references override it.
+/docs/ @BobbyZhouZijian @Benjamin-eecs
+/docs/user-guide/evolve-your-harness.rst @Benjamin-eecs @quao627
+/docs/developer-guide/harness-adapters.rst @Benjamin-eecs @quao627
+/docs/developer-guide/write-a-harness-method.rst @Benjamin-eecs @quao627
+/docs/developer-guide/write-a-recipe.rst @Benjamin-eecs @quao627
+/docs/user-guide/recipes.rst @Benjamin-eecs @quao627
+/docs/user-guide/recipes/ @Benjamin-eecs @quao627
+/docs/user-guide/evolve-your-model.rst @hanfeiyu @MikeZheng777
+/docs/developer-guide/loss-families.rst @hanfeiyu @MikeZheng777
+/docs/reference/cli.rst @BobbyZhouZijian @quao627
+# python-api.rst merges the former recipe/surface and batch/processor/preparer
+# pages, so it keeps both prior owners.
+/docs/reference/python-api.rst @Benjamin-eecs @hanfeiyu

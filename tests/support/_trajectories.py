@@ -1,0 +1,51 @@
+"""ATIF fixtures shared by backend and recipe contract tests."""
+
+from reef.core import AgentRecord, RequestType
+from reef.core.trajectories import make_trajectory
+from reef.train.types import TrajectorySample
+
+
+def policy_trajectory(
+    source_agent_record_id,
+    tokens,
+    loss_mask,
+    rollout_log_probs,
+    reward,
+    action_mask=(),
+    rollout_created_at=None,
+    turn_count=1,
+    topk_indices=(),
+    topk_log_probs=(),
+    extras=None,
+    artifact_id=None,
+) -> TrajectorySample:
+    item = recorded_trajectory(source_agent_record_id, {}, reward)
+    return item.with_training(
+        tokens=list(tokens),
+        loss_mask=list(loss_mask),
+        rollout_log_probs=list(rollout_log_probs),
+        action_mask=list(action_mask),
+        rollout_created_at=rollout_created_at,
+        turn_count=turn_count,
+        topk_indices=[list(row) for row in topk_indices],
+        topk_log_probs=[list(row) for row in topk_log_probs],
+        extras=extras or {},
+        artifact_id=artifact_id,
+    )
+
+
+def recorded_trajectory(source_agent_record_id, payload, score, feedback=None, trajectory=()) -> TrajectorySample:
+    payloads = trajectory or (payload,)
+    records = tuple(
+        AgentRecord.create(
+            scenario="test",
+            request_type=RequestType.INFERENCE,
+            payload=body,
+            agent_record_id=(
+                f"{source_agent_record_id}:{index}" if index < len(payloads) - 1 else source_agent_record_id
+            ),
+            created_at=0.0,
+        )
+        for index, body in enumerate(payloads)
+    )
+    return make_trajectory(records, score, feedback)

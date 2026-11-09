@@ -1,0 +1,705 @@
+"""The model bindings reef hands to methods and runs: one value per
+endpoint, translated per API dialect, with the named set a method may call."""
+
+from __future__ import annotations
+
+import io
+import json
+from dataclasses import replace
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from threading import Thread
+from typing import Any
+from urllib.request import Request
+
+import pytest
+from tests.support.harness_steps import evolution_config
+
+from reef.harness.adapters import get_adapter
+from reef.harness.tasks.model_binding import NO_KEY_PLACEHOLDER, ModelBinding, ModelBindings
+from reef.harness.tree import HarnessTree, render_tree
+from reef.inference.http import InferenceProxyRuntime
+from reef.recipe import RecipeConfigError
+from reef.recipe.harness import HarnessEvolutionRecipe
+
+
+class _Response(io.BytesIO):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def _capture(monkeypatch: pytest.MonkeyPatch, reply: Any) -> list[dict[str, Any]]:
+    """Route urlopen to a recorder; ``reply`` is the JSON body or SSE bytes."""
+    seen: list[dict[str, Any]] = []
+
+    def urlopen(request, timeout=None):
+        seen.append(
+            {
+                "url": request.full_url,
+                "headers": {k.lower(): v for k, v in request.header_items()},
+                "body": json.loads(request.data),
+                "timeout": timeout,
+            }
+        )
+        return _Response(reply if isinstance(reply, bytes) else json.dumps(reply).encode())
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen)
+    return seen
+
+
+# -- dialects ----------------------------------------------------------------
+
+
+def test_openai_chat_posts_chat_completions_with_a_bearer(monkeypatch) -> None:
+    seen = _capture(monkeypatch, {"choices": [{"message": {"role": "assistant", "content": "hi"}}]})
+    binding = ModelBinding("http://up/", "m", api_key="k")
+    assert (
+        binding.chat([{"role": "system", "content": "s"}, {"role": "user", "content": "u"}], temperature=0.2) == "hi"
+    )
+    call = seen[0]
+    assert call["url"] == "http://up/v1/chat/completions"
+    assert call["headers"]["authorization"] == "Bearer k"
+    assert call["body"]["model"] == "m" and call["body"]["temperature"] == 0.2
+    assert [m["role"] for m in call["body"]["messages"]] == ["system", "user"]
+
+
+def test_responses_chat_posts_input_with_a_bearer(monkeypatch) -> None:
+    reply = {
+        "output": [
+            {
+                "type": "message",
+                "role": "assistant",
+                "content": [{"type": "output_text", "text": "hi"}],
+            }
+        ]
+    }
+    seen = _capture(monkeypatch, reply)
+    binding = ModelBinding("http://up/", "m", api_key="k", api="responses")
+    assert binding.chat([{"role": "user", "content": "u"}], temperature=0.2, max_tokens=16) == "hi"
+    call = seen[0]
+    assert call["url"] == "http://up/v1/responses"
+    assert call["headers"]["authorization"] == "Bearer k"
+    assert call["body"]["input"] == [{"role": "user", "content": "u"}]
+    assert call["body"]["max_output_tokens"] == 16 and "max_tokens" not in call["body"]
+    with pytest.raises(ValueError, match="both max_tokens and max_output_tokens"):
+        binding.chat([{"role": "user", "content": "u"}], max_tokens=1, max_output_tokens=2)
+
+
+def test_anthropic_chat_posts_messages_with_x_api_key_and_a_system_field(monkeypatch) -> None:
+    seen = _capture(monkeypatch, {"content": [{"type": "text", "text": "hi"}, {"type": "text", "text": "!"}]})
+    binding = ModelBinding("http://up", "claude", api_key="k", api="anthropic")
+    assert binding.chat([{"role": "system", "content": "s"}, {"role": "user", "content": "u"}], max_tokens=16) == "hi!"
+    call = seen[0]
+    assert call["url"] == "http://up/v1/messages"
+    assert call["headers"]["x-api-key"] == "k" and call["headers"]["anthropic-version"]
+    assert "authorization" not in call["headers"]
+    assert call["body"]["system"] == "s"
+    assert call["body"]["messages"] == [{"role": "user", "content": "u"}]  # system never rides as a message
+    assert call["body"]["max_tokens"] == 16
+
+
+def test_anthropic_chat_supplies_the_required_max_tokens(monkeypatch) -> None:
+    seen = _capture(monkeypatch, {"content": [{"type": "text", "text": "x"}]})
+    ModelBinding("http://up", "claude", api="anthropic").chat([{"role": "user", "content": "u"}])
+    assert seen[0]["body"]["max_tokens"] > 0
+
+
+def test_streams_fold_to_one_reply_in_all_dialects(monkeypatch) -> None:
+    openai = b'data: {"choices":[{"delta":{"role":"assistant","content":"a"}}]}\ndata: {"choices":[{"delta":{"content":"b"}}]}\ndata: [DONE]\n'
+    _capture(monkeypatch, openai)
+    assert ModelBinding("http://up", "m").chat([{"role": "user", "content": "u"}], stream=True) == "ab"
+    anthropic = (
+        b'data: {"type":"message_start","message":{"model":"claude"}}\n'
+        b'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"a"}}\n'
+        b'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"b"}}\n'
+        b'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}\n'
+    )
+    _capture(monkeypatch, anthropic)
+    assert (
+        ModelBinding("http://up", "claude", api="anthropic").chat([{"role": "user", "content": "u"}], stream=True)
+        == "ab"
+    )
+    responses = (
+        b'data: {"type":"response.output_text.delta","delta":"a"}\n'
+        b'data: {"type":"response.output_text.delta","delta":"b"}\n'
+        b"data: [DONE]\n"
+    )
+    _capture(monkeypatch, responses)
+    assert (
+        ModelBinding("http://up", "m", api="responses").chat([{"role": "user", "content": "u"}], stream=True) == "ab"
+    )
+
+
+def test_a_stream_is_read_no_further_than_its_done_event(monkeypatch) -> None:
+    """A proxy may keep the connection open after ``[DONE]``, so the binding must not read past it."""
+
+    class OpenAfterDone:
+        def __init__(self) -> None:
+            self.lines = iter([b'data: {"choices":[{"delta":{"content":"a"}}]}\n', b"\n", b"data: [DONE]\n", b"\n"])
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def __iter__(self):
+            return self
+
+        def __next__(self) -> bytes:
+            line = next(self.lines, None)
+            if line is None:
+                raise AssertionError("the reply was read past its [DONE] event")
+            return line
+
+    monkeypatch.setattr("urllib.request.urlopen", lambda request, timeout=None: OpenAfterDone())
+    assert ModelBinding("http://up", "m").chat([{"role": "user", "content": "u"}], stream=True) == "a"
+
+
+def test_complete_reports_the_tokens_the_endpoint_counted_in_every_dialect(monkeypatch) -> None:
+    """``usage`` rides the response object and ``last_usage`` keeps it for a
+    wrapper of ``chat``, normalised to input/output tokens; a stream folds its
+    usage in from the chunk or event that carried it."""
+    from reef.inference.provider_protocol import usage_of
+
+    binding = ModelBinding("http://up", "m")
+    assert binding.last_usage() is None
+    _capture(
+        monkeypatch,
+        {
+            "choices": [{"message": {"role": "assistant", "content": "a"}}],
+            "usage": {"prompt_tokens": 12, "completion_tokens": 3},
+        },
+    )
+    assert binding.chat([{"role": "user", "content": "u"}]) == "a"
+    assert binding.last_usage() == {"input_tokens": 12, "output_tokens": 3}
+    _capture(monkeypatch, {"choices": [{"message": {"role": "assistant", "content": "b"}}]})
+    binding.chat([{"role": "user", "content": "u"}])
+    assert binding.last_usage() is None
+    openai = (
+        b'data: {"choices":[{"delta":{"role":"assistant","content":"a"}}]}\n'
+        b'data: {"choices":[],"usage":{"prompt_tokens":7,"completion_tokens":1}}\ndata: [DONE]\n'
+    )
+    _capture(monkeypatch, openai)
+    response = binding.complete({"messages": [], "stream": True})
+    assert response["choices"][0]["message"]["content"] == "a" and usage_of(response) == {
+        "input_tokens": 7,
+        "output_tokens": 1,
+    }
+    anthropic = (
+        b'data: {"type":"message_start","message":{"model":"claude","usage":{"input_tokens":20,"output_tokens":1}}}\n'
+        b'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"a"}}\n'
+        b'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":5}}\n'
+    )
+    _capture(monkeypatch, anthropic)
+    claude = ModelBinding("http://up", "claude", api="anthropic")
+    assert claude.chat([{"role": "user", "content": "u"}], stream=True) == "a"
+    assert claude.last_usage() == {"input_tokens": 20, "output_tokens": 5}
+    assert usage_of({"usage": {"input_tokens": True}}) is None and usage_of({"usage": {"output_tokens": 4}}) == {
+        "input_tokens": 0,
+        "output_tokens": 4,
+    }
+
+
+def test_the_budgeted_binding_records_each_calls_usage_for_the_step(monkeypatch) -> None:
+    from reef.train.harness_backend.calls import BudgetedBinding, StepCalls
+
+    record: list[dict[str, Any]] = []
+    budgeted = BudgetedBinding(ModelBinding("http://up", "m"), StepCalls(0, record))
+    _capture(
+        monkeypatch,
+        {
+            "choices": [{"message": {"role": "assistant", "content": "a"}}],
+            "usage": {"prompt_tokens": 9, "completion_tokens": 2},
+        },
+    )
+    assert budgeted.chat([{"role": "user", "content": "u"}]) == "a"
+    _capture(monkeypatch, {"choices": [{"message": {"role": "assistant", "content": "b"}}]})
+    budgeted.chat([{"role": "user", "content": "u"}])
+    assert record[0]["usage"] == {"input_tokens": 9, "output_tokens": 2} and "usage" not in record[1]
+
+
+def test_chat_record_keeps_provider_reasoning_separate_from_reply(monkeypatch) -> None:
+    from reef.harness.tree.checks import RECORD_TEXT_CAP
+    from reef.train.harness_backend.calls import BudgetedBinding, StepCalls
+
+    response = {
+        "id": "response-1",
+        "choices": [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": "the answer",
+                    "reasoning": "a" * (RECORD_TEXT_CAP + 3),
+                    "reasoning_details": [{"type": "reasoning.text", "text": "sk-test-0123456789abcdefghijklmnop"}],
+                }
+            }
+        ],
+    }
+    record: list[dict[str, Any]] = []
+    inner = ModelBinding("http://up", "m")
+    budgeted = BudgetedBinding(inner, StepCalls(0, record))
+    _capture(monkeypatch, response)
+    assert budgeted.chat([]) == "the answer"
+    assert record[0]["reply"] == "the answer"
+    captured = record[0]["response"]["choices"][0]["message"]
+    assert captured["reasoning"].endswith("[clipped 3 chars]")
+    assert captured["reasoning_details"][0]["text"] == "[redacted credential]"
+    # Capturing is a copy: clipping and redaction must not alter the live provider response.
+    assert inner.last_response() == response
+    _capture(monkeypatch, {"choices": [{"message": {"role": "assistant", "content": "plain"}}]})
+    assert budgeted.chat([]) == "plain"
+    assert "reasoning" not in record[1]["response"]["choices"][0]["message"]
+
+
+def test_stream_keeps_reasoning_fields_and_merges_detail_fragments(monkeypatch) -> None:
+    chunks = [
+        {
+            "choices": [
+                {
+                    "delta": {
+                        "role": "assistant",
+                        "reasoning": "first ",
+                        "reasoning_content": "one ",
+                        "reasoning_details": [{"index": 0, "type": "reasoning.text", "text": "step "}],
+                    }
+                }
+            ]
+        },
+        {
+            "choices": [
+                {
+                    "delta": {
+                        "reasoning": "second",
+                        "reasoning_content": "two",
+                        "reasoning_details": [
+                            {"index": 0, "text": "by step"},
+                            {"index": 1, "type": "reasoning.encrypted", "data": "opaque"},
+                        ],
+                    }
+                }
+            ]
+        },
+        {"choices": [{"delta": {"content": "answer"}, "finish_reason": "stop"}]},
+    ]
+    _capture(monkeypatch, "".join(f"data: {json.dumps(chunk)}\n" for chunk in chunks).encode())
+    binding = ModelBinding("http://up", "m")
+    assert binding.chat([], stream=True) == "answer"
+    message = binding.last_response()["choices"][0]["message"]
+    assert message["reasoning"] == "first second"
+    assert message["reasoning_content"] == "one two"
+    assert message["reasoning_details"] == [
+        {"index": 0, "type": "reasoning.text", "text": "step by step"},
+        {"index": 1, "type": "reasoning.encrypted", "data": "opaque"},
+    ]
+
+
+def test_anthropic_stream_keeps_thinking_and_signature_blocks(monkeypatch) -> None:
+    events = [
+        {"type": "message_start", "message": {"model": "claude"}},
+        {"type": "content_block_start", "index": 0, "content_block": {"type": "thinking", "thinking": ""}},
+        {"type": "content_block_delta", "index": 0, "delta": {"type": "thinking_delta", "thinking": "consider "}},
+        {"type": "content_block_delta", "index": 0, "delta": {"type": "thinking_delta", "thinking": "this"}},
+        {"type": "content_block_delta", "index": 0, "delta": {"type": "signature_delta", "signature": "signed"}},
+        {"type": "content_block_start", "index": 1, "content_block": {"type": "redacted_thinking", "data": "opaque"}},
+        {"type": "content_block_start", "index": 2, "content_block": {"type": "text", "text": ""}},
+        {"type": "content_block_delta", "index": 2, "delta": {"type": "text_delta", "text": "answer"}},
+    ]
+    _capture(monkeypatch, "".join(f"data: {json.dumps(event)}\n" for event in events).encode())
+    binding = ModelBinding("http://up", "claude", api="anthropic")
+    assert binding.chat([], stream=True) == "answer"
+    assert binding.last_response()["content"] == [
+        {"type": "thinking", "thinking": "consider this", "signature": "signed"},
+        {"type": "redacted_thinking", "data": "opaque"},
+        {"type": "text", "text": "answer"},
+    ]
+
+
+def test_responses_stream_keeps_reasoning_output_items(monkeypatch) -> None:
+    output = [
+        {"id": "reason-1", "type": "reasoning", "summary": [{"type": "summary_text", "text": "Consider this."}]},
+        {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "answer"}]},
+    ]
+    events = [
+        {"type": "response.output_item.done", "output_index": index, "item": item} for index, item in enumerate(output)
+    ]
+    _capture(monkeypatch, "".join(f"data: {json.dumps(event)}\n" for event in events).encode())
+    binding = ModelBinding("http://up", "m", api="responses")
+    assert binding.chat([], stream=True) == "answer"
+    assert binding.last_response()["output"] == output
+    # A stream ending after text deltas must retain that text alongside the completed reasoning item.
+    events[-1] = {"type": "response.output_text.delta", "delta": "answer"}
+    _capture(monkeypatch, "".join(f"data: {json.dumps(event)}\n" for event in events).encode())
+    assert binding.chat([], stream=True) == "answer"
+    assert binding.last_response()["output"] == output
+
+
+def test_record_does_not_reuse_a_previous_response_when_custom_chat_returns_text(monkeypatch) -> None:
+    from reef.train.harness_backend.calls import BudgetedBinding, StepCalls
+
+    class CustomChat(ModelBinding):
+        def chat(self, messages, **params):
+            return "custom text"
+
+    inner = CustomChat("http://up", "m")
+    _capture(monkeypatch, {"choices": [{"message": {"role": "assistant", "content": "previous", "reasoning": "old"}}]})
+    inner.complete({"messages": []})
+    assert inner.last_response() is not None
+    record: list[dict[str, Any]] = []
+    assert BudgetedBinding(inner, StepCalls(0, record)).chat([]) == "custom text"
+    assert "response" not in record[0]
+
+
+def test_failed_request_clears_the_previous_response(monkeypatch) -> None:
+    from reef.harness.tasks.model_binding import ModelBindingError
+
+    binding = ModelBinding("http://up", "m")
+    _capture(monkeypatch, {"choices": [{"message": {"role": "assistant", "content": "answer", "reasoning": "old"}}]})
+    binding.chat([])
+    _capture(monkeypatch, b"invalid json")
+    with pytest.raises(ModelBindingError):
+        binding.chat([])
+    assert binding.last_response() is None
+
+
+def test_a_failed_call_retains_reasoning_when_the_provider_returns_no_final_text(monkeypatch) -> None:
+    from reef.harness.tasks.model_binding import ModelBindingError
+    from reef.train.harness_backend.calls import BudgetedBinding, StepCalls
+
+    record: list[dict[str, Any]] = []
+    response = {
+        "choices": [
+            {
+                "message": {"role": "assistant", "content": None, "reasoning": "Still considering."},
+                "finish_reason": "length",
+            }
+        ],
+        "usage": {"prompt_tokens": 3, "completion_tokens": 20},
+    }
+    _capture(monkeypatch, response)
+    with pytest.raises(ModelBindingError, match="non-text"):
+        BudgetedBinding(ModelBinding("http://up", "m"), StepCalls(0, record)).chat([])
+    assert "error" in record[0] and "reply" not in record[0]
+    assert record[0]["response"] == response
+    assert record[0]["usage"] == {"input_tokens": 3, "output_tokens": 20}
+
+
+def test_reasoning_fragments_do_not_merge_unidentified_blocks_or_stringify_null_signatures() -> None:
+    from reef.inference.provider_protocol import merge_reasoning_details
+
+    details: list[Any] = []
+    merge_reasoning_details(details, [{"type": "reasoning.text", "index": 0, "text": "step", "signature": None}])
+    merge_reasoning_details(details, [{"index": 0, "signature": "signed"}])
+    merge_reasoning_details(details, [{"index": 0, "signature": None, "text": None}])
+    merge_reasoning_details(details, [{"type": "reasoning.text", "id": None, "text": "one"}])
+    merge_reasoning_details(details, [{"type": "reasoning.text", "id": None, "text": "two"}])
+    assert details == [
+        {"type": "reasoning.text", "index": 0, "text": "step", "signature": "signed"},
+        {"type": "reasoning.text", "id": None, "text": "one"},
+        {"type": "reasoning.text", "id": None, "text": "two"},
+    ]
+
+
+@pytest.mark.parametrize("partial_json", ['{"path":"app.py"}', '{"path":'])
+def test_anthropic_stream_preserves_tool_input_or_its_incomplete_fragments(monkeypatch, partial_json) -> None:
+    events = [
+        {
+            "type": "content_block_start",
+            "index": 0,
+            "content_block": {"type": "tool_use", "id": "read-1", "name": "read_file", "input": {}},
+        },
+        {
+            "type": "content_block_delta",
+            "index": 0,
+            "delta": {"type": "input_json_delta", "partial_json": partial_json[:4]},
+        },
+        {
+            "type": "content_block_delta",
+            "index": 0,
+            "delta": {"type": "input_json_delta", "partial_json": partial_json[4:]},
+        },
+        {"type": "content_block_stop", "index": 0},
+    ]
+    _capture(monkeypatch, "".join(f"data: {json.dumps(event)}\n" for event in events).encode())
+    response = ModelBinding("http://up", "claude", api="anthropic").complete({"messages": [], "stream": True})
+    block = response["content"][0]
+    assert block["id"] == "read-1" and block["name"] == "read_file"
+    if partial_json.endswith("}"):
+        assert block["input"] == {"path": "app.py"}
+        assert "partial_json" not in block
+    else:
+        assert "input" not in block
+        assert block["partial_json"] == partial_json
+
+
+def bound_files(binding: ModelBinding, adapter: str) -> dict[str, str]:
+    """The files the empty tree renders for ``adapter`` with ``binding``'s overlays."""
+    descriptor = get_adapter(adapter)
+    return render_tree(HarnessTree({}), descriptor, binding.config_overlays(descriptor))
+
+
+def test_config_overlays_repeat_the_model_entries_for_every_client_model() -> None:
+    """With client models, the provider block lists them all, the served one first
+    and still the default; a template with no such list is unchanged."""
+    binding = ModelBinding("http://up", "served", api_key="k")
+    pi = dict(binding.config_overlays(get_adapter("pi"), models=("other/big", "served", "other/small")))
+    assert [m["id"] for m in pi["models"]["providers"]["reef"]["models"]] == ["served", "other/big", "other/small"]
+    assert pi["agent"]["defaultModel"] == "reef/served"
+    ((target, data),) = binding.config_overlays(get_adapter("opencode"), models=("other/big",))
+    assert target == "agent"
+    assert list(data["provider"]["reef"]["models"]) == ["served", "other/big"] and data["model"] == "reef/served"
+    assert binding.config_overlays(get_adapter("opencode")) == binding.config_overlays(
+        get_adapter("opencode"), models=("served",)
+    )
+
+
+def test_recipe_binds_the_model_metadata_of_the_served_model() -> None:
+    runtime = InferenceProxyRuntime(model_path="small", base_url="http://up")
+    config = {
+        "model": {"path": "small"},
+        **evolution_config(adapter="codex", model_metadata={"small": {"context_window": 640_000, "reasoning": True}}),
+    }
+    codex = HarnessEvolutionRecipe.from_environment({}, config=config, runtime=runtime)
+    assert codex.model_binding().metadata.context_window == 640_000
+
+
+def test_unknown_api_is_refused() -> None:
+    with pytest.raises(ValueError, match="api must be one of"):
+        ModelBinding("http://up", "m", api="cohere")
+
+
+def test_run_templates_follow_the_dialect() -> None:
+    openai = bound_files(ModelBinding("http://up", "m", api_key="k"), "pi")
+    responses = bound_files(ModelBinding("http://up", "m", api_key="k", api="responses"), "pi")
+    anthropic = bound_files(ModelBinding("http://up", "m", api_key="k", api="anthropic"), "pi")
+    assert json.loads(openai["pi-agent/models.json"])["providers"]["reef"]["api"] == "openai-completions"
+    assert json.loads(openai["pi-agent/models.json"])["providers"]["reef"]["baseUrl"] == "http://up/v1"
+    assert json.loads(responses["pi-agent/models.json"])["providers"]["reef"]["api"] == "openai-responses"
+    assert json.loads(responses["pi-agent/models.json"])["providers"]["reef"]["baseUrl"] == "http://up/v1"
+    assert json.loads(anthropic["pi-agent/models.json"])["providers"]["reef"]["api"] == "anthropic-messages"
+    assert json.loads(anthropic["pi-agent/models.json"])["providers"]["reef"]["baseUrl"] == "http://up"
+    for files in (openai, responses, anthropic):
+        assert json.loads(files["pi-agent/settings.json"])["defaultModel"] == "reef/m"
+
+
+def test_an_endpoint_without_a_key_still_renders_a_key_the_agent_accepts() -> None:
+    """A local endpoint needs no key, but pi refuses to start without one.
+
+    Rendering the empty string made every evaluation run exit 1 with
+    "No API key found for the selected model" before reaching the endpoint,
+    so both sides of the evaluation scored 0 and no candidate could ever publish.
+    """
+    files = bound_files(ModelBinding("http://127.0.0.1:11434", "m"), "pi")
+    assert json.loads(files["pi-agent/models.json"])["providers"]["reef"]["apiKey"] == NO_KEY_PLACEHOLDER
+
+
+def test_a_real_key_is_rendered_verbatim_over_the_placeholder() -> None:
+    files = bound_files(ModelBinding("http://up", "m", api_key="sk-real"), "pi")
+    assert json.loads(files["pi-agent/models.json"])["providers"]["reef"]["apiKey"] == "sk-real"
+
+
+def test_the_dialect_rides_the_proxy_runtime_into_the_binding() -> None:
+    runtime = InferenceProxyRuntime(model_path="claude", base_url="http://up", api_key="k", api="anthropic")
+    binding = ModelBinding.from_runtime(runtime)
+    assert (binding.api, binding.model, binding.api_key) == ("anthropic", "claude", "k")
+    responses = ModelBinding.from_runtime(
+        InferenceProxyRuntime(model_path="gpt", base_url="http://up", api="responses")
+    )
+    assert responses.api == "responses"
+    with pytest.raises(ValueError, match="api must be one of"):
+        InferenceProxyRuntime(base_url="http://up", api="grpc")
+
+
+# -- the named set -----------------------------------------------------------
+
+
+def test_model_bindings_expose_served_and_named_models() -> None:
+    served = ModelBinding("http://up", "small")
+    teacher = ModelBinding("http://big", "large", api_key="k")
+    models = ModelBindings(served=served, named={"teacher": teacher})
+    assert models.served is served and models["served"] is served and models["teacher"] is teacher
+    assert list(models) == ["served", "teacher"] and len(models) == 2
+    with pytest.raises(KeyError, match=r"no model named 'judge'; declared under evolution.models: teacher"):
+        models["judge"]
+    with pytest.raises(ValueError, match="'served' is reserved"):
+        ModelBindings(served=served, named={"served": teacher})
+
+
+def test_from_config_reads_the_key_from_the_named_environment_variable() -> None:
+    binding = ModelBinding.from_config(
+        {"url": "https://api.example/", "model": "gpt", "api_key_env": "TEACHER_KEY", "timeout_s": 30},
+        {"TEACHER_KEY": "sk-teacher"},
+        where="evolution.models.teacher",
+    )
+    assert (binding.base_url, binding.model, binding.api_key, binding.api, binding.timeout_s) == (
+        "https://api.example",
+        "gpt",
+        "sk-teacher",
+        "openai",
+        30.0,
+    )
+    assert ModelBinding.from_config({"url": "http://u", "model": "m"}, {}).api_key is None
+    with pytest.raises(ValueError, match=r"evolution\.models\.t\.url must be a non-empty string"):
+        ModelBinding.from_config({"model": "m"}, {}, where="evolution.models.t")
+
+
+def test_recipe_declares_named_models_under_evolution_models() -> None:
+    runtime = InferenceProxyRuntime(model_path="small", base_url="http://up")
+
+    def recipe(models: dict[str, Any], environ: dict[str, str]) -> HarnessEvolutionRecipe:
+        config = {"model": {"path": "small"}, **evolution_config(models=models)}
+        return HarnessEvolutionRecipe.from_environment(environ, config=config, runtime=runtime)
+
+    teacher = {"url": "http://big", "model": "large", "api_key_env": "TEACHER_KEY"}
+    models = recipe({"teacher": teacher}, {"TEACHER_KEY": "sk-t"}).model_bindings()
+    assert models.served.model == "small" and models["teacher"].api_key == "sk-t"
+    with pytest.raises(RecipeConfigError, match="may not name a model 'served'"):
+        recipe({"served": {"url": "http://x", "model": "m"}}, {})
+    with pytest.raises(RecipeConfigError, match=r"evolution\.models\.t\.url"):
+        recipe({"t": {"model": "m"}}, {})
+
+
+def models_overlay(binding: ModelBinding) -> dict:
+    """The ``models`` config overlay a pi tree gets from ``binding``."""
+    return dict(binding.config_overlays(get_adapter("pi")))["models"]
+
+
+@pytest.mark.unit
+def test_a_pi_tree_carries_the_bindings_reply_budget_as_a_number() -> None:
+    """pi falls back to 16384 tokens for a model its config does not size, which a reasoning model spends on its
+    reasoning alone; Reef writes the binding's budget instead, and JSON needs it to stay a number."""
+    binding = ModelBinding(base_url="http://127.0.0.1:8901", model="anthropic/claude-sonnet-5", api_key="tok")
+    models = models_overlay(binding)
+    assert models["providers"]["reef"]["models"][0] == {
+        "id": "anthropic/claude-sonnet-5",
+        "maxTokens": 32000,
+    }
+    assert binding.max_output_tokens == 32000
+
+    smaller = models_overlay(replace(binding, max_output_tokens=8000))
+    assert smaller["providers"]["reef"]["models"][0]["maxTokens"] == 8000
+
+    for bad in (0, -1, True):
+        with pytest.raises(ValueError, match="max_output_tokens"):
+            replace(binding, max_output_tokens=bad)
+
+
+@pytest.mark.parametrize("parameters, reasoning", [(["reasoning"], True), ([], False)])
+def test_provider_metadata_is_selected_by_exact_model_and_cached(
+    monkeypatch: pytest.MonkeyPatch, parameters: list[str], reasoning: bool
+) -> None:
+    from reef.core.model_metadata import ModelMetadata
+    from reef.harness.tasks.model_binding import provider_model_metadata
+
+    provider_model_metadata.cache_clear()
+    reply = {
+        "data": [
+            {"id": "other", "context_length": 100, "supported_parameters": []},
+            {"id": "served", "context_length": 640_000, "supported_parameters": parameters},
+        ]
+    }
+    calls = []
+
+    def fetch(request: Request, timeout: float) -> io.BytesIO:
+        calls.append((request.full_url, request.get_header("Authorization"), timeout))
+        return _Response(json.dumps(reply).encode())
+
+    monkeypatch.setattr("urllib.request.urlopen", fetch)
+    binding = ModelBinding("http://up", "served", api_key="test-key", api="responses").with_metadata()
+    assert binding.metadata == ModelMetadata(640_000, reasoning)
+    assert ModelBinding("http://up", "served", api_key="test-key").with_metadata().metadata == binding.metadata
+    assert calls == [("http://up/v1/models", "Bearer test-key", 5.0)]
+    # Routing through Reef must preserve the provider's resolved metadata.
+    assert replace(binding, base_url="http://reef/evaluation", api_key="reef-key").metadata == binding.metadata
+    provider_model_metadata.cache_clear()
+
+
+def test_metadata_missing_or_unavailable_keeps_fallback_and_explicit_config_wins(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from reef.core.model_metadata import ModelMetadata
+    from reef.harness.tasks.model_binding import provider_model_metadata
+
+    provider_model_metadata.cache_clear()
+
+    def missing(request: Request, timeout: float) -> io.BytesIO:
+        return _Response(b'{"data": [{"id": "served"}]}')
+
+    monkeypatch.setattr("urllib.request.urlopen", missing)
+    binding = ModelBinding("http://up", "served", api="responses")
+    assert binding.with_metadata().metadata is None
+    provider_model_metadata.cache_clear()
+
+    def unavailable(request: Request, timeout: float) -> io.BytesIO:
+        raise OSError("offline")
+
+    monkeypatch.setattr("urllib.request.urlopen", unavailable)
+    assert binding.with_metadata().metadata is None
+    assert binding.with_metadata(ModelMetadata(32_000, False)).metadata == ModelMetadata(32_000, False)
+    configured = ModelBinding.from_config(
+        {
+            "url": "http://up",
+            "model": "served",
+            "metadata": {
+                "context_window": 32_000,
+                "reasoning": False,
+            },
+        },
+        {},
+    )
+    assert configured.with_metadata().metadata == ModelMetadata(32_000, False)
+
+
+def test_truncated_metadata_response_keeps_fallback_and_allows_retry(caplog: pytest.LogCaptureFixture) -> None:
+    from reef.core.model_metadata import ModelMetadata
+    from reef.harness.tasks.model_binding import provider_model_metadata
+
+    complete_body = json.dumps(
+        {"data": [{"id": "served", "context_length": 640_000, "supported_parameters": []}]}
+    ).encode()
+    bodies = iter((complete_body[:10], complete_body))
+    paths: list[str] = []
+
+    class MetadataHandler(BaseHTTPRequestHandler):
+        def log_message(self, format: str, *args: object) -> None:
+            pass
+
+        def do_GET(self) -> None:
+            paths.append(self.path)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(complete_body)))
+            self.end_headers()
+            self.wfile.write(next(bodies))
+            self.close_connection = True
+
+    provider_model_metadata.cache_clear()
+    server = ThreadingHTTPServer(("127.0.0.1", 0), MetadataHandler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        binding = ModelBinding(f"http://127.0.0.1:{server.server_port}", "served", api="responses")
+        fallback = binding.with_metadata()
+        assert fallback == binding
+        assert "Could not read metadata for model 'served'" in caplog.text
+        files = bound_files(fallback, "codex")
+        assert "codex/models.json" not in files
+        assert "model_catalog_json" not in files["codex/config.toml"]
+        assert binding.with_metadata().metadata == ModelMetadata(640_000, False)
+        assert paths == ["/v1/models", "/v1/models"]
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+        provider_model_metadata.cache_clear()
+
+
+def test_budgeted_binding_keeps_model_metadata() -> None:
+    from reef.core.model_metadata import ModelMetadata
+    from reef.train.harness_backend.calls import BudgetedBinding, StepCalls
+
+    binding = ModelBinding("http://up", "served", api="responses", metadata=ModelMetadata(640_000, True))
+    budgeted = BudgetedBinding(binding, StepCalls(0, []))
+    assert budgeted.config_overlays(get_adapter("codex")) == binding.config_overlays(get_adapter("codex"))

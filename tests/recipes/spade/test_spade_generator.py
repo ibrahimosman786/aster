@@ -1,0 +1,359 @@
+"""SPADE as a task generator: the Designer's generations, the hint plays, and the regret reports from the results."""
+
+from __future__ import annotations
+
+import asyncio
+import json
+from pathlib import Path
+from typing import Any
+
+import pytest
+from tests.support.samples import open_sample_store
+from tests.support.task_service_stubs import StandInGenerator, task_for
+
+from recipes.beta.spade import SpadeTaskGenerator
+from reef.core import AgentRecord, RequestType
+from reef.core.plugins import PluginConfigError
+from reef.core.tasks import read_harbor_task, write_harbor_task
+from reef.pipeline_context import PipelineContext
+from reef.recipe.generated_tasks import GeneratedTaskSamples, GeneratedTaskSettings
+from reef.recipe.generated_tasks.generator import (
+    FailedTask,
+    GeneratedTaskResult,
+    HeldOutTask,
+    RejectedTask,
+    RolledOutTask,
+)
+from reef.recipe.generated_tasks.processor import GenerationJob
+from reef.recipe.generated_tasks.results import TaskRolloutResult
+from reef.record2sample.generator import GeneratorError, TaskNameConflict
+from reef.record2sample.generator.inputs import TaskGenerationRequest
+
+DESCRIPTION = "shell tasks with hidden state under /var and /etc"
+REQUEST = TaskGenerationRequest((), DESCRIPTION)
+
+
+def spade(tmp_path: Path, service: StandInGenerator | None = None, **fields: Any) -> SpadeTaskGenerator:
+    return SpadeTaskGenerator(
+        scenario="spade",
+        service=service if service is not None else StandInGenerator(tmp_path / "tasks"),
+        state_dir=tmp_path / "state",
+        **{
+            "count": 3,
+            "hint_plays": 1,
+            "skills": ("inspection", "repair"),
+            "served_model": "Qwen/Qwen3-8B",
+            **fields,
+        },
+    )
+
+
+def run_tasks(generator: SpadeTaskGenerator, *, plain: float = 0.25) -> tuple[GeneratedTaskResult, ...]:
+    """Generate, validate, write and run every task the way the generated-task recipe does, with fixed rewards."""
+    results = []
+    for task in asyncio.run(generator.generate(REQUEST)):
+        validation = asyncio.run(generator.validate(task))
+        if not validation.is_valid:
+            results.append(RejectedTask(task, "; ".join(validation.errors)))
+            continue
+        asyncio.run(generator.service.write_task(task))
+        results.append(RolledOutTask(task, (plain, plain)))
+    return tuple(results)
+
+
+def report(tmp_path: Path, generation: int) -> dict[str, Any]:
+    return json.loads((tmp_path / "state" / f"generation-{generation:05d}.json").read_text())
+
+
+def test_a_generation_asks_the_designer_count_times_across_the_skills(tmp_path: Path) -> None:
+    service = StandInGenerator(tmp_path / "tasks")
+    tasks = asyncio.run(spade(tmp_path, service).generate(REQUEST))
+    assert [call["index"] for call in service.proposals] == [0, 1, 2]
+    assert [call["request"].skill for call in service.proposals] == ["inspection", "repair", "inspection"]
+    assert service.proposals[0]["tags"] == {"role": "designer", "generation": "0", "skill": "inspection"}
+    assert service.proposals[0]["scenario"] == "spade" and service.proposals[0]["model"] == "Qwen/Qwen3-8B"
+    assert "nothing recorded yet" in service.proposals[0]["request"].experience_text
+    assert service.proposals[0]["request"].target == DESCRIPTION
+    assert [task.name for task in tasks] == [
+        "harbor-00000-000-inspection",
+        "harbor-00000-001-repair",
+        "harbor-00000-002-inspection",
+    ]
+
+
+def test_validation_checks_a_written_copy_and_removes_it(tmp_path: Path) -> None:
+    service = StandInGenerator(tmp_path / "tasks")
+    generator = spade(tmp_path, service, count=1)
+    (item,) = asyncio.run(generator.generate(REQUEST))
+    assert asyncio.run(generator.validate(item)).is_valid
+    assert service.checks == [tmp_path / "tasks" / item.name]
+    assert service.deleted == [item.name] and not (tmp_path / "tasks" / item.name).exists()
+
+    refusing = StandInGenerator(tmp_path / "refusing", is_solvable=False)
+    generator = spade(tmp_path / "second", refusing, count=1)
+    (item,) = asyncio.run(generator.generate(REQUEST))
+    assert asyncio.run(generator.validate(item)).errors == ("oracle check refused: the oracle scored 0",)
+    assert refusing.deleted == [item.name]
+
+
+def test_a_duplicate_is_invalid_and_a_rerun_replaces_the_task_its_earlier_attempt_wrote(tmp_path: Path) -> None:
+    root = tmp_path / "tasks"
+    earlier = task_for("harbor-00000-000", "designer-earlier", 1)
+    write_harbor_task(earlier, root)
+    service = StandInGenerator(root, same_port=True)
+    generator = spade(tmp_path, service, skills=(), count=2)
+    first, second = asyncio.run(generator.generate(REQUEST))
+    assert asyncio.run(generator.validate(first)).is_valid
+    assert service.deleted == ["harbor-00000-000", "harbor-00000-000"], "the earlier attempt, then the checked copy"
+    write_harbor_task(first, root)
+    assert asyncio.run(generator.validate(second)).errors == ("refused: duplicate of a task already under the root",)
+
+    taken = StandInGenerator(tmp_path / "taken", taken=("harbor-00000-000",))
+    generator = spade(tmp_path / "again", taken, skills=(), count=1)
+    (item,) = asyncio.run(generator.generate(REQUEST))
+    errors = asyncio.run(generator.validate(item)).errors
+    assert errors[0].startswith("refused: a different task holds the name harbor-00000-000")
+    assert taken.deleted == ["harbor-00000-000"], "replaced once; a second conflict is a refusal"
+
+
+def test_a_history_task_never_replaces_a_conflicting_name(tmp_path: Path) -> None:
+    service = StandInGenerator(tmp_path / "tasks", taken=("harbor-history-1",))
+    task = task_for("harbor-history-1", "designer-1", 1)
+    history = type(task)(**{**task.__dict__, "metadata": {"designer_record_id": "designer-1"}})
+    with pytest.raises(TaskNameConflict):
+        asyncio.run(spade(tmp_path, service).write(history))
+    assert service.deleted == []
+
+
+def test_the_results_close_the_generation_with_regret_reports_and_the_next_experience(
+    tmp_path: Path,
+) -> None:
+    service = StandInGenerator(tmp_path / "tasks", refusals={1: "reply refused: no json"})
+    generator = spade(tmp_path, service)
+    asyncio.run(generator.record_results(run_tasks(generator), generation=0))
+
+    names = ["harbor-00000-000-inspection", "harbor-00000-002-inspection"]
+    # The hint plays of each played task, on a copy written again in place, after the recipe's plays.
+    assert [
+        (c["task"], c["arm"], c["count"], c["extra"], c["tags"], c["model"]) for c in service.rollout_requests
+    ] == [(name, "hint", 1, ("solution/hint.txt",), {"generation": "0"}, "Qwen/Qwen3-8B") for name in names]
+    assert service.deleted[-2:] == names
+    assert [(r["record_id"], r["score"]) for r in service.reports] == [
+        ("designer-1", 0.5),
+        ("designer-2", 0.0),
+        ("designer-3", 0.5),
+    ]
+    metadata = service.reports[0]["metadata"]
+    assert metadata["task"]["name"] == "harbor-00000-000-inspection" and metadata["outcome"] == "frontier"
+    assert metadata["regret"] == 0.5 and metadata["skill"] == "inspection" and metadata["generation"] == 0
+    assert service.reports[1]["metadata"]["refusal"] == "reply refused: no json"
+
+    document = report(tmp_path, 0)
+    assert document["error"] == "" and [task["name"] for task in document["tasks"]] == names
+    assert [proposal["refusal"] for proposal in document["proposals"]] == ["", "reply refused: no json", ""]
+    assert [proposal["designer_report_id"] for proposal in document["proposals"]] == [
+        "report-1",
+        "report-2",
+        "report-3",
+    ]
+
+    asyncio.run(generator.generate(REQUEST))
+    text = service.proposals[3]["request"].experience_text
+    assert "harbor-00000-000-inspection (inspection): without hint +0.25, with hint +0.75" in text
+    assert service.proposals[3]["tags"]["generation"] == "1"
+
+
+def test_a_task_that_ran_no_rollouts_scores_zero_with_its_error(tmp_path: Path) -> None:
+    service = StandInGenerator(tmp_path / "tasks")
+    generator = spade(tmp_path, service, count=1)
+    (item,) = asyncio.run(generator.generate(REQUEST))
+    asyncio.run(generator.record_results((FailedTask(item, "the agent could not run the task", False),), generation=0))
+    assert service.reports[0]["score"] == 0.0
+    assert service.reports[0]["metadata"]["refusal"] == "the agent could not run the task"
+    assert report(tmp_path, 0)["tasks"] == []
+
+
+@pytest.mark.unit
+def test_eval_tasks_receive_no_designer_reward_or_training_experience(tmp_path: Path) -> None:
+    service = StandInGenerator(tmp_path / "tasks")
+    generator = spade(tmp_path, service, count=1)
+    (generated,) = asyncio.run(generator.generate(REQUEST))
+    assert asyncio.run(generator.validate(generated)).is_valid
+    asyncio.run(generator.record_results((HeldOutTask(generated),), generation=0))
+    assert service.reports == [] and service.rollout_requests == []
+    assert generator.experience == ()
+    document = report(tmp_path, 0)
+    assert document["tasks"] == []
+    assert document["proposals"][0]["split"] == "eval"
+    assert document["proposals"][0]["refusal"] == ""
+
+
+def test_a_restarted_generator_carries_on_from_the_reports_on_disk(tmp_path: Path) -> None:
+    generator = spade(tmp_path, count=1)
+    asyncio.run(generator.record_results(run_tasks(generator), generation=0))
+    service = StandInGenerator(tmp_path / "tasks")
+    again = spade(tmp_path, service, count=1)
+    assert again.generation == 1
+    asyncio.run(again.generate(REQUEST))
+    assert service.proposals[0]["generation"] == 1
+    assert "harbor-00000-000-inspection" in service.proposals[0]["request"].experience_text
+
+
+def test_a_service_that_goes_away_ends_the_generation_with_what_ran(tmp_path: Path) -> None:
+    service = StandInGenerator(tmp_path / "tasks", fail_after=1)
+    generator = spade(tmp_path, service, skills=())
+    results = run_tasks(generator)
+    assert [result.task.name for result in results] == ["harbor-00000-000"]
+    asyncio.run(generator.record_results(results, generation=0))
+    document = report(tmp_path, 0)
+    assert document["error"] == "the generator went away" and [t["name"] for t in document["tasks"]] == [
+        "harbor-00000-000"
+    ]
+
+
+class FailingRollouts(StandInGenerator):
+    """A generator service that writes tasks but cannot run their rollouts."""
+
+    async def run_rollouts(self, task_path, **arguments):
+        raise GeneratorError("the rollout job failed")
+
+
+def test_without_hint_plays_or_when_they_fail_the_return_with_hint_is_the_plain_return(tmp_path: Path) -> None:
+    service = StandInGenerator(tmp_path / "tasks")
+    generator = spade(tmp_path, service, count=1, hint_plays=0)
+    asyncio.run(generator.record_results(run_tasks(generator), generation=0))
+    assert service.rollout_requests == [] and service.reports[0]["score"] == 0.0
+
+    failing = FailingRollouts(tmp_path / "failing")
+    generator = spade(tmp_path / "second", failing, count=1)
+    asyncio.run(generator.record_results(run_tasks(generator), generation=0))
+    assert failing.reports[0]["score"] == 0.0
+    document = json.loads((tmp_path / "second" / "state" / "generation-00000.json").read_text())
+    assert document["error"] == "the hint plays of harbor-00000-000-inspection failed: the rollout job failed"
+
+
+def test_a_check_that_could_not_run_raises_and_is_named_in_the_report(tmp_path: Path) -> None:
+    service = StandInGenerator(tmp_path / "tasks", check_fail_after=0)
+    generator = spade(tmp_path, service, count=1)
+    (item,) = asyncio.run(generator.generate(REQUEST))
+    with pytest.raises(Exception, match="the harbor command line is not installed"):
+        asyncio.run(generator.validate(item))
+    asyncio.run(generator.record_results((), generation=0))
+    document = report(tmp_path, 0)
+    assert "OracleUnavailable" in document["error"] and document["proposals"] == []
+    assert service.reports == [], "an unchecked task is no refusal"
+
+
+def test_history_from_another_scenario_is_refused_before_the_designer_call(tmp_path: Path) -> None:
+    service = StandInGenerator(tmp_path / "tasks")
+    source = AgentRecord.create(scenario="other", request_type=RequestType.INFERENCE, payload={})
+    with pytest.raises(ValueError, match="generator's scenario"):
+        asyncio.run(spade(tmp_path, service).generate(TaskGenerationRequest((source,), "rebuild")))
+    assert service.proposals == []
+
+
+def test_from_config_reads_its_section_and_keeps_one_state_directory_for_each_scenario(tmp_path: Path) -> None:
+    generator = SpadeTaskGenerator.from_config(
+        {
+            "generator_url": "http://127.0.0.1:8910",
+            "state_dir": str(tmp_path),
+            "count": 2,
+            "skills": "inspection, repair",
+        },
+        scenario="one",
+        environ={},
+    )
+    assert generator.state_dir == tmp_path / "one" and generator.count == 2
+    assert generator.skills == ("inspection", "repair") and generator.hint_plays == 2
+    for config, message in (
+        ({"state_dir": "s"}, "generator_url"),
+        ({"generator_url": "${endpoints.generator}", "state_dir": "s"}, "generator_url"),
+        ({"generator_url": "http://g"}, "state_dir"),
+        ({"generator_url": "http://g", "state_dir": "s", "rollouts": 2}, "does not take rollouts"),
+        ({"generator_url": "http://g", "state_dir": "s", "count": 0}, "count must be positive"),
+    ):
+        with pytest.raises(PluginConfigError, match=message):
+            SpadeTaskGenerator.from_config(config, scenario="one", environ={})
+
+
+def test_a_round_of_the_generated_task_recipe_runs_spade_end_to_end(tmp_path: Path) -> None:
+    service = StandInGenerator(tmp_path / "tasks", refusals={1: "reply refused: no json"})
+    generator = spade(tmp_path, service)
+    session, samples = open_sample_store(tmp_path / "records", "spade")
+    context = PipelineContext("spade", task_storage=session.tasks, samples=samples.for_trainer(""))
+    generation = GeneratedTaskSamples(
+        context,
+        GeneratedTaskSettings(rounds=1, description=DESCRIPTION),
+        task_generator=generator,
+        generator_service=service,
+    )
+    generated = asyncio.run(generation.run(GenerationJob(receipt="generation-00000", generation=0)))
+    saved_tasks = generation.task_store.tasks(split="train")
+    for task in generated.tasks:
+        # The end of the task job saves each task's training rewards, from the training component's rollout.
+        generation.save_result(TaskRolloutResult(task.metadata["task"]["name"], (0.25, 0.25)))
+    delivery_error = asyncio.run(generation.deliver_results())
+    generation.close()
+    assert len(generated.tasks) == len(saved_tasks) == 2 and delivery_error == ""
+    requests = [(call["task"], call["arm"], call["count"], call["extra"]) for call in service.rollout_requests]
+    assert requests == [
+        ("harbor-00000-000-inspection", "hint", 1, ("solution/hint.txt",)),
+        ("harbor-00000-002-inspection", "hint", 1, ("solution/hint.txt",)),
+    ]
+    assert [(r["record_id"], r["score"]) for r in service.reports] == [
+        ("designer-1", 0.5),
+        ("designer-2", 0.0),
+        ("designer-3", 0.5),
+    ]
+    assert report(tmp_path, 0)["error"] == ""
+    assert generation.task_store is not None and len(generation.task_store.tasks(split="train")) == 2
+    assert read_harbor_task(tmp_path / "tasks" / "harbor-00000-000-inspection").name == "harbor-00000-000-inspection"
+
+
+def test_a_generation_closes_after_a_later_one_started_and_after_a_restart(tmp_path: Path) -> None:
+    service = StandInGenerator(tmp_path / "tasks")
+    generator = spade(tmp_path, service, count=1)
+    (first,) = asyncio.run(generator.generate(TaskGenerationRequest((), DESCRIPTION, generation=0)))
+    (second,) = asyncio.run(generator.generate(TaskGenerationRequest((), DESCRIPTION, generation=1)))
+    asyncio.run(generator.record_results((RolledOutTask(second, (0.25,)),), generation=1))
+    assert report(tmp_path, 1)["tasks"][0]["name"] == second.name
+    restarted = spade(tmp_path, service, count=1)
+    assert restarted.generation == 2, "numbering continues after the open generation"
+    asyncio.run(restarted.record_results((RolledOutTask(first, (0.25,)),), generation=0))
+    assert report(tmp_path, 0)["tasks"][0]["name"] == first.name
+    reports = len(service.reports)
+    asyncio.run(restarted.record_results((RolledOutTask(first, (0.25,)),), generation=0))
+    assert len(service.reports) == reports, "a second delivery of a closed generation does nothing"
+
+
+def test_a_task_that_could_not_run_gets_no_designer_reward(tmp_path: Path) -> None:
+    service = StandInGenerator(tmp_path / "tasks")
+    generator = spade(tmp_path, service, count=1)
+    (item,) = asyncio.run(generator.generate(REQUEST))
+    failure = FailedTask(item, "the sandbox provider is down", True)
+    asyncio.run(generator.record_results((failure,), generation=0))
+    assert service.reports == [] and report(tmp_path, 0)["proposals"][0]["infrastructure_failure"]
+
+
+class FailingSecondReport(StandInGenerator):
+    """A generator service whose second Designer report fails once."""
+
+    def __init__(self, root: Path) -> None:
+        super().__init__(root)
+        self.report_calls = 0
+
+    async def report_proposal(self, record_id, **fields) -> str:
+        self.report_calls += 1
+        if self.report_calls == 2:
+            raise GeneratorError("the report did not reach Reef")
+        return await super().report_proposal(record_id, **fields)
+
+
+def test_a_delivery_that_stopped_part_way_does_not_report_a_proposal_twice(tmp_path: Path) -> None:
+    service = FailingSecondReport(tmp_path / "tasks")
+    generator = spade(tmp_path, service, count=2)
+    results = run_tasks(generator)
+    with pytest.raises(GeneratorError):
+        asyncio.run(generator.record_results(results, generation=0))
+    asyncio.run(generator.record_results(results, generation=0))
+    assert [report["record_id"] for report in service.reports] == ["designer-1", "designer-2"]

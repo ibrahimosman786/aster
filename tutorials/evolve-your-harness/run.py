@@ -1,0 +1,356 @@
+"""The harness evolution loop, in the open.
+
+One pass on pi (``./run.sh``):
+
+    record - each task goes once through reef inference, so reef serves the
+             reply and records the exchange against a receipt
+    report - the reply is graded with the same grader the evaluation uses
+             and the score is reported against the receipt; every valid report
+             batches and triggers one evolve step - the method has the model
+             rewrite rules.md from the failing attempts, real runs score
+             the new tree, a win publishes
+    pull   - GET /reef/harness returns the winning tree; the files the
+             winning step changed are printed
+
+On reef's native harness (``./run.sh native``) the same pass runs through a
+resident ``reef-native serve`` process, so the publish lands in a process
+that is already running:
+
+    pull   - ``python3 run.py pull`` names the scenario, waits until
+             inference serves its model, and writes the model binding at
+             this Reef under work/tree; run.sh then starts
+             ``reef-native serve`` there, which pulls the served source tree
+             and follows the head
+    turns  - ``python3 run.py native`` sends each task to the process as one
+             turn, grades the reply, and reports the score against the
+             receipts the turn returned
+    mount  - every reported score batches, so each report triggers one
+             evolve step; a winning tree publishes and the process mounts it
+             while it runs, which its log shows as ``harness/mount``
+    again  - the first task goes to the same process once more, and the
+             new session shows the stages of the mounted graph
+
+Start this through ./run.sh: it writes work/tasks.json and starts the Reef
+these constants point at, on pi (serve.yaml) or on reef's native harness
+(./run.sh native, serve-native.yaml).
+"""
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+from reef_client import ReefClient, ReefClientError
+
+from harness import evolution
+
+SERVICE_URL = "http://127.0.0.1:8900"  # the Reef run.sh started
+SCENARIO = "harness-evolve-demo"  # this workload's isolated lane
+TOKEN = os.environ.get("ASTER_TOKEN", os.environ.get("REEF_TOKEN")) or None
+MODEL = os.environ.get("ASTER_UPSTREAM_MODEL", os.environ.get("REEF_UPSTREAM_MODEL")) or "qwen3-8b"
+PULL_TIMEOUT_S = 900.0
+# run.sh polls the head every 5 s, but a poll that started during the evolve step waits behind the step's
+# lock until the client's 30 s timeout; the mount lands on the poll after that one.
+MOUNT_TIMEOUT_S = 120.0
+#: The seconds a run waits for inference to start the scenario's model before it stops.
+INFERENCE_TIMEOUT_S = 300.0
+
+WORK = Path(__file__).resolve().parent / "work"
+# run.sh copies serve.yaml's evolution.evaluation.tasks here; the recorded traffic and
+# the evolve tasks run the same three tasks.
+TASKS_FILE = WORK / "tasks.json"
+# The native variant: the pulled tree the serve process runs, and the workspace its tools work in.
+TREE_DIR = WORK / "tree"
+SCRATCH_DIR = WORK / "scratch"
+RELEASE_FILE = ".reef-harness-release"
+#: The key the binding carries when the service wants no token: the native loop refuses an empty one.
+NO_TOKEN_API_KEY = "reef-no-token"
+
+
+def main():
+    tasks = json.loads(TASKS_FILE.read_text())
+    client = ReefClient(SERVICE_URL, token=TOKEN, timeout_s=300.0)
+    # The inference routes serve only a scenario that exists: create it first.
+    client.post("/reef/scenarios", SCENARIO, {"name": SCENARIO})
+    wait_for_inference(client)
+
+    before = steps_before(client)
+    # record + report: the traffic the evolve steps learn from.
+    batched = 0
+    failures = 0
+    for index, task in enumerate(tasks, start=1):
+        body, receipt = client.inference_with_record(
+            SCENARIO,
+            "/v1/chat/completions",
+            # A cap on the reply: a local single slot server stalls behind one unbounded generation.
+            {"model": MODEL, "messages": [{"role": "user", "content": task}], "max_tokens": 2048},
+        )
+        prefix = task.split(maxsplit=1)[0]  # keys evolution.py's ANSWERS table
+        score = evolution.grade_text(task, body["choices"][0]["message"]["content"])
+        client.report(
+            SCENARIO,
+            {"agent_record_id": f"harness-evolve-{index}", "score": score, "feedback": prefix},
+            references=[receipt],
+        )
+        # The recipe's default stages batch valid scored reports, passing ones included, and
+        # the default job_samples of 1 makes each report its own batch: one submitted report is one
+        # step this run triggers.
+        batched += 1
+        if score == 0.0:
+            failures += 1
+        print(f"task {index} {prefix}: score {score} (receipt {receipt})")
+
+    print(
+        f"{batched} report(s) batched ({failures} of them failing); "
+        "each triggers one evolve step (runs take minutes)"
+    )
+
+    # The seed tree is served from the start, so the manifest alone never says whether a step
+    # published: wait for the step results in the catalog, then read the head a win left behind.
+    deadline = time.monotonic() + PULL_TIMEOUT_S
+    steps = wait_for_steps(client, before, batched, deadline)
+    if not any((row.get("metrics") or {}).get("selected") for row in steps):
+        print(f"no change passed the evaluation within {PULL_TIMEOUT_S:.0f}s; rerun ./run.sh for another attempt")
+        return
+
+    manifest = client.get("/reef/harness", extra_headers={"x-reef-scenario": SCENARIO})
+    print(f"published: artifact {manifest['artifact_id']} (parent {manifest['parent_artifact_id']})")
+    # The step's patch maps each tree path it changed to the new text, or to null for a removed file.
+    evaluation = dict(manifest["evaluation"])
+    patch = evaluation.pop("patch", {})
+    print("evaluation metrics (the evolve step that published this snapshot):")
+    print(json.dumps(evaluation, indent=2, sort_keys=True))
+    print("changed files:")
+    for path, text in sorted(patch.items()):
+        print(f"--- {path} ---")
+        print("(removed)" if text is None else text)
+    # Every step this run triggered already has its result from the wait above, so there is nothing left to
+    # wait for: the head this run pulled is the one a win left behind.
+
+
+def wait_for_inference(client):
+    """Wait until inference serves the scenario's model; ``SystemExit`` when its startup fails or takes longer than
+    ``INFERENCE_TIMEOUT_S``."""
+    deadline = time.monotonic() + INFERENCE_TIMEOUT_S
+    while time.monotonic() < deadline:
+        startup = client.get(f"/reef/scenarios/{SCENARIO}/inference/status")
+        if startup["state"] == "ready":
+            return
+        if startup["state"] == "failed":
+            raise SystemExit("inference did not start: check work/reef.log")
+        time.sleep(0.5)
+    raise SystemExit(f"inference did not start within {INFERENCE_TIMEOUT_S:.0f}s; check work/reef.log")
+
+
+def training_rows(client):
+    """The catalog's training rows, oldest first; a step in flight holds the catalog, so the caller may wait."""
+    rows = client.get("/reef/harness/artifacts", extra_headers={"x-reef-scenario": SCENARIO})["artifacts"]
+    return [row for row in rows if row.get("operation") == "training"]
+
+
+def steps_before(client):
+    """How many training steps the scenario already recorded; work/ keeps the commit history across runs."""
+    try:
+        return len(training_rows(client))
+    except ReefClientError as exc:
+        if exc.status != 404:  # 404: nothing has named the scenario yet
+            raise
+        return 0
+
+
+def wait_for_steps(client, before, expected, deadline):
+    """Every batched report runs one step; wait for the ones this run batched, so each result is on the record
+    before run.sh stops the service, and print each result as the catalog lists it. Returns this run's rows."""
+    shown = before
+    steps = []
+    while time.monotonic() < deadline:
+        try:
+            steps = training_rows(client)
+        except ReefClientError as exc:
+            if exc.status != 404:
+                raise
+            steps = []
+        except (TimeoutError, OSError) as exc:
+            # A step in flight holds the catalog until it ends; a service that is gone does not answer /healthz.
+            try:
+                client.get("/healthz")
+            except (ReefClientError, TimeoutError, OSError):
+                raise SystemExit("the service stopped answering; check work/reef.log") from exc
+            time.sleep(2.0)
+            continue
+        for row in steps[shown:]:
+            metrics = row.get("metrics") or {}
+            step_result = "published" if metrics.get("selected") else metrics.get("skipped") or "rejected"
+            print(f"step {metrics.get('steps', '?')}: {step_result} (artifact {row['artifact_id']})")
+        shown = max(shown, len(steps))
+        if shown - before >= expected:
+            return steps[before:]
+        time.sleep(2.0)
+    print(
+        f"{expected - (shown - before)} step(s) still pending at the deadline; their results land in the commit history"
+    )
+    return steps[before:]
+
+
+# -- the native variant: the serve form ----------------------------------------------------------------------
+
+
+def head_manifest(client):
+    return client.get("/reef/harness", extra_headers={"x-reef-scenario": SCENARIO})
+
+
+def pull():
+    """Name the scenario, wait until inference serves its model, and write the model binding the serve process runs
+    with under work/tree.
+
+    The serve process pulls the served source tree itself and writes the snapshot file beside it.
+    """
+    client = ReefClient(SERVICE_URL, token=TOKEN, timeout_s=300.0)
+    # Create the scenario if it does not exist yet: its base snapshot is the seed tree.
+    client.post("/reef/scenarios", SCENARIO, {"name": SCENARIO})
+    wait_for_inference(client)
+    manifest = head_manifest(client)
+    shutil.rmtree(TREE_DIR, ignore_errors=True)
+    binding = {"api": "openai", "base_url": SERVICE_URL, "api_key": TOKEN or NO_TOKEN_API_KEY, "model": MODEL}
+    (TREE_DIR / "native").mkdir(parents=True)
+    (TREE_DIR / "native" / "models.json").write_text(
+        json.dumps(binding, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    SCRATCH_DIR.mkdir(parents=True, exist_ok=True)
+    print(f"scenario {SCENARIO} serves artifact {manifest['artifact_id']}; the serve process pulls it")
+
+
+def turn(prompt, session=None):
+    """One turn on the serve process; the events as written and the result event."""
+    command = ["reef-native", "turn", "--tree", str(TREE_DIR), "-p", prompt, "--workdir", str(SCRATCH_DIR)]
+    if session:
+        command += ["--session", session]
+    done = subprocess.run(command, capture_output=True, text=True)
+    if done.returncode != 0 and not done.stdout.strip():
+        raise SystemExit(f"reef-native turn failed: {done.stderr.strip()}; check work/serve.log")
+    events = [json.loads(line) for line in done.stdout.splitlines() if line.strip()]
+    return events[:-1], events[-1]["data"]
+
+
+def report(client, result, score, feedback):
+    """Post the score against the receipts of the model calls one turn made."""
+    client.report(
+        SCENARIO,
+        {"agent_record_id": f"native-{result['session']}-{result['turn']}", "score": score, "feedback": feedback},
+        references=result["receipts"],
+    )
+
+
+def mount_events(artifact_id):
+    """Every harness/mount of ``artifact_id`` the serve process logged, in serve.jsonl or in a session."""
+    found = []
+    for path in sorted((TREE_DIR / "native" / "sessions").rglob("*.jsonl")):
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            event = json.loads(line)
+            if event["type"] == "harness/mount" and event["data"].get("artifact_id") == artifact_id:
+                found.append((path.relative_to(TREE_DIR).as_posix(), event["data"]))
+    return found
+
+
+def native_main():
+    tasks = json.loads(TASKS_FILE.read_text())
+    client = ReefClient(SERVICE_URL, token=TOKEN, timeout_s=300.0)
+    # The pulled tree is the seed: the head moves off it only when a step publishes.
+    seed = json.loads((TREE_DIR / RELEASE_FILE).read_text())["artifact_id"]
+
+    before = steps_before(client)
+    # turns + report: each task is one turn on the resident process; the score goes against the turn's receipts.
+    batched = 0
+    failures = 0
+    for index, task in enumerate(tasks, start=1):
+        _, result = turn(task)
+        prefix = task.split(maxsplit=1)[0]
+        score = evolution.grade_text(task, result["text"])
+        report(client, result, score, prefix)
+        # The recipe's default stages batch valid scored reports, passing ones included, and
+        # the default job_samples of 1 makes each report its own batch: one submitted report is one
+        # step this run triggers.
+        batched += 1
+        if score == 0.0:
+            failures += 1
+        print(f"task {index} {prefix}: score {score} (session {result['session']}, exit {result['exit']})")
+
+    print(
+        f"{batched} report(s) batched ({failures} of them failing); "
+        "each triggers one evolve step (runs take minutes)"
+    )
+
+    # Only a win moves the head off the seed snapshot, and a step that is rejected or skipped never does: wait for
+    # every result this run triggered, so an all-passing run that publishes nothing ends here instead of sitting
+    # out the whole publication deadline, then read the head a win left behind.
+    deadline = time.monotonic() + PULL_TIMEOUT_S
+    steps = wait_for_steps(client, before, batched, deadline)
+    if not any((row.get("metrics") or {}).get("selected") for row in steps):
+        if error := client.get("/reef/status").get("error"):
+            raise SystemExit(f"evolve step failed: {error}; check work/reef.log")
+        print(
+            f"no change passed the evaluation within {PULL_TIMEOUT_S:.0f}s; rerun ./run.sh native for another attempt"
+        )
+        return
+    manifest = head_manifest(client)
+    artifact_id = manifest["artifact_id"]
+    if artifact_id == seed:
+        # A result said published, but the head still serves the seed: nothing this run can mount.
+        print(
+            f"no change passed the evaluation within {PULL_TIMEOUT_S:.0f}s; rerun ./run.sh native for another attempt"
+        )
+        return
+    print(f"published: artifact {artifact_id} (parent {manifest['parent_artifact_id']})")
+    print("evaluation metrics (the evolve step that published this snapshot):")
+    print(json.dumps(manifest["evaluation"], indent=2, sort_keys=True))
+
+    # The process follows the head: no reinstall, no restart, one harness/mount line in its log. Every step this
+    # run triggered already has its result, so nothing holds the catalog or the manifest now.
+    deadline = time.monotonic() + MOUNT_TIMEOUT_S
+    while not mount_events(artifact_id) and time.monotonic() < deadline:
+        time.sleep(1.0)
+    mounts = mount_events(artifact_id)
+    if not mounts:
+        print(f"the serve process did not mount {artifact_id} within {MOUNT_TIMEOUT_S:.0f}s; check work/serve.log")
+        return
+    for path, data in mounts:
+        print(f"{path}: harness/mount {json.dumps(data, sort_keys=True)}")
+
+    # The same process, the first task again: the new session runs the mounted tree.
+    task = tasks[0]
+    events, result = turn(task)
+    stages = [event["data"]["stage"] for event in events if event["type"] == "stage/enter"]
+    print(f"second pass {task.split(maxsplit=1)[0]}: stages {' -> '.join(stages)}")
+    print(f"second pass answer: {result['text'].strip().splitlines()[-1] if result['text'].strip() else ''}")
+    print(f"second pass score: {evolution.grade_text(task, result['text'])} (session {result['session']})")
+
+
+def replay():
+    """Write work/replay.html from what the run left under work/; a page with nothing to show is still a page."""
+    from harness import replay as replay_module
+
+    try:
+        data = replay_module.collect(WORK)
+        (WORK / "replay.html").write_text(replay_module.render(data), encoding="utf-8")
+    except (OSError, ValueError, KeyError) as exc:
+        print(f"replay page not written: {exc}")
+        return
+    print(f"replay: open work/replay.html ({len(data['releases'])} release(s), {len(data['sessions'])} session(s))")
+
+
+if __name__ == "__main__":
+    mode = sys.argv[1] if len(sys.argv) > 1 else ""
+    forms = {"": main, "pull": pull, "native": native_main, "replay": replay}
+    if mode not in forms:
+        raise SystemExit(f"usage: run.py [pull|native|replay]; got {mode!r}")
+    try:
+        forms[mode]()
+    finally:
+        # Every form leaves the page behind, however it ended; a pull alone has nothing to show yet.
+        if mode not in ("pull", "replay"):
+            replay()

@@ -1,0 +1,660 @@
+Harness adapters
+================
+
+:For: developers who connect a new agent to Aster
+:Before you start: the harness tree and the loop from `Evolve your harness <../user-guide/evolve-your-harness.rst>`__
+:You will have: an adapter that Aster can render, run in runs and Harbor tasks, and install on a person's machine
+
+An adapter connects a harness tree to one agent. It is one file,
+``reef/harness/adapters/<name>/adapter.yaml``, and an optional ``render.py``
+for what the file cannot state. For an agent that runs on a person's machine,
+the tree renders as the agent's own plugin in ``plugin/``: an evaluation
+run loads that plugin, and a person's machine installs it with the
+agent's own command. Aster renders the same tree with the adapter in three
+places:
+
+.. figure:: ../assets/harness-adapter-modes-light.svg
+   :alt: One adapter.yaml, three ways an agent runs: an evaluation run in Aster, a Harbor task in its container, and the agent's plugin on a person's machine
+
+   The adapter renders one harness tree three ways: as the whole configuration
+   of an evaluation run, inside the container of a Harbor task, and as the
+   agent's plugin on a person's machine.
+
+The adapter file
+----------------
+
+pi's ``adapter.yaml``, shortened:
+
+.. code-block:: yaml
+
+   name: pi
+   binary: pi
+   install: {kind: npm, package: "@earendil-works/pi-coding-agent", version: "0.84.2",
+             binary_path: node_modules/.bin/pi}
+   evolve:                                  # what Aster may evolve: its path in the snapshot's pi package
+     rules: {renders: plugin/rules.md, holds: ...}
+     skill: plugin/skills/{name}/SKILL.md
+     command: plugin/prompts/{name}.md
+     extension: plugin/extensions/{name}.ts
+   dirs:                                    # pi's directories, and the variable that moves each one
+     pi-agent: PI_CODING_AGENT_DIR
+     sessions: PI_CODING_AGENT_SESSION_DIR
+   sessions: {format: pi-session-jsonl, path: sessions}
+   model:                                   # per API dialect: the config that binds the model
+     openai: [{target: models, data: {...}}, {target: agent, data: {...}}]
+   run:
+     run: {argv: ["--mode", "json", "-p", "{task}", "-e", "{root}/plugin"], env: {PI_OFFLINE: "1"}}
+     layer:                                 # a person's machine
+       args: [["--model", "reef/{model}"]]
+       register: [["install", "{root}/plugin"]]
+       unregister: [["remove", "{root}/plugin"]]
+   config:                                  # the config files, with defaults and checks
+     primary: {path: plugin/settings.json, checks: [...]}
+     agent: {path: pi-agent/settings.json, checks: [...]}
+     models: {path: pi-agent/models.json, checks: [...]}
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 82
+
+   * - Section
+     - Says
+   * - ``install``
+     - the vendor's package and pinned version (``npm``, ``uv``, or ``git``
+       with ``repository`` and ``ref``); ``version`` is what ``--version``
+       reports
+   * - ``evolve``
+     - each part Aster may evolve, and where the agent reads it (`Tree parts`_)
+   * - ``dirs``
+     - the agent's directories under the root, each with the variable that
+       moves it there; what the agent writes there is state, not residue
+   * - ``sessions``
+     - where the agent writes its session log, and the ``TrajectoryReader``
+       format that reads it
+   * - ``model``
+     - config templates per dialect (``openai``, ``responses``,
+       ``anthropic``), with ``{base_url}``, ``{api_key}`` and ``{model}``
+   * - ``run.task``
+     - the headless command (``{task}``, ``{root}``) and its variables
+   * - ``run.layer``
+     - a person's machine: the agent's own commands that install the plugin
+       and remove it (``register``, ``unregister``), and the ``args`` and
+       ``env`` of a session that Aster starts (`A person's machine`_)
+   * - ``config``
+     - each config file's ``path``, ``defaults`` and ``checks``
+       (`Config checks`_); ``primary`` is required
+   * - ``renderer``
+     - ``module:Class`` with the adapter's render steps (`Adapter steps`_)
+
+An agent that isolates its own runs, such as the Terminal-Bench
+campaign's ``terminus``, may also set ``self_isolating``,
+``execution_validator``, ``host_env``, ``is_root_bind_mounted`` and
+``takes_task_directory`` (see `descriptor.py
+<../../reef/harness/adapters/descriptor.py>`__). ``load_descriptor`` refuses
+an unknown key.
+
+How Aster runs an agent
+----------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 52 30
+
+   * - Where
+     - What Aster does
+     - Uses
+   * - Evaluation run
+     - Renders the tree with the model binding into a new root, moves the
+       agent's directories there, runs ``run.task`` in an empty
+       ``workspace/`` with the plugin loaded from ``{root}/plugin``, reads the
+       session log, and removes the root.
+     - ``dirs``, ``model``, ``run.task``, ``sessions``
+   * - Harbor task
+     - Starts the task's container, installs the pinned agent with npm, uv,
+       or from its git checkout into a venv, copies in the tree, runs ``run.task`` with the instruction, and
+       scores the tests' reward. The verifier can read the run as ATIF in
+       ``/logs/agent/trajectory.json`` when the reader has ``to_atif``.
+     - an npm, uv or git ``install``
+   * - A person's machine
+     - ``reef-client harness`` installs the snapshot as the agent's plugin,
+       with the agent's own command, and routes the sessions it starts to
+       Aster.
+     - ``run.layer``
+
+Tree parts
+----------
+
+A kind fixes a part's tree path, format and merge (``KINDS`` in `parts.py
+<../../reef/harness/adapters/parts.py>`__). The adapter gives only the render
+path:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 38 16 26
+
+   * - Kind
+     - Tree path
+     - Format
+     - Merge
+   * - ``rules``
+     - ``rules.md``
+     - ``text``
+     - by line
+   * - ``skill``
+     - ``skills/{name}/SKILL.md``
+     - ``skill``
+     - by line
+   * - ``command``
+     - ``commands/{name}.md``
+     - ``command``
+     - by line
+   * - ``memory``
+     - ``memory/{name}.md``
+     - ``text``
+     - by line
+   * - ``extension``
+     - ``extensions/{name}`` + the render path's suffix
+     - ``code``
+     - by file
+   * - ``native_*``
+     - ``native/tools/{name}.py`` and so on (`Native runner`_)
+     - the kind
+     - by file
+   * - ``program``
+     - ``program/{name}.py``; ``main`` is the entry point
+     - ``program``
+     - by file
+   * - ``config``
+     - ``config/<target>.json``, on every adapter
+     - ``config``
+     - not synced
+
+``{name}`` is one name: a letter or digit, then letters, digits, ``.``,
+``_`` or ``-``. Where a kind's default does not fit, an entry is an object;
+Codex's commands are skills:
+
+.. code-block:: yaml
+
+   command: {renders: plugin/skills/{name}/SKILL.md, format: skill}
+
+Each part also has ``holds``, one line on what the file holds, which a method
+reads in ``material/host.json``, and optionally ``review: true``: the
+activation rule then leaves every kept tree that changes the part inactive
+until a person activates it, whatever the ``always`` rule's ``review_kinds``
+lists. Native's ``native_loop`` and Python's ``program`` are such kinds. Other settings and records
+name kinds too: the ``review_kinds`` of the ``always`` activation rule, the
+``changed_kinds`` of a kept tree, and the ``patch_parts`` of a step's commit
+metrics. The harness recipe refuses a ``review_kinds`` name that the adapter
+does not evolve.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 14 86
+
+   * - Format
+     - Validation checks, besides no empty file and no credential
+   * - ``text``, ``skill``, ``command``
+     - nothing more; ``skill`` and ``command`` files go through
+       ``process_skill`` and ``process_command``
+   * - ``code``
+     - no raw write to stdout or stderr without a ``ctx.hasUI`` guard
+   * - ``config``
+     - a JSON object of a declared target, without an inline credential
+   * - ``native_*``
+     - the module compiles and declares its constants, or the JSON is a
+       valid graph or agent (`Native runner`_)
+
+Render paths
+~~~~~~~~~~~~
+
+The four agents that run on a person's machine render their parts into the
+plugin in ``plugin/``; the others into the agent's own directory. A part
+missing from a row is one the agent's plugin cannot carry, so a tree holds
+none: Codex's plugin carries no rules, and no plugin carries Claude Code's
+settings or memory.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Adapter
+     - ``rules``
+     - ``skill``
+     - ``command``
+     - ``extension``
+   * - ``pi``
+     - ``plugin/rules.md``, added to the system prompt by Aster's extension
+     - ``plugin/skills/<name>/SKILL.md``
+     - ``plugin/prompts/<name>.md``
+     - ``plugin/extensions/<name>.ts``
+   * - ``opencode``
+     - ``plugin/AGENTS.md``, an instruction file
+     - ``plugin/skill/<name>/SKILL.md``
+     - ``plugin/command/<name>.md``
+     - ``plugin/extensions/<name>.ts``, merged by Aster's plugin
+   * - ``claude``
+     - ``plugin/rules.md``, the plugin's output style
+     - ``plugin/skills/<name>/SKILL.md``
+     - ``plugin/commands/<name>.md``, run as ``/reef:<name>``
+     - ``plugin/extensions/<name>.mjs``, run by ``config/hooks.json``
+   * - ``codex``
+     - none
+     - ``plugin/skills/<name>/SKILL.md``
+     - as a skill, run as ``$reef:<name>``
+     - none
+   * - ``dsh``
+     - ``dsh/AGENTS.md``
+     - ``dsh/skills/<name>/SKILL.md``
+     - ``dsh-agents/skills/<name>/SKILL.md``
+     - ``dsh/profiles/headless/extensions/<name>.mjs``
+   * - ``hermes``
+     - ``hermes/SOUL.md``
+     - ``hermes/skills/<name>/SKILL.md``
+     - ``hermes-commands/<name>/SKILL.md``
+     - ``hermes/plugins/<name>/__init__.py``
+   * - ``native``
+     - ``native/RULES.md``
+     - ``native/skills/<name>/SKILL.md``
+     - none
+     - none
+   * - ``python``
+     - none
+     - none
+     - none
+     - none; its ``program`` part renders at ``program/<name>.py``
+
+Config targets and a person's machine
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A tree's ``config/<target>.json`` merges into the target's file and must pass
+the target's checks (`Config checks`_). A key that the model binding writes
+never comes from a tree: validation refuses it. The last column says whether
+the adapter has a ``run.layer``, so that ``reef-client`` runs its snapshots on a
+person's machine (`A person's machine`_). Without one, a snapshot runs only in
+Aster's runs.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 12 64 24
+
+   * - Adapter
+     - Config targets, and what a tree may set in them
+     - Person's machine
+   * - ``pi``
+     - ``primary`` (``plugin/settings.json``): only an empty
+       ``defaultTools``. ``agent`` (``pi-agent/settings.json``) and
+       ``models`` (``pi-agent/models.json``): nothing; the binding writes
+       them.
+     - yes
+   * - ``opencode``
+     - ``primary`` (``plugin/config.json``): any key except a model or
+       provider choice, ``autoupdate``, ``share`` and ``enabled_providers``.
+       ``agent`` (``opencode/opencode.json``): nothing; the binding writes
+       it.
+     - yes
+   * - ``claude``
+     - ``primary`` (``claude/settings.json``): nothing; the binding and
+       Aster's defaults write it. ``hooks`` (``plugin/hooks/hooks.json``):
+       the plugin's hooks.
+     - yes
+   * - ``codex``
+     - ``primary`` (``codex/config.toml``) and ``models``
+       (``codex/models.json``): nothing; the binding and Aster's defaults
+       write them.
+     - yes
+   * - ``dsh``
+     - ``primary`` and ``web`` (each profile's ``cordis.patch.yml``): any
+       plugin's config except the model and provider routes.
+       ``web_manifest`` (``dsh/profiles/web/package.json``) and ``env``
+       (``dsh/.env``): no checks besides the binding's keys.
+     - no
+   * - ``hermes``
+     - ``primary`` (``hermes/config.yaml``): any key except the model
+       routes; the background calls (title, nudges, curator) stay off.
+       ``env`` (``hermes/.env``): no checks besides the binding's keys.
+     - no
+   * - ``native``
+     - ``primary`` (``native/config.json``): no checks. ``models``
+       (``native/models.json``): no checks besides the binding's keys.
+     - no
+   * - ``python``
+     - ``primary`` (``program/config.json``): the program's own settings, no
+       checks. ``model`` (``program/model.json``): nothing; the binding
+       writes it.
+     - no
+
+Bundled adapters
+----------------
+
+At startup, Aster installs the pinned binary for the runs unless
+``evolution.binary`` names one. Another package adds an adapter through the
+``reef.harness_adapters`` entry point, as the Meta-Harness Terminal-Bench
+campaign adds ``terminus`` (`its README
+<../../recipes/meta_harness/examples/terminal_bench/README.md#the-terminus-adapter>`__).
+
+.. list-table::
+   :header-rows: 1
+   :widths: 12 26 62
+
+   * - Adapter
+     - Pin and command
+     - What to know
+   * - ``pi``
+     - npm 0.84.2; ``pi --mode json -p``
+     - A pi package. Its settings admit only an empty ``defaultTools``, which
+       Aster's extension applies. A skill without frontmatter gets ``name`` and
+       ``description``.
+   * - ``opencode``
+     - npm 1.18.18; ``opencode run --format json --auto``
+     - An opencode plugin, whose config hook adds the parts and merges
+       ``config/primary.json``. Frontmatter must be a plain YAML mapping. A
+       command's ``agent`` must name an enabled agent.
+   * - ``claude``
+     - npm 2.1.257; ``claude -p --output-format json``
+     - A Claude Code plugin. A tree sets no settings key; an extension is a
+       script that ``config/hooks.json`` runs. Only the ``anthropic`` dialect.
+   * - ``codex``
+     - npm 0.158.0; ``codex exec --json``
+     - A Codex plugin of skills. A tree sets no rules and no config key. An
+       run's render writes the plugin into ``CODEX_HOME`` as ``codex
+       plugin add`` does. Runs pin ``approval_policy="never"`` and
+       ``web_search="disabled"``. Only the ``responses`` dialect. On a pin
+       change, update ``bundled_models.json`` and
+       ``default_instructions.md``.
+   * - ``dsh``
+     - npm 0.1.2-alpha.5; ``dsh --profile headless``
+     - The config is keyed by plugin id; ``!!js`` strings become
+       JavaScript. Commands never run on the model's own.
+   * - ``hermes``
+     - git ``v2026.8.31``; ``hermes chat -Q --oneshot -q``
+     - Rules follow Hermes's identity in ``SOUL.md``. An extension is a plugin
+       with ``register(ctx)``. Only the ``openai`` dialect.
+   * - ``native``
+     - ships with Aster; ``reef-native -p``
+     - Aster's own loop (`Native runner`_).
+   * - ``python``
+     - uv 0.13.4; ``uv run --script {root}/program/main.py``
+     - The tree is a Python program that owns its loop and every model
+       call. It gets the instruction as its argument and reads the binding
+       (``api``, ``base_url`` ending in ``/v1``, ``api_key``, ``model``) from
+       ``program/model.json``. It declares its dependencies as inline script
+       metadata (PEP 723). Only the ``openai`` dialect. To give a task's
+       verifier the run as ATIF, the program writes one JSONL line for each
+       model call under ``REEF_PROGRAM_SESSION_DIR``: the request body, with
+       the response body as ``response``.
+
+The comments in each ``adapter.yaml`` explain its defaults and checks.
+
+Config checks
+-------------
+
+A target's ``checks`` say what its merged config, the binding included, must
+keep or must not set. The render runs them before any adapter step, and a
+refusal names the key, never the value:
+
+.. code-block:: yaml
+
+   checks:
+     - key: includeCoAuthoredBy
+       match: IsDefault()
+     - key: [model, fallbackModel]
+       match: IsAbsent()
+       reason: Aster's model binding chooses the model
+     - key: env.DISABLE_TELEMETRY
+       match: Not(Strip(Lowercase(IsIn(["0", "false", "off", "no", ""]))))
+
+``key`` is a dot path, a list of them, or ``.`` for the whole file; ``*`` is
+every entry, ``**`` any depth. "If set, it must be X" is ``AnyOf(IsAbsent(),
+X)``.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 42 58
+
+   * - Matcher
+     - Matches
+   * - ``IsDefault()``, ``IsAbsent()``
+     - the target's default for the key; a missing key
+   * - ``Eq(v)``, ``IsIn([v, ...])``, ``Ge(n)``
+     - an equal value, type included; a number at least ``n``
+   * - ``IsObject()``, ``IsInt()``
+     - an object; an integer that is not a boolean
+   * - ``StartsWith``, ``EndsWith``, ``HasSubstr``, ``MatchesRegex``
+     - text, or a scalar's JSON text
+   * - ``Lowercase(m)``, ``Uppercase(m)``, ``Strip(m)``, ``ParseJson(m)``
+     - text that matches ``m`` after the change
+   * - ``Each(m)``, ``Contains(m)``, ``Key(m)``, ``Value(m)``
+     - every or some entry; an entry's key or value
+   * - ``AllOf``, ``AnyOf``, ``Not``
+     - all, any, or not
+
+Rendering
+---------
+
+``reef.harness.tree.render_tree(tree, descriptor, overlays)`` returns the
+files one agent reads, by root-relative path. It writes no disk.
+
+#. Each config target is its ``defaults``, the tree's
+   ``config/<target>.json`` merged in, then the overlays, such as the model
+   binding. Each is written in its suffix's format (TOML, YAML, ``.env`` or
+   JSON).
+#. Every other file goes to its part's render path.
+#. The checks run, then the adapter's steps.
+
+The render refuses a path that no part takes, an undeclared target, two
+files at one path, a failed check, and a binding key set by the tree.
+
+Model binding checks
+~~~~~~~~~~~~~~~~~~~~
+
+Every model call goes to Aster. The binding writes the endpoint, the model
+and the credential after the tree, so it wins every key it writes, and the
+render refuses a tree that sets one of them. Each adapter's checks also
+refuse its agent's other routes, such as a fallback model, a second provider
+or a proxy, and ``tests/harness/test_harness_model_route.py`` lists them.
+The checks read the config only; a tool that builds its own request can
+still name another model.
+
+Adapter steps
+~~~~~~~~~~~~~
+
+``renderer`` is a subclass of ``AdapterRenderer``. Each step is a static
+method that returns its input unchanged by default and raises
+``RenderError`` to refuse:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 26 74
+
+   * - Step
+     - Gets and does
+   * - ``process_config``
+     - one merged config file; adjusts or refuses it
+   * - ``process_skill``, ``process_command``
+     - one file's text; adds or checks frontmatter
+   * - ``check_model_route``
+     - the processed files; refuses a route no check can state
+   * - ``finalize_render``
+     - every file; work across files, such as a plugin's manifest (a last
+       resort)
+   * - ``layer_files``
+     - a layer's render (`A person's machine`_)
+
+Prefer a check to a step for a rule on config values.
+``reef.harness.adapters.common`` has shared helpers, such as
+``with_skill_frontmatter``.
+
+A person's machine
+------------------
+
+On a person's machine, the snapshot is the agent's own plugin, installed
+with the agent's own command. The agent then loads it in every session,
+beside the person's own configuration, which Aster never reads. A session
+that Aster starts also sends its model calls to Aster.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 14 50 36
+
+   * - Agent
+     - ``register``
+     - Loads a new snapshot
+   * - ``claude``
+     - ``claude plugin marketplace add <install>``, ``claude plugin install
+       reef@reef``
+     - in place
+   * - ``pi``
+     - ``pi install <install>/plugin``
+     - in place
+   * - ``opencode``
+     - ``opencode plugin -g <install>/plugin``
+     - in place
+   * - ``codex``
+     - ``codex plugin marketplace add <install>``, ``codex plugin add
+       reef@reef``
+     - after ``register`` runs again
+
+``reef-client harness`` asks ``GET /reef/harness?form=client&root=<install>``
+and installs the files under ``<install>``. It runs ``register`` once per
+installed artifact, and ``unregister`` on ``disconnect``. A snapshot that a
+person activates (``POST /reef/scenarios/<scenario>/activate``) installs at
+the client's next sync. The layer's render starts each config target from
+nothing and skips the checks; ``layer_files`` adds what ``register`` names
+and the tree lacks, such as a marketplace, and drops files the install keeps
+no use for.
+
+Templates hold ``{root}``, ``{model}``, ``{base_url}`` and ``{token}``
+(``env`` only, so no command line shows it). Every part in ``evolve`` must
+take effect both in a run and through the installed plugin: leave out
+of ``evolve``, or refuse in the checks, what the plugin cannot carry. An
+adapter without ``layer`` does not run on a person's machine.
+
+Connect a new agent
+-------------------
+
+.. container:: steps
+
+   #. Write ``adapter.yaml``: ``evolve``, ``install``, ``dirs``,
+      ``sessions``, ``model``, ``run``, and ``config`` with the paths alone
+      at first.
+   #. Add a ``TrajectoryReader`` with ``@register_trajectory_reader`` when the
+      session log has a new format (`trajectory.py
+      <../../reef/harness/tasks/trajectory.py>`__). Give it ``to_atif``, so
+      that a task's verifier can read the run. Wrap Harbor's converter for
+      the agent when Harbor has one.
+   #. Add the name to ``BUILTIN_ADAPTERS``, or register through the
+      ``reef.harness_adapters`` entry point.
+   #. Add ``render.py`` only for what the file cannot state.
+
+Then check, in order:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 26 74
+
+   * - Check
+     - How
+   * - It loads
+     - ``get_adapter('<name>')``
+   * - It renders what the agent reads
+     - a golden tree in ``tests/harness/test_harness_render.py``; read every
+       file
+   * - No tree moves the model
+     - its route keys in ``tests/harness/test_harness_model_route.py``
+   * - The session log reads
+     - a captured session in ``tests/harness/test_harness_run.py``
+   * - One real task runs
+     - ``run_task`` against a real model: exit 0, no residue, a rule in
+       ``rules.md`` followed
+   * - Every part takes effect
+     - a real-binary test in ``tests/smoke/``: a marker in each part reaches
+       the model, as a run and as the layer
+   * - The layer works
+     - ``BINDINGS`` in ``tests/harness/test_harness_sync.py``, then
+       ``reef-client harness connect`` by hand
+
+Native runner
+-------------
+
+``reef-native`` is Aster's own agent loop. It reads ``native/``:
+``RULES.md``, ``skills/``, ``models.json`` (filled in by the binding), and
+five parts that let a method change the loop itself. The starter tree is
+``tutorials/evolve-your-harness/seeds/native/``.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Part
+     - Holds
+   * - ``native/tools/<name>.py``
+     - ``run(args, workdir) -> str``, with literal ``DESCRIPTION``,
+       ``PARAMETERS`` (JSON schema) and ``CAPABILITIES`` (``read``,
+       ``write``, ``exec``, ``network``)
+   * - ``native/hooks/<name>.py``
+     - ``listen(payload, next)`` at one ``EVENT``: ``pre_step``,
+       ``pre_execute``, ``request_error`` or ``post_execute``
+   * - ``native/graphs/<name>.json``
+     - stages and the edges between their outcomes; ``main`` is the root
+       turn's graph
+   * - ``native/agents/<name>.json``
+     - one agent to delegate to: ``prompt``, ``graph``, ``tools``,
+       ``skills``, ``max_steps``, ``then``
+   * - ``native/loops/<name>.py``
+     - ``run_turn(ctx)`` in place of the ``main`` graph; always reviewed
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 78
+
+   * - Graph stage
+     - Does (outcomes)
+   * - ``model``
+     - one request, one step (``tool_calls``, ``text``)
+   * - ``tools``
+     - the pending calls through the hooks (``done``)
+   * - ``verify``
+     - checks the last text (``pass``, ``fail``)
+   * - ``branch``
+     - the first matching case (each case's outcome, ``else``)
+   * - ``subagent``
+     - delegates to an agent (``completed``, ``gave_up``, ``budget``, ``ask``)
+   * - ``message``, ``compact``
+     - adds a user message; summarizes old messages (``done``)
+   * - ``end``
+     - ends the turn as ``completed`` or ``gave_up``
+
+``ctx`` in loop code gives ``prompt``, ``step``, ``tools``, ``messages``,
+``model()``, ``run_tools()``, ``text()``, ``say(text)``, ``agent(name)``,
+``end(reason)`` and ``log(event, data)``. ``max_steps`` is 1 to 32 for
+graphs and loops alike.
+
+Tools run in the loop process under the ``local`` executor. Under
+``sandbox``, each call runs in a bubblewrap child that grants only the
+declared capabilities. Hooks and loop code always run in the loop process.
+
+Trajectory
+~~~~~~~~~~
+
+The loop writes ``native-jsonl``: one ``{type, seq, time, data}`` per line.
+A turn is ``turn/start``, then per step ``step/start``,
+``request/header``, ``assistant/message``, ``tool/call``, ``tool/result``
+and ``step/end``, then ``turn/end`` with its reason (``completed``,
+``gave_up``, ``max-steps``, ``error`` and others). A tool result over 20,000
+characters goes to ``.reef/tool-output/``.
+
+Run and serve modes
+~~~~~~~~~~~~~~~~~~~~~~~
+
+``reef-native -p`` runs one turn; runs use it. ``reef-native serve`` is
+one resident process that follows the scenario's active harness artifact:
+
+- It mounts each new artifact between two steps, and keeps the current tree
+  when a new one fails to load. With ``--follow pinned``, it mounts only the
+  artifact that ``reef-native mount <artifact_id>`` names.
+- Its model calls carry the scenario, the token and the ``artifact_id`` tag.
+- Tree code runs with the user's privileges; only tool calls are confined,
+  with ``REEF_NATIVE_ENFORCE=bwrap``.
+- ``--self-tools`` adds ``harness_inspect`` and ``harness_try``.
+- The socket ``native/serve.sock`` takes one JSON line per connection:
+  ``{"turn": {...}}``, ``{"control": "status"}`` or ``{"control": "mount",
+  "artifact_id": ...}``.

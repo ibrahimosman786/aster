@@ -1,0 +1,224 @@
+# Meta-Harness
+
+Meta-Harness is full-history search over a fixed model's harness. Each step,
+a proposer reads every earlier candidate with its scores on fixed evaluation
+tasks, and writes one complete harness tree. Reef evaluates that tree and
+keeps it only when its mean score beats the served tree's. The method
+represents every candidate as a complete Reef harness tree, so the same
+search works with any Reef adapter and any run scorer. `MetaHarness` has no
+Harbor, Terminal-Bench, Terminus, or coding-agent dependency.
+
+```text
+meta_harness/
+  method.py            MetaHarness: one complete tree per step from the whole search history
+  system_prompt.md     the proposer model's system prompt
+  proposal_prompt.md   the instructions in front of the search state
+  agent/               the same search with a coding agent as the proposer, as prompts (AgentMethod)
+  examples/terminal_bench/
+                       the runnable Terminal-Bench search
+  results/             the selected harness of the reported comparison
+```
+
+`MetaHarness` makes one model call per step, and the prompt holds an excerpt
+of the history. Upstream's proposer is a coding agent that reads the whole
+search as files; [`agent/`](agent/README.md) runs that proposer as a method
+made of prompts, on the deployment's coding agent.
+
+Reef owns tree validation, adapter rendering, model binding, run
+execution, timeouts, residue policy, finite-score checks, the score cache,
+selection, publication, and scenario commits. Meta-Harness adds the proposal:
+what the proposer model sees and how its reply becomes a candidate.
+
+## How a step starts
+
+The search learns from the evaluation tasks, not from traffic or uploaded
+tasks. So a training request starts each step: the deployment trains in
+`manual` mode, and each `POST /reef/train` runs one step. The request's
+`text` is an instruction that the proposer reads, such as "Propose the next
+candidate of the search." The number of requests is the number of steps;
+upstream's `--iterations` is the same count.
+
+```bash
+curl -f http://127.0.0.1:8901/reef/train \
+  -H "Authorization: Bearer $REEF_TOKEN" -H "x-reef-scenario: <scenario>" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Propose the next candidate of the search.", "session": "", "artifact_id": ""}'
+```
+
+The steps of the queued requests run one after another. See [Manual
+training](../../docs/reference/http-api.rst#manual-training) for the route.
+
+## Configuration
+
+A deployment names the method in `evolution.method` of Reef's harness
+evolution recipe, trains in `manual` mode, and selects with the `compare`
+policy on means:
+
+```yaml
+recipe:
+  implementation: reef.recipe.harness:HarnessEvolutionRecipe
+  config:
+    training_mode: manual
+    evolution:
+      adapter: pi
+      seed: seed                 # the first tree, a directory
+      method:
+        module: recipes.meta_harness:MetaHarness
+        config:
+          mode: full_history
+      models:
+        proposer:
+          url: https://api.openai.com
+          model: gpt-5
+          api_key_env: OPENAI_API_KEY
+      evaluation:
+        tasks:
+          - First validation task
+          - Second validation task
+        scorer: my_harness.scoring:RolloutScore
+        policy: compare
+        statistic: mean
+
+inference:
+  upstream-model: model-under-test
+```
+
+`seed` is a directory of tree files, such as `rules.md` with the starting
+rules. `evaluation.scorer` names a standard Reef run scorer class:
+
+```python
+class RolloutScore(TaskScorer):
+    def score(self, task: str, result: TaskResult) -> float:
+        ...
+```
+
+`evolution.method.config` takes these keys:
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `mode` | `full_history` | `full_history` lets the proposer branch from any candidate; `incumbent_only`, the greedy control, from the served one only |
+| `model` | `proposer` | the `evolution.models` binding that proposes; `served` is refused |
+| `components` | every part of the adapter's tree | the parts of the adapter's tree (the `evolve` section of its `adapter.yaml`) whose files a proposal may change; the method refuses a name the tree does not have |
+| `max_files` | `32` | the files of one proposed tree |
+| `max_runs` | `16` | the evaluation runs whose records one prompt shows |
+| `run_chars` | `4000` | the characters one prompt shows of one run's records |
+
+The method refuses to run when `evolution.models` does not declare `model`:
+the harness under test must not propose its own improvements.
+
+## One step
+
+The population is the scenario's history. A step shows the proposer model
+these items, as data:
+
+- The candidates of the search: the served tree, the seed, and each tree the
+  method proposed; in `incumbent_only` mode, the served tree alone. Each has its
+  files, the parent it branched from, the proposer's hypothesis and changes,
+  its outcome (served, selected, rejected, or undecided), and its scores on
+  the evaluation tasks.
+- Excerpts of the records of their evaluation runs, at most `max_runs`. The
+  candidates take turns, the served one first and the others newest first,
+  each with its failed runs and then its lowest scores first. A long record
+  keeps its beginning and its end.
+- The latest replies that proposed no candidate, and why.
+- The text of the training request that started the step.
+- The parts of the adapter's tree: each part's path, format and render path,
+  and what its file holds, with the parts a proposal may change.
+
+The reply names one parent and returns one complete tree as `files`, path to
+text. The step refuses the reply when the parent is not a candidate it
+showed, when the tree changes a file of a part outside `components` (such
+files must stay byte for byte equal to the parent's), when the tree holds
+more than `max_files` files, or when the tree fails the adapter's
+validation. It also refuses a tree that the history already holds. A refused
+reply leaves the head unchanged, so the step skips and Reef evaluates
+nothing. The adapter's validation remains authoritative: an adapter may
+still refuse an otherwise valid file.
+
+A proposed tree becomes the step's candidate. The history keeps it with the
+proposer's hypothesis, changes, and parent, so the next step shows it.
+
+## Selection
+
+Select with `policy: compare` and `statistic: mean`. The candidate is
+published when its mean score is strictly higher than the head's; a run
+that could not run counts as zero. The score cache keeps the first scores of each tree,
+so the head's mean is the one it was admitted on, and the head does not run
+again. The exception is a run that could not run: it runs again in the
+next evaluation. This reproduces upstream's frontier: it keeps the highest recorded
+mean, and a tie keeps the current choice. The seed runs once with the first
+candidate, and then each candidate runs once.
+
+Keep the evaluation suite fixed, so that the scores of all candidates stay
+comparable: do not combine this method with task collection. Reef's own
+`max_model_calls_per_step`, executor, timeout, and residue options apply as
+usual.
+
+## State and commits
+
+The history directory under `evolution.state_dir` holds every candidate, its
+runs and records, and each step's decision. The method's own state,
+committed with each step, is `state/attempts.jsonl`: one line per reply that
+proposed no candidate.
+
+The history keeps an attempt whose step never committed, such as an
+evaluation or a commit that failed. A retry of that step does not show the
+attempt's tree and does not refuse it as a known tree. If the proposer
+returns it again, the cache scores it; only the runs that could not run are
+run again.
+
+## Terminus 2 code evolution
+
+Use the Terminal-Bench campaign's `terminus` adapter and its `extension`
+part to evolve Python behavior. Reef does not bundle the adapter:
+`pip install -e examples/terminal_bench` registers it (see [the terminus
+adapter](examples/terminal_bench/README.md#the-terminus-adapter)). It accepts one self-contained module defining `Agent(Terminus2)`,
+at `extensions/<name>.py` in the tree. Start from a no-op subclass so the
+proposer sees the adapter contract: a seed directory holding
+`extensions/agent.py` with
+
+```python
+from harbor.agents.terminus_2 import Terminus2
+
+
+class Agent(Terminus2):
+    pass
+```
+
+and this configuration:
+
+```yaml
+recipe:
+  config:
+    evolution:
+      adapter: terminus
+      seed: seed
+      executor: sandbox
+      sandbox:
+        egress_hosts: [api.e2b.dev, api.openai.com]
+        env_from: [REEF_TERMINUS_ENVIRONMENT, E2B_API_KEY]
+      method:
+        module: recipes.meta_harness:MetaHarness
+        config:
+          components: [extension]
+```
+
+Combine this with the tasks, scorer, model, and proposer settings above. Export
+`REEF_TERMINUS_ENVIRONMENT=e2b` and `E2B_API_KEY` in the deployment. Install
+`harbor[e2b]` on Linux with Python 3.12+ and bubblewrap;
+place the runtime and any local task directories under `/usr` or `/opt`, which
+the existing sandbox mounts read-only. Registry task ids also work.
+
+Reef's sandbox isolates the Python runner; Harbor uses E2B for the terminal
+task. Rendering never imports candidate code, and local execution refuses
+extensions. Rules, skills, model binding, timeouts, trajectories, scoring, and
+publication all use Reef's existing components. `egress_hosts` currently enables
+network access; it does not enforce a hostname firewall. Only explicitly named
+deployment variables are forwarded. A tree without an extension can still run
+stock Terminus 2 locally with Docker.
+
+## Example and results
+
+The [Terminal-Bench example](examples/terminal_bench/README.md) runs the
+method on the full pinned dataset. The [results](RESULTS.md) compare a matched
+search with upstream and include the selected harness.

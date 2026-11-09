@@ -1,0 +1,133 @@
+"""Append-only JSONL journal: which Reef records belong to which CORAL attempt.
+
+A crash loses at most the in-flight request; torn lines are skipped on read.
+When a receipt did not survive the proxy hop, the tags Reef stored with the
+INFERENCE record remain the correlation key.
+"""
+
+from __future__ import annotations
+
+import json
+import threading
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+
+
+@dataclass(frozen=True)
+class CallRecord:
+    """One provider call as the gateway saw it.
+
+    ``artifact_id`` is absent when the response has no artifact header;
+    otherwise it is a nonempty string identifying the served weights.
+    The journal and result bundle use it to group calls by artifact.
+    """
+
+    request_id: str
+    timestamp: str
+    scenario: str
+    agent_id: str
+    commit_hash: str
+    path: str
+    status_code: int
+    agent_record_id: str | None = None
+    #: ``x-reef-artifact-id`` from the response: which serving revision answered.
+    artifact_id: str | None = None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    tags: dict[str, str] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if self.artifact_id is not None and (not isinstance(self.artifact_id, str) or not self.artifact_id):
+            raise ValueError("artifact_id must be a nonempty string or None")
+
+    def to_json(self) -> str:
+        return json.dumps(asdict(self), ensure_ascii=False, separators=(",", ":"))
+
+    @classmethod
+    def from_json(cls, line: str) -> CallRecord:
+        return cls(**json.loads(line))
+
+
+class CallJournal:
+    """Append-only JSONL journal, safe for concurrent agents behind one gateway."""
+
+    def __init__(self, path: Path) -> None:
+        self._path = Path(path)
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        self._lock = threading.Lock()
+
+    @property
+    def path(self) -> Path:
+        return self._path
+
+    def append(self, record: CallRecord) -> None:
+        line = record.to_json() + "\n"
+        with self._lock, open(self._path, "a", encoding="utf-8") as f:
+            f.write(line)
+
+    def records(self) -> list[CallRecord]:
+        if not self._path.exists():
+            return []
+        out: list[CallRecord] = []
+        with open(self._path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    out.append(CallRecord.from_json(line))
+                except (json.JSONDecodeError, TypeError):
+                    continue  # torn write from a crash — skip, never fail reads
+        return out
+
+    def size(self) -> int:
+        """Current record count — a cursor for :meth:`record_ids_since`.
+
+        Two sibling attempts run from the same worktree state, so their calls
+        share the (agent, commit) coordinate; a caller that snapshots the
+        cursor before an attempt's calls and resolves with it afterwards gets
+        exactly that attempt's records.
+        """
+        return len(self.records())
+
+    def record_ids_since(self, cursor: int, agent_id: str, commit_hash: str) -> list[str]:
+        """Captured record ids for one attempt, starting at ``cursor``."""
+        seen: dict[str, None] = {}
+        for record in self.records()[cursor:]:
+            if (
+                record.agent_id == agent_id
+                and record.commit_hash == commit_hash
+                and record.agent_record_id
+                and record.agent_record_id not in seen
+            ):
+                seen[record.agent_record_id] = None
+        return list(seen)
+
+
+def commit_matches(recorded: str, wanted: str) -> bool:
+    """True when two commit identifiers name the same commit.
+
+    Either side may be truncated (the gateway journals 12 chars, attempt
+    records carry 40), so the shorter must prefix the longer. Guarded to at
+    least 7 chars so placeholder values like ``unknown`` never prefix-match.
+    """
+    if not recorded or not wanted:
+        return False
+    if len(recorded) < 7 or len(wanted) < 7:
+        return recorded == wanted
+    shorter, longer = sorted((recorded, wanted), key=len)
+    return longer.startswith(shorter)
+
+
+def deterministic_report_id(scenario: str, agent_id: str, commit_hash: str) -> str:
+    """Client-supplied ``agent_record_id`` for the attempt's report.
+
+    Reef dedups identical resends of the same client-supplied id, so a
+    reporter that crashes after POST and runs again does not double-count
+    the attempt (and a changed payload under the same id is rejected loudly
+    rather than silently duplicated).
+    """
+    import hashlib
+
+    digest = hashlib.sha256(f"{scenario}\x00{agent_id}\x00{commit_hash}".encode()).hexdigest()
+    return f"coral-report-{digest[:24]}"

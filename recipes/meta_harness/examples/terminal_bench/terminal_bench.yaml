@@ -1,0 +1,40 @@
+# run.py embeds this recipe in a durable Reef scenario and sends one training request per step.
+recipe:
+  implementation: reef.recipe.harness:HarnessEvolutionRecipe
+  config:
+    training_mode: manual  # A training request starts each step; reports start none.
+    evolution:
+      adapter: terminus
+      binary: reef-terminus
+      seed: seed  # The first tree, beside this file; run.py resolves the path.
+      method:
+        module: recipes.meta_harness:MetaHarness
+        config:
+          mode: full_history
+          components: [extension]
+      executor: sandbox
+      sandbox:
+        egress_hosts: [api.e2b.dev, model-endpoint]
+        env_from: [REEF_TERMINUS_ENVIRONMENT, E2B_API_KEY]
+      models:
+        proposer:
+          url: ${REEF_PROPOSER_URL}
+          model: ${REEF_PROPOSER_MODEL}
+          api: responses
+          api_key_env: REEF_PROPOSER_API_KEY
+          timeout_s: 1800
+      evaluation:
+        tasks: []  # Filled from the pinned manifest and --tasks-root by run.py.
+        scorer: harness.benchmark:VerifierScorer
+        policy: compare
+        statistic: mean
+        repeats: 2
+        task_timeout_s: 9000
+        forbid_residue: true
+inference:
+  upstream-url: ${REEF_UPSTREAM_URL}
+  upstream-model: ${REEF_MODEL}
+execution:
+  evolution:
+    backend: auto
+    workers: ${REEF_META_HARNESS_WORKERS}

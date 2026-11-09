@@ -1,0 +1,61 @@
+"""Single-Rollout Asynchronous Optimization recipe."""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import dataclass
+from typing import Any
+
+from recipes.sao.processor import SAOJobData, SAOSamples
+from reef.core.reports import ReportBase, ScoredRolloutReport
+from reef.recipe.base import WeightTrainingRecipe
+from reef.recipe.errors import RecipeConfigError
+from reef.storage.samples import SAMPLE_KINDS, SampleKind
+from reef.train.pipeline import PipelineSpec
+
+
+@dataclass(frozen=True, kw_only=True)
+class SAORecipe(WeightTrainingRecipe):
+    """Single-Rollout Asynchronous Optimization (arXiv:2607.07508) on reef.
+
+    "Single rollout" is one rollout per prompt: there is no comparison group
+    and no slowest-sample barrier, so each scored rollout is accepted on its
+    own as it lands. Slime's ``--global-batch-size`` of them, from
+    as many different prompts, form one optimizer step; the paper trains with
+    128 (§4.1). The value model is what makes a single sample per prompt
+    usable, and it needs that many samples per step to learn, so a batch size
+    of 1 (one step per rollout) is a smoke setting, not the paper's estimator. The DIS ratio
+    needs the rollout log-probabilities as its behaviour proxy, so SAO requires
+    an inference backend that attaches engine-native tensors
+    (``reef.inference_handler_factory``); reef never re-tokenizes a rollout to
+    reconstruct them.
+
+    The stages are ``SAOSamples`` (every rollout trains by itself) and
+    ``SAOJobData``. Each rollout sample is its own
+    DP unit.
+
+    Objective settings such as the clipping bounds, actor/critic cadence, and GAE
+    parameters belong to the training backend. For Slime they are configured by
+    ``training.options``.
+    """
+
+    name: str = "sao"
+
+    @property
+    def report_type(self) -> type[ReportBase]:
+        return ScoredRolloutReport
+
+    @classmethod
+    def default_parameters(cls) -> Mapping[SampleKind, Mapping[str, Any]]:
+        return {kind: {"objective": "sao"} for kind in SAMPLE_KINDS}
+
+    @classmethod
+    def pipeline_spec(cls) -> PipelineSpec:
+        return PipelineSpec(record2sample=SAOSamples, sample2job=SAOJobData)
+
+    @classmethod
+    def _validate_config(cls, settings: Mapping[str, Any]) -> None:
+        if settings.get("optimization"):
+            raise RecipeConfigError(
+                "SAO objective options are backend-owned; configure the Slime implementation with training.options"
+            )

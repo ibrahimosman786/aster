@@ -1,0 +1,316 @@
+# Reef Code Maintenance Model
+
+This document defines how Reef maintainers route, review, and merge community
+contributions. Its goals are to give contributors a clear path to a decision,
+keep review ownership explicit, and protect the compatibility and operability
+of the project as it grows.
+
+Roles describe work, not status. One person may hold more than one role for a
+pull request.
+
+## Review routing
+
+Reef has no single on-call maintainer. [`CODEOWNERS`](CODEOWNERS) routes each
+pull request: GitHub requests review from the code owners of every changed
+path when the pull request is ready for review. Each area lists a primary owner
+and a backup owner, and an approval from either one satisfies that area.
+Changes outside a specific area fall back to the default owners listed at the
+top of that file.
+
+Who merges depends on the author:
+
+- An author with repository write access merges their own pull request after
+  receiving at least one approval and meeting the acceptance conditions below.
+- A pull request from an external contributor is merged by one of the code
+  owners who approved it.
+
+## Roles
+
+### Maintainer
+
+Maintainers are accountable for project direction and the repository as a
+whole. They can merge and close pull requests and are responsible for:
+
+- deciding whether a contribution fits Reef's direction and maintenance
+  budget;
+- identifying when an RFC is required;
+- requesting additional reviewers when path rules do not cover an affected
+  area;
+- resolving cross-area or project-level disagreements;
+- merging changes when the acceptance conditions are met; and
+- reverting or coordinating a fix when a merged change causes a regression.
+
+An approval from a maintainer accepts responsibility for the change, not only
+its local implementation.
+
+### Code owner
+
+Code owners are the maintainers listed for an area in
+[`CODEOWNERS`](CODEOWNERS). For pull requests in their area, a code owner:
+
+- performs the initial scope and RFC check;
+- reviews the change or hands the review to the backup owner;
+- distinguishes blocking feedback from optional follow-up work;
+- requests review from other areas the change materially affects; and
+- merges or closes external contributions they approved.
+
+Code owners must have repository write permission.
+
+### Area reviewer
+
+Area reviewers have demonstrated expertise in a subsystem, interface, or
+operational concern. They are responsible for reviewing changes in that area
+for correctness, compatibility, tests, documentation, and maintainability.
+
+Area reviewers do not need merge permission. Their approval is a technical
+signal to the code owners; the final repository decision remains with a
+maintainer. Qualified reviewers may be requested manually without being code
+owners.
+
+Current primary area ownership is:
+
+- **@Benjamin-eecs** — harness composition, recipes, surfaces, and their
+  focused examples and documentation;
+- **@hanfeiyu** — training execution, runtime integration, artifact handling,
+  pipeline reliability, and their focused documentation; and
+- **@BobbyZhouZijian** — service and core boundaries, scenario lifecycle,
+  repository automation, and packaging.
+
+[`CODEOWNERS`](CODEOWNERS) lists the backup owner for each area.
+
+## Issue process
+
+Structured issue forms are the default intake path. Blank issues are disabled;
+security reports go through private vulnerability reporting. A workflow applies
+the primary `area:*` label selected by the author, but maintainers remain
+responsible for correcting the routing and adding secondary areas.
+
+Issue titles use exactly one of `[Bug]`, `[Feature]`, `[Performance]`,
+`[Task]`, `[Experiment]`, `[Example]`, `[RFC]`, `[Roadmap]`, or `[Question]`.
+The prefix describes the work type only. Areas, methods, projects, lifecycle
+states, and priorities belong in labels or the issue body. During triage,
+maintainers correct non-standard or multiple prefixes and keep the remaining
+title concise and outcome-oriented. `[Roadmap]` is reserved for a time-bounded
+coordination index; its linked outcomes retain their actual work type.
+
+Use `type: experiment` for work whose primary deliverable is experimental results
+and `type: example` for a maintained, runnable user-facing reference. Use
+`type: task` for maintainer-approved internal work. Feature, bug, performance,
+question, RFC, and roadmap forms apply their corresponding existing labels.
+These type labels do not replace area or lifecycle labels.
+
+An RFC issue is both the proposal and the durable decision record. Maintainers
+must not ask authors to add RFC documents to the repository. The affected
+maintainers record acceptance in a comment and move an accepted RFC to
+`status: ready`; implementation pull requests link the issue. Material design
+changes and shipped implementation links are recorded on the RFC issue.
+After the accepted design ships, close the issue as completed. Rejected,
+withdrawn, or superseded RFCs are closed with a comment explaining the outcome
+and linking any replacement.
+
+Every new public issue starts with `status: needs-triage`. During triage, a
+maintainer should choose a clear next state:
+
+- `status: needs-reproduction` when the behavior needs a runnable reproducer
+  or independent confirmation;
+- `status: waiting-author` when the maintainer has asked the author a concrete
+  question that blocks progress;
+- `status: confirmed` when the problem has been reproduced or otherwise
+  validated, but the solution or ownership is not yet agreed;
+- `status: ready` when the scope is agreed and implementation can begin;
+- `status: blocked` when an external decision or dependency prevents progress;
+  or
+- close with `duplicate`, `invalid`, or `wontfix`, linking the canonical issue
+  or explaining the decision.
+
+When an issue author replies to an issue marked `status: waiting-author`, the
+automation removes that label and restores `status: needs-triage`. Maintainers
+apply the intended lifecycle label when moving an issue forward; automation
+removes the previous lifecycle label. `status: keep-open`, area, priority, and
+lifecycle labels describe different dimensions and may coexist.
+
+Use `help wanted` only after the problem and contribution boundary are clear.
+Use `good first issue` only when the expected files, acceptance criteria, and
+validation are specific enough that a new contributor is unlikely to need an
+architecture decision. Ask contributors to describe their approach before
+assignment when duplicate work is likely.
+
+Priority describes maintainer intent rather than intrinsic value:
+
+- `priority: p0` — an active incident, severe regression, or release blocker;
+- `priority: p1` — high-impact work maintainers intend to prioritize;
+- `priority: p2` — normal-priority accepted work; and
+- `priority: p3` — useful backlog work without a delivery commitment.
+
+Do not apply a public priority to an undisclosed vulnerability. Use
+`ci: gpu-required` when acceptance needs test results from a supported accelerator
+environment that hosted CI cannot provide. The pull request records the exact
+environment, command, revision, and result.
+
+## Pull request process
+
+### 1. Submission
+
+The author follows [CONTRIBUTING.md](../CONTRIBUTING.md), fills in the pull
+request template, links any relevant issue or RFC, and reports the checks that
+actually ran. Work that is not ready for an acceptance decision should be a
+draft pull request.
+
+### 2. Initial triage
+
+A maintainer checks whether the pull request:
+
+- duplicates existing work;
+- has a clear problem and focused scope;
+- needs prior discussion or an accepted RFC;
+- belongs in this repository and architectural layer; and
+- has enough information to begin review.
+
+The maintainer may ask the author to narrow the change, move design discussion
+to the appropriate issue form, or close work that does not fit project
+direction. The reason should be stated clearly.
+
+### 3. Review routing
+
+GitHub requests reviewers using [`CODEOWNERS`](CODEOWNERS), as described in
+[Review routing](#review-routing). The pull-request labeler applies the
+corresponding `area:*`, `dependencies`, and `type: tests` labels from
+[`labeler.yml`](labeler.yml), including when the changed-file set is updated.
+Labels are routing hints rather than approvals. The author and the requested
+code owners request additional reviews when path rules do not cover an
+affected area.
+
+### 4. Technical review
+
+Reviewers evaluate the change at the appropriate level:
+
+- local correctness and failure behavior;
+- public contracts and backwards compatibility;
+- package and trust boundaries;
+- rigorous type definitions;
+- tests, documentation, and migration needs;
+- operational cost and observability; and
+- long-term maintenance burden.
+
+For documentation changes, reviewers must apply the
+[Documentation review checklist](../AGENTS.md#documentation-review-checklist)
+to the complete affected sections and read the whole page when its structure
+changes. Check the author's Documentation impact explanation against the
+change. Identify specific obstacles to understanding, such as using a concept
+before defining it or omitting a prerequisite, rather than only asking for
+clearer writing.
+
+Each new or changed type must have an exact, complete, and consistent
+definition of its values and its purpose, as
+[Define every type with mathematical rigor](../CONTRIBUTING.md#define-every-type-with-mathematical-rigor)
+describes. A type without such a definition is a blocking finding. Name the
+missing part, such as an unstated invariant, a state that the definition does
+not cover, a second role, or a subclass that breaks its base class definition.
+
+Review feedback should be actionable and identify whether it is blocking,
+optional, or suitable for a follow-up. Authors should respond to substantive
+comments and may respectfully challenge a request with technical reasoning.
+
+### 5. Continuous integration
+
+Draft pull requests run lint, type checks, and static Dockerfile checks. Ready
+pull requests automatically run the Python 3.12 source, sandbox, installed-wheel,
+and combined coverage checks after lint succeeds. Documentation and real-harness
+smoke workflows select their jobs from changed paths, including renamed files.
+No maintainer action is needed for this routine feedback.
+
+Reef supports Python 3.12 only, so the routine run is the complete
+validation. Keep the required `lint`, `test (3.12)`, and `package (3.12)` checks
+in the `protect-main` ruleset. Skipped suites must not turn the test gates
+green. The `docs-gate` permits a skipped build only for a draft or a
+successfully evaluated change set that does not affect documentation.
+
+New pushes and conversion to draft cancel previous runs. To retry a failure, a
+contributor with repository write access reruns the latest `ci` run of the pull
+request (`gh run rerun RUN_ID --repo Human-Agent-Society/reef`). A rerun fails if
+the pull request is closed, is a draft, or has newer commits. Manual dispatches
+are diagnostic runs.
+
+Required checks must pass on the reviewed revision. CI is a gate, not a
+substitute for review. Reviewers may request focused or environment-specific
+validation when the standard checks do not cover the affected path.
+Dependabot groups weekly GitHub Actions, Python, documentation-site, and Docker
+updates into bounded pull-request queues. Dependency pull requests follow the
+same ownership, review, and required-check rules as author-submitted changes;
+they are not merged automatically.
+
+### 6. Acceptance
+
+A pull request is ready to merge when:
+
+- an RFC is accepted if the change requires one;
+- at least one code owner of an affected area or another maintainer approves
+  the pull request;
+- all required checks pass;
+- no blocking review or design discussion remains;
+- tests cover the behavior change; and
+- affected user and developer documentation is updated.
+
+Passing these gates does not create an obligation to merge. A maintainer may
+still decline a contribution because of project direction, compatibility,
+scope, maintenance cost, or insufficient ownership after merge. The decision
+and rationale should be recorded on the pull request.
+
+### 7. Merge and follow-up
+
+An author with repository write access merges their own accepted pull
+request; for an external contribution, an approving code owner merges it. The
+person who merges ensures linked issues are closed or updated. Deferred work should be captured in explicit follow-up issues
+rather than left only in review comments.
+
+If a merge causes a serious regression, restoring a known-good state takes
+priority over preserving the change. A maintainer may revert first and resume
+design or debugging in a follow-up pull request.
+
+## Fast-track changes
+
+Small documentation fixes, clear test-only changes, reversions, release
+blockers, and fixes for active regressions may receive an expedited review. The
+approving reviewer must state why the change is being fast-tracked and which
+review or validation remains required. Any exception is still subject to repository
+permissions and branch protections.
+
+## Stalled pull requests
+
+When a pull request is waiting on the author, the reviewer should identify the
+remaining work and leave a clear prompt before closing it. When it is waiting on
+review, the requested code owner should review it or ask the area's backup owner
+to take over.
+
+The stale workflow marks a non-draft pull request after 60 days without
+activity and closes it after another 21 days. Drafts and work labeled `KIV`,
+`RFC`, `status: blocked`, or `status: keep-open` are exempt. Closure is
+housekeeping, not a judgment on the contributor, and does not prevent a current
+version from being reopened or resubmitted.
+
+## Inactive issues
+
+The stale workflow marks an issue after 90 days without activity and closes it
+after another 30 days. Issues labeled `KIV`, `RFC`, `help wanted`, `roadmap`,
+`status: blocked`, `status: confirmed`, `status: keep-open`, or `status: ready`
+are exempt. Maintainers should use an exemption only when the issue remains
+intentional work or a durable decision record; ordinary backlog items should
+return to triage when someone is ready to pursue them.
+
+[`labels.json`](labels.json) is the canonical catalog for managed labels. Its
+workflow creates or updates catalog entries after changes reach `main` and
+reapplies the current routing rules to all open pull requests. It deliberately
+does not delete labels that are absent from the catalog.
+
+## Disagreements and escalation
+
+Reviewers should first seek a decision through concrete technical discussion
+on the issue, RFC, or pull request. Any maintainer may request additional
+area review when expertise or ownership is disputed. Maintainers make the final
+repository-level decision and record the rationale when consensus is not
+possible.
+
+Substantial changes to this maintenance model start with an
+[RFC issue](https://github.com/Human-Agent-Society/reef/issues/new?template=rfc.yml).
+Routine clarifications may be proposed directly as a pull request to this
+document.

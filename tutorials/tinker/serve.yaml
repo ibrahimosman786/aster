@@ -1,0 +1,40 @@
+# Four short rollouts and one optimizer step; synthetic smoke rewards, not an evaluation.
+reef:
+  host: 127.0.0.1
+  port: 8900
+  token: ${REEF_TOKEN}
+  run-dir: ${REEF_TINKER_STATE_DIR}/stack
+  # The in-process Tinker runtime downloads tokenizer files and saves the initial
+  # checkpoint before /healthz answers; the 30s default is too short on a cold cache.
+  ready-timeout: 600
+inference:
+  model-path: Qwen/Qwen3-8B
+  timeout-s: 300
+recipe:
+  implementation: recipes.tttd.recipe:TTTDRecipe
+# TTTD's step grid: one group of four rollouts.
+pipeline:
+  record2sample:
+    config:
+      groups_per_step: 1
+      rollouts_per_group: 4
+  sample2job:
+    config:
+      # One job is the whole grid, groups_per_step x rollouts_per_group samples: the same value as batch-size.
+      job_samples: 4
+training:
+  backend: tinker
+  ready-timeout: 1800
+  timeout-s: 1800
+  options:
+    state-dir: ${REEF_TINKER_STATE_DIR}/tinker
+    lora-rank: 32
+    learning-rate: 0.00004
+    kl-coef: 0.1
+    # One optimizer step over the whole grid: groups_per_step x rollouts_per_group samples.
+    batch-size: 4
+storage:
+  artifact-repository: ${REEF_TINKER_STATE_DIR}/artifacts.git
+  artifact-work-dir: ${REEF_TINKER_STATE_DIR}/artifact-work
+  artifact-cache-dir: ${REEF_TINKER_STATE_DIR}/artifact-cache
+  agent-record-dir: ${REEF_TINKER_STATE_DIR}/agent-record

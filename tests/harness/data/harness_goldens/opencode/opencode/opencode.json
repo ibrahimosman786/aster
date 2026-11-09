@@ -1,0 +1,10 @@
+{
+  "autoupdate": false,
+  "enabled_providers": [
+    "reef"
+  ],
+  "permission": {
+    "*": "allow"
+  },
+  "share": "disabled"
+}

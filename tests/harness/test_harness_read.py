@@ -1,0 +1,152 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import pytest
+from tests.support.harness_steps import IdleMethod, evolution_config
+
+from reef.artifact import Artifact, ArtifactNotFound, DefaultStart, InMemoryRepositoryBackend
+from reef.artifact.components import ScenarioComponents
+from reef.dispatcher import Dispatcher
+from reef.evaluation.harness import EvaluationSettings
+from reef.harness.adapters import get_adapter
+from reef.harness.tree import HarnessTree, render_tree
+from reef.inference.http import InferenceProxyRuntime
+from reef.recipe import Recipe
+from reef.recipe.harness import EvolutionSettings, HarnessEvolutionRecipe
+from reef.service.app import RequestService
+from reef.storage.sql_coordination import memory_coordination
+from reef.storage.sqlite import SQLiteScenarioStorage
+
+#: The files pi reads for a tree that holds only ``rules.md`` with the text ``rule``: its package and empty configs.
+PI_RULES_RENDER = render_tree(HarnessTree({"rules.md": "rule"}), get_adapter("pi"))
+#: A pi harness evolution recipe: what its components serves is the subject here, so it never builds a backend.
+PI_RECIPE = HarnessEvolutionRecipe(
+    method=IdleMethod(), evolution=EvolutionSettings(), evaluation=EvaluationSettings(policy="none")
+)
+
+
+@dataclass(frozen=True, kw_only=True)
+class _HarnessRecipe(Recipe):
+    """A pull-delivery recipe that serves the harness components harness evolution builds; a new scenario's root holds
+    ``rules.md`` with the text ``rules``, or no file when ``rules`` is ``None``."""
+
+    rules: str | None = None
+
+    def build_components(self, scenario: str) -> ScenarioComponents:
+        return PI_RECIPE.build_components(scenario)
+
+    def default_start(self) -> DefaultStart:
+        return DefaultStart(files={} if self.rules is None else {"rules.md": self.rules})
+
+
+def _service(tmp_path, *, recipe) -> RequestService:
+    dispatcher = Dispatcher(
+        recipe,
+        InMemoryRepositoryBackend.factory(directory=tmp_path / "repository"),
+        local_artifact_dir=tmp_path / "local",
+        scenario_storage=SQLiteScenarioStorage(None),
+        coordination=memory_coordination(),
+    )
+    dispatcher.get_or_create_scenario("delivery")
+    return RequestService(dispatcher)
+
+
+def test_the_manifest_serves_the_release_rendered_or_as_its_source_tree(tmp_path) -> None:
+    service = _service(tmp_path, recipe=_HarnessRecipe(rules="rule"))
+    rendered = service.harness_manifest({"x-reef-scenario": "delivery"})
+    assert rendered["files"] == PI_RULES_RENDER
+    assert rendered["artifact_id"]
+    assert not {"release_id", "parent_release_id", "content_id"} & rendered.keys()
+    source = service.harness_manifest({"x-reef-scenario": "delivery"}, form="source")
+    assert source["files"] == {"rules.md": "rule"} and source["artifact_id"] == rendered["artifact_id"]
+    with pytest.raises(ValueError, match="form must be 'rendered', 'source' or 'client'"):
+        service.harness_manifest({"x-reef-scenario": "delivery"}, form="tree")
+
+
+def test_current_files_rejects_a_weights_scenario_without_materializing(tmp_path, monkeypatch) -> None:
+    service = _service(tmp_path, recipe=Recipe())
+
+    def fail_materialize(ref):
+        raise AssertionError("weights artifact must not be materialized for a files read")
+
+    monkeypatch.setattr(
+        service.dispatcher.get_or_create_scenario("delivery").repository, "materialize", fail_materialize
+    )
+    with pytest.raises(ArtifactNotFound, match="the deployment's recipe declares no harness component"):
+        service.harness_manifest({"x-reef-scenario": "delivery"})
+
+
+def test_current_files_never_creates_a_scenario(tmp_path) -> None:
+    service = _service(tmp_path, recipe=_HarnessRecipe(rules="x"))
+    with pytest.raises(ArtifactNotFound):
+        service.harness_manifest({"x-reef-scenario": "unknown"})
+
+
+def test_manifest_error_distinguishes_a_scenario_without_a_published_tree(tmp_path) -> None:
+    # A scenario exists and its recipe has a harness components, but its snapshot holds no tree yet. The message must
+    # tell the operator that nothing has been published, not that the components is missing.
+    service = _service(tmp_path, recipe=_HarnessRecipe(rules=None))
+    with pytest.raises(ArtifactNotFound, match="holds no harness tree"):
+        service.harness_manifest({"x-reef-scenario": "delivery"})
+
+
+def test_harness_components_render_the_source_tree_for_their_adapter(tmp_path) -> None:
+    root = tmp_path / "artifact"
+    root.mkdir()
+    (root / "rules.md").write_text("rule", encoding="utf-8")
+    components = PI_RECIPE.build_components("s")
+    assert components.files_component is not None
+    assert components.read_files(Artifact.local(root)) == PI_RULES_RENDER
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    assert components.read_files(Artifact.local(empty)) is None
+
+
+def test_harness_components_ignore_repository_bookkeeping(tmp_path) -> None:
+    """Backend files at the tree root are neither served nor rendered.
+
+    The git-lfs backend commits reef-artifact.json and .gitattributes into
+    every version; treating them as harness content would fail every tree
+    pulled from a durable repository, since neither is a path of the layout.
+    """
+    root = tmp_path / "artifact"
+    root.mkdir()
+    (root / "rules.md").write_text("rule", encoding="utf-8")
+    (root / "reef-artifact.json").write_text("{}", encoding="utf-8")
+    (root / ".gitattributes").write_text("* text", encoding="utf-8")
+    components = PI_RECIPE.build_components("s")
+    assert components.files_component is not None
+    assert components.read_files(Artifact.local(root)) == PI_RULES_RENDER
+
+
+@dataclass(frozen=True, kw_only=True)
+class ClaudeHarnessRecipe(_HarnessRecipe):
+    @property
+    def harness_adapter(self) -> str | None:
+        return "claude"
+
+
+def test_scenario_list_names_the_harness_adapter(tmp_path) -> None:
+    (tmp_path / "harness").mkdir()
+    (tmp_path / "weights").mkdir()
+    harness = _service(tmp_path / "harness", recipe=ClaudeHarnessRecipe(rules="x")).dispatcher
+    weights = _service(tmp_path / "weights", recipe=Recipe()).dispatcher
+    assert [(row["scenario"], row["adapter"]) for row in harness.list_scenarios()] == [("delivery", "claude")]
+    assert all("adapter" not in row for row in weights.list_scenarios())
+    # A registered scenario that is not in memory, as while it loads or after its preload failed, names it too.
+    harness.get_or_create_scenario("waiting")
+    harness.registry.remove("waiting")
+    assert [(row["scenario"], row["loaded"], row["adapter"]) for row in harness.list_scenarios()] == [
+        ("delivery", True, "claude"),
+        ("waiting", False, "claude"),
+    ]
+
+
+def test_harness_recipes_name_their_adapter() -> None:
+    config = {"model": {"path": "small"}, **evolution_config(adapter="claude")}
+    built = HarnessEvolutionRecipe.from_environment(
+        {}, config=config, runtime=InferenceProxyRuntime(model_path="small", base_url="http://up")
+    )
+    assert built.harness_adapter == "claude"
+    assert Recipe().harness_adapter is None
