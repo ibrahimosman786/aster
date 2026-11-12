@@ -22,27 +22,6 @@ Aster is the first open-source infrastructure for continual self-improving agent
 It connects agent inference, feedback, learning, and versioned delivery. Use it
 to train model weights with Slime and SGLang, or improve an agent's harness, including its prompts, rules, and skills.
 
-
-</div>
-
-**🚀 [Get started](docs/getting-started/quickstart.rst) |
-🗺️ [Roadmap](https://github.com/ibrahimosman786/aster/issues) |
-🗓️ [Office Hours](https://github.com/ibrahimosman786/aster/issues) |
-📣 [Launch post](https://x.com/ao_qu18465/status/2094867930081337730) |
-💬 [Join Discord](https://discord.gg/5y8e5f937k) |
-📱 [Join WeChat Group](docs/community/wechat.md)**
-
-</div>
-
-
-## 📰 News
-
-- **2026-11:** We are refactoring Aster to a control plane + workers architecture. Some recipes and examples can fail on `main` until the refactor is complete. If a recipe fails, please [open an issue](https://github.com/ibrahimosman786/aster/issues).
-- **2026-11:** A scenario can split its traffic across its served artifacts [#1227](https://github.com/ibrahimosman786/aster/issues), also through [Semantic Router](https://github.com/vllm-project/semantic-router) [#859](https://github.com/ibrahimosman786/aster/issues). The new `python` harness adapter evolves a Python program [#1242](https://github.com/ibrahimosman786/aster/issues).
-- **2026-10:** Tinker runs as a training component [#901](https://github.com/ibrahimosman786/aster/issues). Episodes and agents can run in Modal Sandboxes [#942](https://github.com/ibrahimosman786/aster/issues). The artifact repository can live on Hugging Face [#1003](https://github.com/ibrahimosman786/aster/issues). New recipe: [OPD](docs/user-guide/recipes/opd.rst) [#683](https://github.com/ibrahimosman786/aster/issues).
-- **2026-09:** [`aster-infra` v0.1.0](https://github.com/ibrahimosman786/aster/issues) is on PyPI. New recipes: [GEPA](docs/user-guide/recipes/gepa.rst), [SDFT](docs/user-guide/recipes/sdft.rst), [SDPO](docs/user-guide/recipes/sdpo.rst) and [Meta-Harness](recipes/meta_harness/README.md). Aster serves the OpenAI Responses API at `/v1/responses` [#528](https://github.com/ibrahimosman786/aster/issues).
-- **2026-08:** Aster is open source. Read the [launch post](https://x.com/ao_qu18465/status/2094867930081337730).
-
 ## 🎯 When to use Aster
 
 Use Aster when you want your agent to keep improving simply by learning from how you interact with your agent.
