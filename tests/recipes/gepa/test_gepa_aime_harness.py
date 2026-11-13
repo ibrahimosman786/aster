@@ -359,7 +359,7 @@ def test_driver_reports_each_problem_against_its_recorded_request(load, monkeypa
     is recorded against the served composition, the driver finds it by problem
     text, and the report references it. Two of the three reports leave the
     batch open, so no training step runs and no Pi binary is needed."""
-    from reef_client import AsterClient
+    from reef_client import ReefClient
 
     monkeypatch.setenv("ASTER_MODEL", "task-model")
     driver = load("run")
@@ -377,7 +377,7 @@ def test_driver_reports_each_problem_against_its_recorded_request(load, monkeypa
     )
     service.start()
     try:
-        client = AsterClient(service.base_url, timeout_s=60.0)
+        client = ReefClient(service.base_url, timeout_s=60.0)
         manifest = driver.pull_tree(client, service, tmp_path / "served")
         # The served source tree is the seed: no rendered file, and so no provider endpoint.
         assert manifest["files"] == dict(recipe.seed.files)

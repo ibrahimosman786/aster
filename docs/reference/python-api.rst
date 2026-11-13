@@ -199,76 +199,76 @@ Choose the narrowest class whose assumptions all hold. Inheriting ``Recipe``
 starts without the extra contracts of a specialized base; it does not force the
 recipe to remain record-only.
 
-+---------------------------------+------------------------------------------------------+
-| What you are building           | Where to start                                       |
-+=================================+======================================================+
-| record traffic, no updates      | ``Recipe`` as-is                                     |
-+---------------------------------+------------------------------------------------------+
-| train and publish weights       | subclass ``WeightTrainingRecipe``                    |
-+---------------------------------+------------------------------------------------------+
++----------------------------------+------------------------------------------------------+
+| What you are building            | Where to start                                       |
++=================================-+======================================================+
+| record traffic, no updates       | ``Recipe`` as-is                                     |
++----------------------------------+------------------------------------------------------+
+| train and publish weights        | subclass ``WeightTrainingRecipe``                    |
++----------------------------------+------------------------------------------------------+
 | use Aster's harness loop         | configure ``HarnessEvolutionRecipe`` with a          |
-|                                 | ``Method`` in ``evolution.method``; subclass it only |
-|                                 | when the method changes more than the tree, such as  |
-|                                 | the files a client pulls                             |
-+---------------------------------+------------------------------------------------------+
-| evolve a different artifact     | subclass ``Recipe``, override ``build()`` and        |
-|                                 | ``build_components()``                               |
-+---------------------------------+------------------------------------------------------+
-| serve an externally produced    | subclass ``Recipe``, override ``build_components()`` |
-| artifact                        | only                                                 |
-+---------------------------------+------------------------------------------------------+
-| evolve weights and a harness    | configure ``CompositeRecipe`` with one recipe per    |
-| (or configuration) together     | component; each trainer runs as its own worker       |
-+---------------------------------+------------------------------------------------------+
+|                                  | ``Method`` in ``evolution.method``; subclass it only |
+|                                  | when the method changes more than the tree, such as  |
+|                                  | the files a client pulls                             |
++----------------------------------+------------------------------------------------------+
+| evolve a different artifact      | subclass ``Recipe``, override ``build()`` and        |
+|                                  | ``build_components()``                               |
++----------------------------------+------------------------------------------------------+
+| serve an externally produced     | subclass ``Recipe``, override ``build_components()`` |
+| artifact                         | only                                                 |
++----------------------------------+------------------------------------------------------+
+| evolve weights and a harness     | configure ``CompositeRecipe`` with one recipe per    |
+| (or configuration) together      | component; each trainer runs as its own worker       |
++----------------------------------+------------------------------------------------------+
 
 Common members
 ~~~~~~~~~~~~~~
 
-+---------------------------------------------------+-----------------------------+--------------------------------+
-| Member                                            | Type                        | Contract                       |
-+===================================================+=============================+================================+
-| ``name``                                          | ``str``                     | instance field; the default    |
-|                                                   |                             | registry key                   |
-+---------------------------------------------------+-----------------------------+--------------------------------+
-| ``runtime``                                       | ``InferenceRuntime`` or     | required inference component   |
-|                                                   | ``None``                    | for ``WeightTrainingRecipe``   |
-+---------------------------------------------------+-----------------------------+--------------------------------+
-| ``training_component``                            | ``TrainingComponent`` or    | required training component    |
-|                                                   | ``None``                    | for ``WeightTrainingRecipe``;  |
-|                                                   |                             | its first positional argument  |
-+---------------------------------------------------+-----------------------------+--------------------------------+
-| ``build(scenario, records, algorithm_state=...,`` | ``Trainer``                 | construct the scenario trainer |
-| ``task_storage=..., releases=...)``               |                             | and give ``task_storage`` to   |
-|                                                   |                             | ``Trainer.build``;             |
-|                                                   |                             | ``releases`` reads the         |
-|                                                   |                             | component's committed snapshots|
-+---------------------------------------------------+-----------------------------+--------------------------------+
-| ``build_trainers(scenario, records,``             | ``tuple[ComponentTrainer,   | one trainer per snapshot       |
-| ``components=..., algorithm_states=...,``         | ...]``                      | component; defaults to the     |
-| ``task_storage=..., releases=...)``               |                             |                                |
-|                                                   |                             | single trainer ``build``       |
-|                                                   |                             | returns, bound to the          |
-|                                                   |                             | scenario's one component       |
-+---------------------------------------------------+-----------------------------+--------------------------------+
-| ``build_components(scenario)``                    | ``ScenarioComponents``      | the components of one named    |
-|                                                   |                             | scenario's snapshots, each with|
-|                                                   |                             | its kind and admission check   |
-|                                                   |                             | (default                       |
-|                                                   |                             | ``AcceptAnyArtifact()``)       |
-+---------------------------------------------------+-----------------------------+--------------------------------+
-| ``build_artifact_validator()``                    | ``ArtifactValidator``       | kept from before component     |
-|                                                   |                             | checks: joins the check of the |
-|                                                   |                             | one component served, admits   |
-|                                                   |                             | the whole snapshot of a recipe |
-|                                                   |                             | serving none (inside a         |
-|                                                   |                             | composite, that recipe's       |
-|                                                   |                             | component); an override on a   |
-|                                                   |                             | recipe serving several is      |
-|                                                   |                             | refused at build               |
-+---------------------------------------------------+-----------------------------+--------------------------------+
-| ``serving_status()``                              | ``Mapping | None``          | runtime-wide state for         |
++---------------------------------------------------+-----------------------------+---------------------------------+
+| Member                                            | Type                        | Contract                        |
++===================================================+=============================+================================-+
+| ``name``                                          | ``str``                     | instance field; the default     |
+|                                                   |                             | registry key                    |
++---------------------------------------------------+-----------------------------+---------------------------------+
+| ``runtime``                                       | ``InferenceRuntime`` or     | required inference component    |
+|                                                   | ``None``                    | for ``WeightTrainingRecipe``    |
++---------------------------------------------------+-----------------------------+---------------------------------+
+| ``training_component``                            | ``TrainingComponent`` or    | required training component     |
+|                                                   | ``None``                    | for ``WeightTrainingRecipe``;   |
+|                                                   |                             | its first positional argument   |
++---------------------------------------------------+-----------------------------+---------------------------------+
+| ``build(scenario, records, algorithm_state=...,`` | ``Trainer``                 | construct the scenario trainer  |
+| ``task_storage=..., releases=...)``               |                             | and give ``task_storage`` to    |
+|                                                   |                             | ``Trainer.build``;              |
+|                                                   |                             | ``releases`` reads the          |
+|                                                   |                             | component's committed snapshots |
++---------------------------------------------------+-----------------------------+---------------------------------+
+| ``build_trainers(scenario, records,``             | ``tuple[ComponentTrainer,   | one trainer per snapshot        |
+| ``components=..., algorithm_states=...,``         | ...]``                      | component; defaults to the      |
+| ``task_storage=..., releases=...)``               |                             |                                 |
+|                                                   |                             | single trainer ``build``        |
+|                                                   |                             | returns, bound to the           |
+|                                                   |                             | scenario's one component        |
++---------------------------------------------------+-----------------------------+---------------------------------+
+| ``build_components(scenario)``                    | ``ScenarioComponents``      | the components of one named     |
+|                                                   |                             | scenario's snapshots, each with |
+|                                                   |                             | its kind and admission check    |
+|                                                   |                             | (default                        |
+|                                                   |                             | ``AcceptAnyArtifact()``)        |
++---------------------------------------------------+-----------------------------+---------------------------------+
+| ``build_artifact_validator()``                    | ``ArtifactValidator``       | kept from before component      |
+|                                                   |                             | checks: joins the check of the  |
+|                                                   |                             | one component served, admits    |
+|                                                   |                             | the whole snapshot of a recipe  |
+|                                                   |                             | serving none (inside a          |
+|                                                   |                             | composite, that recipe's        |
+|                                                   |                             | component); an override on a    |
+|                                                   |                             | recipe serving several is       |
+|                                                   |                             | refused at build                |
++---------------------------------------------------+-----------------------------+---------------------------------+
+| ``serving_status()``                              | ``Mapping | None``          | runtime-wide state for          |
 |                                                   |                             | ``/aster/status``               |
-+---------------------------------------------------+-----------------------------+--------------------------------+
++---------------------------------------------------+-----------------------------+---------------------------------+
 
 ``check_root_start(root)`` checks an item start before scenario registration.
 ``root`` is the recipe's ``ScenarioRoot``, with its artifact and source.
@@ -1918,19 +1918,19 @@ Activation rule
 Training makes artifacts and never activates one. A scenario's
 ``ActivationRule`` decides whether an artifact serves:
 
-+----------------------------------------------+------------------------------------------------+
-| Member                                       | Contract                                       |
-+==============================================+================================================+
++----------------------------------------------+-------------------------------------------------+
+| Member                                       | Contract                                        |
++==============================================+================================================-+
 | ``activates(made)``                          | true when Aster activates the artifact as soon  |
-|                                              | as training publishes it. ``made`` is a        |
-|                                              | ``MadeArtifact``: the ``component`` and the    |
-|                                              | ``changed_kinds`` of a harness tree            |
-+----------------------------------------------+------------------------------------------------+
+|                                              | as training publishes it. ``made`` is a         |
+|                                              | ``MadeArtifact``: the ``component`` and the     |
+|                                              | ``changed_kinds`` of a harness tree             |
++----------------------------------------------+-------------------------------------------------+
 | ``activates_evaluated(artifact_id, result)`` | true when Aster activates the artifact once an  |
-|                                              | evaluation of it finished with the             |
-|                                              | ``PolicyEvaluation`` ``result``; false by      |
-|                                              | default                                        |
-+----------------------------------------------+------------------------------------------------+
+|                                              | evaluation of it finished with the              |
+|                                              | ``PolicyEvaluation`` ``result``; false by       |
+|                                              | default                                         |
++----------------------------------------------+-------------------------------------------------+
 
 The committer asks ``activates`` when a training step publishes an artifact.
 The commit record's ``activated`` keeps what the rule decided. The artifact

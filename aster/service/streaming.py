@@ -132,7 +132,8 @@ def receipt_sse_events(
     aster = {"agent_record_id": agent_record_id}
     if path == "/v1/chat/completions":
         base = {"object": "chat.completion.chunk", **chat_identity}
-        metadata = {**base, "choices": [], "aster": aster}
+        # ``reef`` is the key the published reef-client reads from a streamed receipt.
+        metadata = {**base, "choices": [], "aster": aster, "reef": aster}
         return (f"data: {json.dumps(metadata, ensure_ascii=False, separators=(',', ':'))}\n\n".encode(), terminal)
 
     if path == "/v1/messages":
@@ -143,6 +144,7 @@ def receipt_sse_events(
         if not isinstance(payload, dict):
             payload = {"type": "message_stop"}
         payload["aster"] = aster
+        payload["reef"] = aster
         return (
             b"event: message_stop\n"
             + f"data: {json.dumps(payload, ensure_ascii=False, separators=(',', ':'))}\n\n".encode(),
@@ -156,6 +158,7 @@ def receipt_sse_events(
         if not isinstance(payload, dict):
             return (terminal,)
         payload["aster"] = aster
+        payload["reef"] = aster
         return (
             f"event: {payload.get('type')}\n".encode()
             + f"data: {json.dumps(payload, ensure_ascii=False, separators=(',', ':'))}\n\n".encode(),

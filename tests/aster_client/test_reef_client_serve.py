@@ -140,7 +140,7 @@ class _Upstream:
                     return
                 payload = json.dumps(server.completion).encode()
                 self.send_response(server.status)
-                self.send_header("x-aster-agent-record-id", "receipt-1")
+                self.send_header("x-reef-agent-record-id", "receipt-1")
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(payload)))
                 self.end_headers()
@@ -200,7 +200,7 @@ def test_serve_stamps_session_and_captures_buffered_turn() -> None:
         status, body, headers = _post(f"{proxy.url}/v1/chat/completions", with_tools)
         assert status == 200
         assert json.loads(body)["choices"][0]["message"]["content"] == "héllo ✓ world"
-        assert headers["x-aster-agent-record-id"] == "receipt-1"
+        assert headers["x-reef-agent-record-id"] == "receipt-1"
         assert upstream.requests[0]["headers"]["x-openclawrl-session-id"] == "personal-3"
 
         # Side task (no tools): forwarded but not stamped.

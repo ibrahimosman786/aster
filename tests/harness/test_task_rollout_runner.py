@@ -65,7 +65,7 @@ class StandInAster:
                     else:
                         answer = {"id": receipt, "choices": [{"message": {"role": "assistant", "content": reply}}]}
                         self.answer(200, answer, receipt=receipt)
-                elif self.path == "/aster/report":
+                elif self.path in ("/aster/report", "/reef/report"):
                     service.reports.append({"headers": headers, "body": body})
                     if refuse_reports:
                         self.answer(400, {"error": "references must identify an existing inference"})
@@ -81,6 +81,7 @@ class StandInAster:
                 self.send_header("Content-Length", str(len(payload)))
                 if receipt is not None:
                     self.send_header("x-aster-agent-record-id", receipt)
+                    self.send_header("x-reef-agent-record-id", receipt)
                 self.end_headers()
                 self.wfile.write(payload)
 
@@ -305,7 +306,7 @@ def test_a_scored_rollout_is_reported_against_its_receipts(aster: StandInAster, 
     assert headers["x-aster-tag-rollout"] == ran.rollout_id
 
     report = aster.reports[0]
-    assert report["headers"]["x-aster-scenario"] == "guess" and report["headers"]["authorization"] == "Bearer tok"
+    assert report["headers"]["x-reef-scenario"] == "guess" and report["headers"]["authorization"] == "Bearer tok"
     body = report["body"]
     # The last call ends the rollout's trajectory; Aster expands it to both calls.
     assert body["score"] == 1.0 and body["references"] == ["rec-2"]

@@ -35,8 +35,8 @@ def test_lifecycle_modules_are_removed(module: str) -> None:
         "TraceKey",
         "RolloutGroupSpec",
         "SessionIndex",
-        "AsterClient",
-        "AsterClientError",
+        "ReefClient",
+        "ReefClientError",
     ],
 )
 def test_lifecycle_symbols_are_not_exported(symbol: str) -> None:

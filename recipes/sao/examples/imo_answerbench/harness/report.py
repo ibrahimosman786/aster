@@ -9,10 +9,10 @@ receipts as its references.
 
 import uuid
 
-from reef_client import AsterClient
+from reef_client import ReefClient
 
 
-def post_report(result: dict, *, client: AsterClient, scenario: str) -> dict:
+def post_report(result: dict, *, client: ReefClient, scenario: str) -> dict:
     trial_id = result["id"]
     task_name = result["task_name"]
     score = result["verifier_result"]["rewards"]["reward"]

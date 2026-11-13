@@ -41,7 +41,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from aiohttp import web
-from reef_client.client import AsterClientError
+from reef_client.client import ReefClientError
 
 from aster.core.evaluation import RolloutRequest
 from aster.core.tasks import HarborTask, HarborTaskConflict, HarborTaskError, read_harbor_task, write_harbor_task
@@ -665,7 +665,7 @@ class GeneratorService:
             report_id = await asyncio.to_thread(
                 self.designer.report, record_id, scenario=scenario, score=float(score), metadata=metadata
             )
-        except (DesignerError, AsterClientError, OSError) as exc:
+        except (DesignerError, ReefClientError, OSError) as exc:
             return error_response(502, str(exc))
         return web.json_response({"agent_record_id": report_id})
 

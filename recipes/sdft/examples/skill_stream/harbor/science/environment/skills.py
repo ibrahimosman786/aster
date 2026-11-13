@@ -23,7 +23,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
-from reef_client import AsterClient
+from reef_client import ReefClient
 
 TASKS = ("tooluse", "science")
 MODEL = "aster"  # the model name the requests carry; Aster's SGLang serves it
@@ -125,12 +125,12 @@ def wave_schedule(count: int, epochs: int, prompts_per_step: int, seed: int) -> 
     ]
 
 
-def make_client(timeout_s: float = 1800.0) -> AsterClient:
-    return AsterClient(SERVICE_URL, token=TOKEN, timeout_s=timeout_s)
+def make_client(timeout_s: float = 1800.0) -> ReefClient:
+    return ReefClient(SERVICE_URL, token=TOKEN, timeout_s=timeout_s)
 
 
 def ask(
-    client: AsterClient, messages: Sequence[dict[str, str]], *, temperature: float, max_tokens: int
+    client: ReefClient, messages: Sequence[dict[str, str]], *, temperature: float, max_tokens: int
 ) -> tuple[str, str, int]:
     """One chat completion through Aster: the text, its receipt, and its completion token count."""
     response, agent_record_id = client.inference_with_record(
@@ -142,7 +142,7 @@ def ask(
 
 
 def ask_all(
-    client: AsterClient,
+    client: ReefClient,
     prompts: Sequence[Sequence[dict[str, str]]],
     *,
     temperature: float,
@@ -156,7 +156,7 @@ def ask_all(
         )
 
 
-def evaluate(client: AsterClient, task: str, *, concurrency: int = 64) -> dict[str, Any]:
+def evaluate(client: ReefClient, task: str, *, concurrency: int = 64) -> dict[str, Any]:
     """Accuracy of the served model on a task's test split, decoded greedily as the reference does."""
     examples = test_examples(task)
     started = time.time()

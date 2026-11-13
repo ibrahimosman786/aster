@@ -188,6 +188,7 @@ class _Handler(BaseHTTPRequestHandler):
                 200,
                 {"choices": [{"message": message}]},
                 x_aster_agent_record_id=f"r-{len(aster.requests)}",
+                x_reef_agent_record_id=f"r-{len(aster.requests)}",
             )
         else:
             self._json(404, {"error": {"message": "no route"}})

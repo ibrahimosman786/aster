@@ -17,7 +17,7 @@ from typing import Any
 from urllib.parse import quote
 
 import yaml
-from reef_client import AsterClient, AsterClientError
+from reef_client import ReefClient, ReefClientError
 
 
 @dataclass(frozen=True)
@@ -76,7 +76,7 @@ class Campaign:
             raise ValueError("The driver's prompts times samples per step must equal the global batch size")
         if int(stack["inference"]["options"]["context-length"]) <= args.eval_tokens:
             raise ValueError("Inference context must fit evaluation tokens plus the prompt")
-        self.client = AsterClient(args.url, token=os.environ.get("ASTER_TOKEN"), timeout_s=args.timeout)
+        self.client = ReefClient(args.url, token=os.environ.get("ASTER_TOKEN"), timeout_s=args.timeout)
         self.output = args.output
         settings = {key: str(value) if isinstance(value, Path) else value for key, value in vars(args).items()}
         settings.pop("resume", None)
@@ -99,7 +99,7 @@ class Campaign:
         """The scenario's artifacts, newest first; one per snapshot in this one-component scenario."""
         try:
             result = self.client.get(f"/aster/scenarios/{quote(self.args.scenario, safe='')}/artifacts")
-        except AsterClientError as error:
+        except ReefClientError as error:
             if error.status == 404:
                 return []
             raise

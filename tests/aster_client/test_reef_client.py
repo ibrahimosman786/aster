@@ -9,7 +9,7 @@ from typing import Any
 
 import pytest
 
-from reef_client import AsterClient, AsterClientError
+from reef_client import ReefClient, ReefClientError
 
 
 class _Stub:
@@ -76,7 +76,7 @@ class _Stub:
 @pytest.mark.unit
 def test_post_sends_protocol_headers_and_returns_receipt() -> None:
     stub = _Stub(reply_headers={"x-aster-agent-record-id": "ad-1"})
-    client = AsterClient(stub.url(), token="tok", timeout_s=5)
+    client = ReefClient(stub.url(), token="tok", timeout_s=5)
     body, headers = client.post(
         "/v1/chat/completions",
         "scen",
@@ -90,8 +90,8 @@ def test_post_sends_protocol_headers_and_returns_receipt() -> None:
     assert headers["x-aster-agent-record-id"] == "ad-1"
     sent = stub.requests[0]
     assert sent["path"] == "/v1/chat/completions"
-    assert sent["headers"]["x-aster-scenario"] == "scen"
-    assert sent["headers"]["x-aster-recipe"] == "recipe"
+    assert sent["headers"]["x-reef-scenario"] == "scen"
+    assert sent["headers"]["x-reef-recipe"] == "recipe"
     assert sent["headers"]["authorization"] == "Bearer tok"
     assert sent["headers"]["x-example-extra"] == "1"
     assert sent["body"]["model"] == "m"
@@ -100,31 +100,31 @@ def test_post_sends_protocol_headers_and_returns_receipt() -> None:
 @pytest.mark.unit
 def test_explicit_arguments_win_over_extra_headers() -> None:
     stub = _Stub()
-    client = AsterClient(stub.url(), timeout_s=5)
+    client = ReefClient(stub.url(), timeout_s=5)
     client.post(
-        "/aster/report",
+        "/reef/report",
         "scen-arg",
         {"score": 1.0},
         recipe="recipe-arg",
         extra_headers={
-            "X-Aster-Scenario": "scen-extra",
-            "x-aster-recipe": "recipe-extra",
+            "X-Reef-Scenario": "scen-extra",
+            "x-reef-recipe": "recipe-extra",
             "content-type": "text/plain",
         },
     )
     stub.close()
 
     sent = stub.requests[0]["headers"]
-    assert sent["x-aster-scenario"] == "scen-arg"
-    assert sent["x-aster-recipe"] == "recipe-arg"
+    assert sent["x-reef-scenario"] == "scen-arg"
+    assert sent["x-reef-recipe"] == "recipe-arg"
     assert sent["content-type"] == "application/json"  # not duplicated or replaced
 
 
 @pytest.mark.unit
 def test_http_error_carries_status_body_and_content_type() -> None:
     stub = _Stub(status=409, reply={"detail": "scenario bound to another recipe"})
-    client = AsterClient(stub.url(), timeout_s=5)
-    with pytest.raises(AsterClientError) as caught:
+    client = ReefClient(stub.url(), timeout_s=5)
+    with pytest.raises(ReefClientError) as caught:
         client.report("scen", {"score": 1.0})
     stub.close()
 
@@ -136,11 +136,11 @@ def test_http_error_carries_status_body_and_content_type() -> None:
 @pytest.mark.unit
 def test_report_hits_its_path() -> None:
     stub = _Stub()
-    client = AsterClient(stub.url(), timeout_s=5)
+    client = ReefClient(stub.url(), timeout_s=5)
     client.report("scen", {"score": 0.5})
     stub.close()
 
-    assert [request["path"] for request in stub.requests] == ["/aster/report"]
+    assert [request["path"] for request in stub.requests] == ["/reef/report"]
 
 
 @pytest.mark.unit
@@ -152,7 +152,7 @@ def test_report_serializes_typed_reports_through_to_dict() -> None:
             return {"score": 1.0, "references": list(references)}
 
     stub = _Stub()
-    client = AsterClient(stub.url(), timeout_s=5)
+    client = ReefClient(stub.url(), timeout_s=5)
     client.report("scen", _Signal(), references=["receipt-1"])
     stub.close()
 
@@ -163,7 +163,7 @@ def test_report_serializes_typed_reports_through_to_dict() -> None:
 @pytest.mark.unit
 def test_report_merges_references_into_plain_dict_payloads() -> None:
     stub = _Stub()
-    client = AsterClient(stub.url(), timeout_s=5)
+    client = ReefClient(stub.url(), timeout_s=5)
     client.report("scen", {"score": 0.5}, references=["receipt-1"])
     stub.close()
 
@@ -173,8 +173,8 @@ def test_report_merges_references_into_plain_dict_payloads() -> None:
 @pytest.mark.unit
 def test_inference_with_record_requires_receipt() -> None:
     stub = _Stub()  # no x-aster-agent-record-id header
-    client = AsterClient(stub.url(), timeout_s=5)
-    with pytest.raises(AsterClientError) as caught:
+    client = ReefClient(stub.url(), timeout_s=5)
+    with pytest.raises(ReefClientError) as caught:
         client.inference_with_record("scen", "/v1/chat/completions", {"messages": []})
     stub.close()
 
@@ -185,7 +185,7 @@ def test_inference_with_record_requires_receipt() -> None:
 @pytest.mark.unit
 def test_get_sends_token_and_returns_body() -> None:
     stub = _Stub(reply={"artifacts": [{"operation": "training"}, {"operation": "creation"}]})
-    client = AsterClient(stub.url(), token="tok", timeout_s=5)
+    client = ReefClient(stub.url(), token="tok", timeout_s=5)
     body = client.get("/aster/scenarios/scen/artifacts")
     stub.close()
 
@@ -198,8 +198,8 @@ def test_get_sends_token_and_returns_body() -> None:
 @pytest.mark.unit
 def test_get_http_error_carries_status() -> None:
     stub = _Stub(status=404, reply={"detail": "unknown scenario"})
-    client = AsterClient(stub.url(), timeout_s=5)
-    with pytest.raises(AsterClientError) as caught:
+    client = ReefClient(stub.url(), timeout_s=5)
+    with pytest.raises(ReefClientError) as caught:
         client.get("/aster/scenarios/scen/artifacts")
     stub.close()
 

@@ -7,26 +7,26 @@ runs the job in a Slime driver process of its own. Each checkpoint that a job
 saves is a candidate. Aster publishes a selected candidate, and the serving
 engines load its weights from files.
 
-+--------------------------+-----------------------------------------------+
-| Process                  | Owns                                          |
-+==========================+===============================================+
++---------------------------+-----------------------------------------------+
+| Process                   | Owns                                          |
++==========================-+===============================================+
 | Aster HTTP service        | requests, records, the snapshot chain, and the|
-|                          | Slime training component, which queues the    |
-|                          | jobs and starts their drivers                 |
-+--------------------------+-----------------------------------------------+
-| Slime driver (one per    | Slime's training workers; it continues the    |
-| job, while it trains)    | latest checkpoint, with its optimizer state,  |
-|                          | and saves the job's own. Without a serving    |
-|                          | session, it also reserves the job's GPUs      |
-+--------------------------+-----------------------------------------------+
-| Slime serving session    | the rollout engines of task jobs and dataset  |
-| (from the first such job | jobs, their router and the training GPUs,     |
-| until the component      | across jobs                                   |
-| closes)                  |                                               |
-+--------------------------+-----------------------------------------------+
-| Inference component      | SGLang or vLLM engines on their own GPUs,     |
-| (service ``inference``)  | serving the published weights                 |
-+--------------------------+-----------------------------------------------+
+|                           | Slime training component, which queues the    |
+|                           | jobs and starts their drivers                 |
++---------------------------+-----------------------------------------------+
+| Slime driver (one per     | Slime's training workers; it continues the    |
+| job, while it trains)     | latest checkpoint, with its optimizer state,  |
+|                           | and saves the job's own. Without a serving    |
+|                           | session, it also reserves the job's GPUs      |
++---------------------------+-----------------------------------------------+
+| Slime serving session     | the rollout engines of task jobs and dataset  |
+| (from the first such job  | jobs, their router and the training GPUs,     |
+| until the component       | across jobs                                   |
+| closes)                   |                                               |
++---------------------------+-----------------------------------------------+
+| Inference component       | SGLang or vLLM engines on their own GPUs,     |
+| (service ``inference``)   | serving the published weights                 |
++---------------------------+-----------------------------------------------+
 
 For hosted LoRA training from a CPU machine, see `Train with Tinker <tinker.rst>`__.
 The GPU deployment below uses the default Slime backend.

@@ -54,7 +54,7 @@ from urllib.parse import urlsplit
 from harbor.agents.base import BaseAgent
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
-from reef_client import AsterClient
+from reef_client import ReefClient
 from reef_client.serve import CaptureStore, ServeConfig, build_handler
 
 TOKEN = os.environ.get("ASTER_TOKEN", "")  # run.sh mints one per run: the stack listens on the LAN
@@ -190,7 +190,7 @@ class HermesStreamAgent(BaseAgent):
         minted = f"{SCENARIO_PREFIX}-{uuid.uuid4().hex[:12]}"
         # The inference routes serve only a scenario that exists: create it before hermes calls the shim.
         await asyncio.to_thread(
-            AsterClient(self._aster_url, token=TOKEN).post, "/aster/scenarios", minted, {"name": minted}
+            ReefClient(self._aster_url, token=TOKEN).post, "/aster/scenarios", minted, {"name": minted}
         )
         await self._exec(
             environment, f"mkdir -p {STATE_DIR} && printf %s {shlex.quote(minted)} > {STATE_DIR}/scenario"

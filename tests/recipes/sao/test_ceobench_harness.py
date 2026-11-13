@@ -315,7 +315,7 @@ def create_harness(monkeypatch, modules, tmp_path, *, env=None):
         self.logger = logging.getLogger("ceobench-test")
 
     monkeypatch.setattr(modules.harbor_agent.BaseAgent, "__init__", initialize_base)
-    monkeypatch.setattr(modules.harbor_agent, "AsterClient", lambda *args, **kwargs: Client())
+    monkeypatch.setattr(modules.harbor_agent, "ReefClient", lambda *args, **kwargs: Client())
     return modules.harbor_agent.HarborAgent(seed=7, days=14)
 
 

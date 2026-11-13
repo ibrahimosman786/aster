@@ -56,7 +56,7 @@ from aster.harness.tree import HarnessTree, render_tree
 #: The component name of a harness evolution recipe's harness.
 HARNESS_COMPONENT = "harness"
 #: The text a client puts its Aster token in place of, in the files and variables ``layer_install`` makes.
-TOKEN_PLACEHOLDER = "ASTER_TOKEN_PLACEHOLDER"
+TOKEN_PLACEHOLDER = "REEF_TOKEN_PLACEHOLDER"
 
 
 class HarnessFiles(FileTree):

@@ -99,7 +99,7 @@ def test_the_review_lists_unstated_requirements_and_refuses_or_measures(tmp_path
     assert len(calls) == (2 if is_refusing else 1)
     call = calls[-1]
     assert call["model"] == "reviewer" and call["messages"][0]["content"] == checks.REVIEW_SYSTEM_PROMPT
-    assert call["headers"]["x-aster-scenario"] == "autoenvscaling"
+    assert call["headers"]["x-reef-scenario"] == "autoenvscaling"
     assert call["headers"]["x-aster-tag-role"] == "test-review" and call["headers"]["x-aster-tag-task"] == NAMES[0]
     prompt = call["messages"][1]["content"]
     assert "[BEGIN instruction.md" in prompt and task.instruction.strip() in prompt

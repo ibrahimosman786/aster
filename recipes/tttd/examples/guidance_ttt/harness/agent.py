@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from reef_client import AsterClient
+from reef_client import ReefClient
 
 from .contract import TaskContract
 from .execution import ExecutionClient, ExecutorUnavailableError
@@ -116,7 +116,7 @@ class AsterGuidanceTTTHarness(SearchHarness):
 
     def __init__(
         self,
-        client: AsterClient,
+        client: ReefClient,
         execution_client: ExecutionClient,
         library: GuidanceLibrary,
         *,

@@ -309,7 +309,7 @@ class TestHarness:
             created.append((path, scenario, payload))
             return {"scenario": scenario}, {}
 
-        monkeypatch.setattr(agent_module.AsterClient, "post", create_scenario)
+        monkeypatch.setattr(agent_module.ReefClient, "post", create_scenario)
         monkeypatch.setattr(agent, "_start_shim", lambda _scenario, session: (stamped.append(session), FakeShim())[1])
         monkeypatch.setattr(agent, "_upstream_health", lambda: next(health))
         environment = FakeEnvironment()

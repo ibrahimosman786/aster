@@ -23,12 +23,8 @@ from typing import Any
 LOGO = """
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 268 80" role="img" aria-labelledby="title">
   <title id="title">Aster</title>
-  <g fill="none" stroke="#a03729" stroke-linecap="round" stroke-linejoin="round" stroke-width="3.5">
-    <path d="M14 23.5c2.5 0 4 2.5 7 2.5s5.5-4.5 8.5-4.5S35.5 26 38.5 26s6-4.5 9-4.5c2.5 0 4 2 6.5 2"/>
-    <path d="M14 36.5c2.5 0 4 2.5 7 2.5s5.5-4.5 8.5-4.5S35.5 39 38.5 39s6-4.5 9-4.5c2.5 0 4 2 6.5 2"/>
-    <path d="M14 49.5c2.5 0 4 2.5 7 2.5s5.5-4.5 8.5-4.5S35.5 52 38.5 52s6-4.5 9-4.5c2.5 0 4 2 6.5 2"/>
-  </g>
-  <text x="78" y="53" fill="#14110e" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700" letter-spacing="7">ASTER</text>
+  <path fill="#1d4e89" d="M40 12 45.4 34.2 68 40 45.4 45.8 40 68 34.6 45.8 12 40 34.6 34.2Z"/>
+  <text x="84" y="53" fill="#10141c" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700" letter-spacing="3">ASTER</text>
 </svg>
 """
 
@@ -37,7 +33,7 @@ BASE_STYLE = """
 :root{color-scheme:light;--bg:#f8f7f5;--card:#fff;--ink:#25221e;--mute:#716b64;--line:#e6e2dc;
 --accent:#a03729;--soft:#f8eee9;--good:#24715a;--good-bg:#edf6f1;--warn:#926319;--warn-bg:#fcf4e5;
 --status:#a03729;--status-bg:#f8eee9;--bad:#ab3e45;--bad-bg:#fceff0;--code:#f5f3f0;--shadow:0 2px 4px #25221e03,0 12px 32px #25221e03}
-@media(prefers-color-scheme:dark){.brand svg g{stroke:#d99183}.brand svg text{fill:#f7f4f0}:root{color-scheme:dark;--bg:#141310;--card:#1c1a17;--ink:#eeeae4;
+@media(prefers-color-scheme:dark){.brand svg path{fill:#8eb6e8}.brand svg text{fill:#f7f4f0}:root{color-scheme:dark;--bg:#141310;--card:#1c1a17;--ink:#eeeae4;
 --mute:#b1a99f;--line:#37322d;--accent:#e8a092;--soft:#33231f;--good:#9ed3bc;--good-bg:#1f3028;
 --warn:#e6c084;--warn-bg:#352b1d;--bad:#f0a3a8;--bad-bg:#392327;--code:#24211d;--shadow:none}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);

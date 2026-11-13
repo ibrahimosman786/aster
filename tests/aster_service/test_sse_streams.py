@@ -101,6 +101,7 @@ def test_sse_frame_decoder_finds_split_openai_terminator_and_builds_receipt_chun
         "model": "m",
         "choices": [],
         "aster": {"agent_record_id": "record-1"},
+        "reef": {"agent_record_id": "record-1"},
     }
     assert terminal == b"data: [DONE]\n\n"
 
@@ -151,7 +152,7 @@ def test_responses_receipt_is_attached_to_the_terminal_event() -> None:
     (with_receipt,) = receipt_sse_events("/v1/responses", {}, terminal, "record-3")
     assert with_receipt == (
         b"event: response.completed\n"
-        b'data: {"type":"response.completed","response":{"id":"r1"},"aster":{"agent_record_id":"record-3"}}\n\n'
+        b'data: {"type":"response.completed","response":{"id":"r1"},"aster":{"agent_record_id":"record-3"},"reef":{"agent_record_id":"record-3"}}\n\n'
     )
 
 
@@ -172,5 +173,5 @@ def test_anthropic_receipt_is_attached_to_message_stop() -> None:
     assert is_terminal_sse_event("/v1/messages", terminal)
     (with_receipt,) = receipt_sse_events("/v1/messages", {}, terminal, "record-2")
     assert with_receipt == (
-        b'event: message_stop\ndata: {"type":"message_stop","aster":{"agent_record_id":"record-2"}}\n\n'
+        b'event: message_stop\ndata: {"type":"message_stop","aster":{"agent_record_id":"record-2"},"reef":{"agent_record_id":"record-2"}}\n\n'
     )

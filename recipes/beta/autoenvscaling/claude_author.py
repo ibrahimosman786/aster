@@ -24,7 +24,7 @@ import time
 from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
 
-from reef_client.client import AsterClient
+from reef_client.client import ReefClient
 
 from recipes.beta.autoenvscaling.author import (
     AGENT_PROMPT,
@@ -166,7 +166,7 @@ class ClaudeCodeAuthor(VariantAuthor):
             raise ValueError(f"the Claude Code token must be an OAuth token, which starts with {TOKEN_PREFIX}")
         if not model or timeout_seconds <= 0 or max_turns < 1:
             raise ValueError("the Claude Code author needs a model, a positive timeout and positive turns")
-        self.aster = AsterClient(aster_url, token=token, timeout_s=RECORD_READ_TIMEOUT_SECONDS)
+        self.aster = ReefClient(aster_url, token=token, timeout_s=RECORD_READ_TIMEOUT_SECONDS)
         self.claude_token = claude_token
         self.model = model
         self.executor = executor

@@ -17,7 +17,7 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
-from reef_client import AsterClientError
+from reef_client import ReefClientError
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TUTORIAL = REPO_ROOT / "tutorials" / "evolve-your-harness"
@@ -44,8 +44,8 @@ STARTUP_STATUS = f"/aster/scenarios/{SCENARIO}/inference/status"
 STARTUP_FAILED = "The inference engine did not start. Check the service logs."
 
 
-class StubAsterClient:
-    """A ``AsterClient`` stand-in: it records every report the run submits and every route the runner reads.
+class StubReefClient:
+    """A ``ReefClient`` stand-in: it records every report the run submits and every route the runner reads.
 
     The catalog answers with one training row per report already submitted, in order: a step's row exists only
     once the report that triggered it has been accepted, which is what the service commits. The rows carry the
@@ -105,7 +105,7 @@ class StubAsterClient:
     def inference_with_record(self, scenario: str, path: str, payload: dict, **kwargs: object) -> tuple[dict, str]:
         if not self.is_inference_ready:
             body = {"error": {"type": "inference_starting", "message": "The inference engine is starting."}}
-            raise AsterClientError(503, json.dumps(body), "application/json")
+            raise ReefClientError(503, json.dumps(body), "application/json")
         return {"choices": [{"message": {"content": "9592"}}]}, "receipt-1"
 
     def report(self, scenario: str, payload: dict, references: list[str], **kwargs: object) -> dict:
@@ -117,7 +117,7 @@ class StubAsterClient:
         self.requested.append(path)
         if path == STARTUP_STATUS:
             if not self.created:
-                raise AsterClientError(404, f"scenario {SCENARIO!r} has no inference startup request", "text/plain")
+                raise ReefClientError(404, f"scenario {SCENARIO!r} has no inference startup request", "text/plain")
             state = self.startup.pop(0) if len(self.startup) > 1 else self.startup[0]
             self.reads.append(("startup", state))
             self.is_inference_ready = state == "ready"
@@ -170,13 +170,13 @@ def _stage(
     results: tuple[dict, ...],
     head: str = PUBLISHED_ARTIFACT,
     startup: tuple[str, ...] = ("ready",),
-) -> StubAsterClient:
+) -> StubReefClient:
     """Point the runner at ``scores``, one per task, and at ``results`` for the steps those reports trigger."""
     tasks_file = tmp_path / "tasks.json"
     tasks_file.write_text(json.dumps(list(TASKS[: len(scores)])), encoding="utf-8")
     monkeypatch.setattr(runner, "TASKS_FILE", tasks_file)
-    client = StubAsterClient(results=results, head=head, startup=startup)
-    monkeypatch.setattr(runner, "AsterClient", lambda *args, **kwargs: client)
+    client = StubReefClient(results=results, head=head, startup=startup)
+    monkeypatch.setattr(runner, "ReefClient", lambda *args, **kwargs: client)
     graded = iter(scores)
 
     def grade(task, text):
@@ -199,7 +199,7 @@ def _record_waits(runner: ModuleType, monkeypatch: pytest.MonkeyPatch) -> list[i
     return waits
 
 
-def _stage_native(runner: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, client: StubAsterClient) -> None:
+def _stage_native(runner: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, client: StubReefClient) -> None:
     """The native form's surroundings: a pulled seed tree, and the serve process's turns stubbed out.
 
     Each turn returns the receipts of its model calls, and the runner reports the score against them through
@@ -365,8 +365,8 @@ def test_the_pull_waits_for_inference_before_the_serve_process_starts(
     tmp_path: Path,
 ) -> None:
     """``run.py pull`` creates the scenario the serve process then calls, so it also waits until the model serves."""
-    client = StubAsterClient(startup=("starting", "ready"))
-    monkeypatch.setattr(runner, "AsterClient", lambda *args, **kwargs: client)
+    client = StubReefClient(startup=("starting", "ready"))
+    monkeypatch.setattr(runner, "ReefClient", lambda *args, **kwargs: client)
     monkeypatch.setattr(runner, "TREE_DIR", tmp_path / "tree")
     monkeypatch.setattr(runner, "SCRATCH_DIR", tmp_path / "scratch")
 

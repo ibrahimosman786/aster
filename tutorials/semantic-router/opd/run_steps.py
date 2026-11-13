@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from bridge import MARKER, NATIVE_URL, SCENARIO, sampling_digest
-from reef_client import AsterClient, AsterClientError
+from reef_client import ReefClient, ReefClientError
 
 from recipes.opd.examples.math.run import Question, load_questions, report_id, write_json
 from aster.storage.records import RecordStore
@@ -21,8 +21,8 @@ SCENARIO_PATH = f"/aster/scenarios/{quote(SCENARIO, safe='')}"
 
 
 def sample(
-    outer: AsterClient,
-    native: AsterClient,
+    outer: ReefClient,
+    native: ReefClient,
     records: RecordStore,
     prompt: str,
     seed: int,
@@ -104,7 +104,7 @@ def sample(
     }
 
 
-def weights(native: AsterClient) -> list[dict]:
+def weights(native: ReefClient) -> list[dict]:
     """Return the native weight history, newest first, with exactly the newest artifact active."""
     rows = [row for row in native.get(f"{SCENARIO_PATH}/artifacts")["artifacts"] if row["component"] == "weights"]
     if not rows or [row["active"] for row in rows] != [True] + [False] * (len(rows) - 1):
@@ -113,7 +113,7 @@ def weights(native: AsterClient) -> list[dict]:
 
 
 def await_update(
-    native: AsterClient, before: list[dict], consumed: set[str], timeout: float
+    native: ReefClient, before: list[dict], consumed: set[str], timeout: float
 ) -> tuple[list[dict], dict]:
     """Wait for one publication and verify the submitted records and checkpoint belong to the same training job."""
     deadline = time.monotonic() + timeout
@@ -197,15 +197,15 @@ def main() -> None:
 
 def run(args: argparse.Namespace, questions: list[Question], output: Path, records: RecordStore) -> None:
     """Submit one four-record OPD batch per step and check the weights served after the last update."""
-    outer = AsterClient(
+    outer = ReefClient(
         os.environ.get("OPD_ROUTER_URL", "http://127.0.0.1:18920"),
         token=os.environ["ROUTER_TOKEN"],
         timeout_s=args.update_timeout,
     )
-    native = AsterClient(NATIVE_URL, token=os.environ["ASTER_TOKEN"], timeout_s=args.update_timeout)
+    native = ReefClient(NATIVE_URL, token=os.environ["ASTER_TOKEN"], timeout_s=args.update_timeout)
     try:
         native.get(f"{SCENARIO_PATH}/artifacts")
-    except AsterClientError as exc:
+    except ReefClientError as exc:
         if exc.status != 404:
             raise
     else:

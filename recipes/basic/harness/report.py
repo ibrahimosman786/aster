@@ -8,10 +8,10 @@ Harbor agent context.
 import uuid
 from typing import Any
 
-from reef_client import AsterClient
+from reef_client import ReefClient
 
 
-def post_report(result: dict[str, Any], *, client: AsterClient, scenario: str) -> dict[str, Any]:
+def post_report(result: dict[str, Any], *, client: ReefClient, scenario: str) -> dict[str, Any]:
     trial_id = result["id"]
     task_name = result["task_name"]
     score = result["verifier_result"]["rewards"]["reward"]

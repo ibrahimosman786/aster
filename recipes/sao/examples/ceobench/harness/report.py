@@ -51,7 +51,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import TypedDict
 
-from reef_client import AsterClient
+from reef_client import ReefClient
 
 #: The benchmark's starting balance (the runner's ``--cash`` default).
 INITIAL_CASH = 1_000_000.0
@@ -110,7 +110,7 @@ class ScoreScale:
 
 
 def post_week_reports(
-    client: AsterClient,
+    client: ReefClient,
     scenario: str,
     *,
     week: int,

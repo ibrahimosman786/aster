@@ -43,7 +43,7 @@ import sys
 import time
 from pathlib import Path
 
-from reef_client import AsterClient, AsterClientError
+from reef_client import ReefClient, ReefClientError
 
 from harness import evolution
 
@@ -72,7 +72,7 @@ NO_TOKEN_API_KEY = "aster-no-token"
 
 def main():
     tasks = json.loads(TASKS_FILE.read_text())
-    client = AsterClient(SERVICE_URL, token=TOKEN, timeout_s=300.0)
+    client = ReefClient(SERVICE_URL, token=TOKEN, timeout_s=300.0)
     # The inference routes serve only a scenario that exists: create it first.
     client.post("/aster/scenarios", SCENARIO, {"name": SCENARIO})
     wait_for_inference(client)
@@ -155,7 +155,7 @@ def steps_before(client):
     """How many training steps the scenario already recorded; work/ keeps the commit history across runs."""
     try:
         return len(training_rows(client))
-    except AsterClientError as exc:
+    except ReefClientError as exc:
         if exc.status != 404:  # 404: nothing has named the scenario yet
             raise
         return 0
@@ -169,7 +169,7 @@ def wait_for_steps(client, before, expected, deadline):
     while time.monotonic() < deadline:
         try:
             steps = training_rows(client)
-        except AsterClientError as exc:
+        except ReefClientError as exc:
             if exc.status != 404:
                 raise
             steps = []
@@ -177,7 +177,7 @@ def wait_for_steps(client, before, expected, deadline):
             # A step in flight holds the catalog until it ends; a service that is gone does not answer /healthz.
             try:
                 client.get("/healthz")
-            except (AsterClientError, TimeoutError, OSError):
+            except (ReefClientError, TimeoutError, OSError):
                 raise SystemExit("the service stopped answering; check work/aster.log") from exc
             time.sleep(2.0)
             continue
@@ -208,7 +208,7 @@ def pull():
 
     The serve process pulls the served source tree itself and writes the snapshot file beside it.
     """
-    client = AsterClient(SERVICE_URL, token=TOKEN, timeout_s=300.0)
+    client = ReefClient(SERVICE_URL, token=TOKEN, timeout_s=300.0)
     # Create the scenario if it does not exist yet: its base snapshot is the seed tree.
     client.post("/aster/scenarios", SCENARIO, {"name": SCENARIO})
     wait_for_inference(client)
@@ -259,7 +259,7 @@ def mount_events(artifact_id):
 
 def native_main():
     tasks = json.loads(TASKS_FILE.read_text())
-    client = AsterClient(SERVICE_URL, token=TOKEN, timeout_s=300.0)
+    client = ReefClient(SERVICE_URL, token=TOKEN, timeout_s=300.0)
     # The pulled tree is the seed: the head moves off it only when a step publishes.
     seed = json.loads((TREE_DIR / RELEASE_FILE).read_text())["artifact_id"]
 

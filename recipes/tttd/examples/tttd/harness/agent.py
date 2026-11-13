@@ -15,7 +15,7 @@ from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 from urllib.parse import quote
 
-from reef_client import AsterClient
+from reef_client import ReefClient
 
 from .search import Candidate, RolloutResult, Scorer, _TTTDiscoverHarnessBase
 
@@ -25,7 +25,7 @@ class AsterTTTDiscoverHarness(_TTTDiscoverHarnessBase):
 
     def __init__(
         self,
-        client: AsterClient,
+        client: ReefClient,
         scorer: Scorer,
         instruction: str,
         *,

@@ -49,6 +49,7 @@ export default function Home() {
           <p className="lead">The first <strong>inference-native</strong> infrastructure for agents to learn from <strong>live traffic</strong> and continually update their <strong>weights and harness</strong>.</p>
           <div className="home-actions">
             <Link className="primary-action" href="/docs/getting-started/quickstart">Quickstart <ArrowRight size={16} /></Link>
+            <Link className="secondary-action" href="/company">The company</Link>
             <a className="secondary-action" href={siteConfig.repository} target="_blank" rel="noreferrer">
               <GitHubIcon size={16} /> GitHub
             </a>

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import sys
 
-_COMMANDS = {"serve", "check-artifacts"}
+_COMMANDS = {"serve", "check-artifacts", "team", "company"}
 
 
 def _help_text():
@@ -25,6 +25,8 @@ usage: aster <command> [options]
 
   serve            Start inference, connect a provider, or run a configured stack
   check-artifacts  Check that each commit history resolves to stored files, before an upgrade
+  team             Run a software team on one brief and open its recorded workspace
+  company          Serve the live office for the company page
 
   -c CONFIG   Optional config file; omitted means configuration-free startup
   --version   Print the installed aster version
@@ -69,6 +71,14 @@ def main(argv=None):
             from aster.service.check_artifacts import main as check_main
 
             sys.exit(check_main(rest))
+        if cmd == "team":
+            from aster.team.command import main as team_main
+
+            sys.exit(team_main(rest))
+        if cmd == "company":
+            from aster.team.command import company_main
+
+            sys.exit(company_main(rest))
         _serve_main(rest)
     except DeployConfigError as exc:
         # Deploy config errors are typed library errors; the CLI owns the exit.

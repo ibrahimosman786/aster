@@ -269,7 +269,7 @@ def test_the_prompt_designer_asks_once_with_the_session_cut_to_its_budget(tmp_pa
     [call] = calls
     assert call["path"] == ("/v1/responses" if api == "responses" else "/v1/chat/completions")
     assert call["model"] == "designer" and call["headers"]["authorization"] == "Bearer token"
-    assert call["headers"]["x-aster-scenario"] == "autoenvscaling" and call["headers"]["x-aster-tag-role"] == "designer"
+    assert call["headers"]["x-reef-scenario"] == "autoenvscaling" and call["headers"]["x-aster-tag-role"] == "designer"
     if api == "responses":
         system, prompt = call["instructions"], call["input"][0]["content"][0]["text"]
     else:

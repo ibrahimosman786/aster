@@ -92,7 +92,7 @@ import openai
 from harbor.agents.base import BaseAgent
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
-from reef_client import AsterClient
+from reef_client import ReefClient
 from reef_client.serve import CaptureStore, ServeConfig, build_handler
 
 from .agent import DEFAULT_MAX_COMPLETION_TOKENS, BashAgent
@@ -358,7 +358,7 @@ class HarborAgent(BaseAgent):
         self.token = environ.get("ASTER_TOKEN", "aster-local")
         self.seed = int(seed)
         self.days = int(days)
-        self.client = AsterClient(
+        self.client = ReefClient(
             self.service_url, token=self.token, timeout_s=float(environ.get("ASTER_TIMEOUT_S", "7200"))
         )
         self.llm_timeout_s = float(environ.get("CEOBENCH_LLM_TIMEOUT_S", "") or 1800.0)

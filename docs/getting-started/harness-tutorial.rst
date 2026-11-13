@@ -155,15 +155,15 @@ You can edit Aster's files too, for example the rules in
 sends your edit with the next sync, and Aster merges it onto the active selection. Text
 files merge line by line:
 
-+---------------------------------+--------------------------------------+
-| You changed                     | Result                               |
-+=================================+======================================+
-| nothing                         | Aster's version                       |
-+---------------------------------+--------------------------------------+
-| a line that Aster did not change | both changes                         |
-+---------------------------------+--------------------------------------+
-| the same line that Aster changed | a conflict; your file stays as it is |
-+---------------------------------+--------------------------------------+
++----------------------------------+---------------------------------------+
+| You changed                      | Result                                |
++=================================-+======================================-+
+| nothing                          | Aster's version                       |
++----------------------------------+---------------------------------------+
+| a line that Aster did not change | both changes                          |
++----------------------------------+---------------------------------------+
+| the same line that Aster changed | a conflict; your file stays as it is  |
++----------------------------------+---------------------------------------+
 
 A conflict names the file. Make the line match one side and run
 ``reef-client harness sync``, or run ``reef-client harness sync --discard``

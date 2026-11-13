@@ -11,7 +11,7 @@ from pathlib import Path
 
 import httpx
 import yaml
-from reef_client import AsterClient
+from reef_client import ReefClient
 
 from harness.routing import expected, grade, task
 
@@ -73,7 +73,7 @@ def run(work, service, resume=False):
     else:
         raise TimeoutError("Service did not become healthy")
     scenario = "aster-routing"
-    client = AsterClient(url, token=os.environ.get("ASTER_TOKEN") or None, timeout_s=300)
+    client = ReefClient(url, token=os.environ.get("ASTER_TOKEN") or None, timeout_s=300)
     client.post("/aster/scenarios", scenario, {"name": scenario})
     for _ in range(180):
         state = client.get(f"/aster/scenarios/{scenario}/inference/status")["state"]

@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 from aiohttp.test_utils import TestServer
-from reef_client.client import AsterClientError
+from reef_client.client import ReefClientError
 
 from recipes.beta.spade import SpadeTaskGenerator
 from aster.core import AgentRecord, RequestType
@@ -605,7 +605,7 @@ def test_a_proposal_report_reaches_the_designer(tmp_path: Path) -> None:
     "failure",
     [
         DesignerError("the designer report was refused (404): no record designer-9"),
-        AsterClientError(404, "no record designer-9"),
+        ReefClientError(404, "no record designer-9"),
     ],
     ids=["designer_error", "client_error"],
 )

@@ -53,7 +53,7 @@ import urllib.request
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from pathlib import Path
 
-from reef_client import AsterClient, AsterClientError
+from reef_client import ReefClient, ReefClientError
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -78,7 +78,7 @@ MAX_FAILURE_STREAK = 24
 FAILURE_PAUSE_S = 60
 INSTRUCTION_SUFFIX = "\n\nPut your final answer within \\boxed{}."
 #: A failed request, or a completion without the fields the grader reads; the prompt is retried later.
-ROLLOUT_FAILURES = (AsterClientError, OSError, KeyError, IndexError, TypeError)
+ROLLOUT_FAILURES = (ReefClientError, OSError, KeyError, IndexError, TypeError)
 
 records_lock = threading.Lock()
 
@@ -195,7 +195,7 @@ def wait_for_training(expected: int) -> None:
     raise TimeoutError(f"Only {trained}/{expected} steps trained within {TRAIN_DRAIN_TIMEOUT_S}s")
 
 
-def one_rollout(client: AsterClient, model: str, problem: dict, position: int) -> dict:
+def one_rollout(client: ReefClient, model: str, problem: dict, position: int) -> dict:
     started = time.time()
     artifact_id = serving_artifact()
     response, receipt = client.inference_with_record(
@@ -242,7 +242,7 @@ def one_rollout(client: AsterClient, model: str, problem: dict, position: int) -
 def main() -> None:
     problems = load_problems()
     order = problem_order(problems, BUDGET)
-    client = AsterClient(SERVICE_URL, token=TOKEN, timeout_s=7200)
+    client = ReefClient(SERVICE_URL, token=TOKEN, timeout_s=7200)
     # The inference routes serve only a scenario that exists: create it before the first rollout.
     client.post("/aster/scenarios", SCENARIO, {"name": SCENARIO})
     model = os.environ.get("SAO_MODEL_NAME", "aster")  # the name run.py sends; Aster's SGLang serves it

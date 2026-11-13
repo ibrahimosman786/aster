@@ -17,7 +17,7 @@ import yaml
 from harbor.agents.base import BaseAgent
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
-from reef_client import AsterClient
+from reef_client import ReefClient
 
 from .agent import AsterTTTDiscoverHarness
 from .run_controller import AsterTrainingStatusClient, TTTDRunController, TTTDRunIdentity, TTTDRunStateStore
@@ -54,7 +54,7 @@ class HarborAgent(BaseAgent):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self._client = AsterClient(SERVICE_URL, token=TOKEN, timeout_s=7200)
+        self._client = ReefClient(SERVICE_URL, token=TOKEN, timeout_s=7200)
 
     @staticmethod
     def name() -> str:

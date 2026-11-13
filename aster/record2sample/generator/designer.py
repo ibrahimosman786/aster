@@ -17,7 +17,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from reef_client.client import AsterClient, AsterClientError
+from reef_client.client import ReefClient, ReefClientError
 
 from aster.core.prompts import untrusted_text
 from aster.core.tasks.harbor import HarborTaskError, checked_files
@@ -323,7 +323,7 @@ class AsterDesigner(Designer):
         # "openai" asks through Chat Completions, "responses" through the Responses API.
         self.api = api
         # A large local model writes an environment in minutes; the service's own inference deadline must allow it too.
-        self.client = AsterClient(aster_url, token=token, timeout_s=float(timeout_s))
+        self.client = ReefClient(aster_url, token=token, timeout_s=float(timeout_s))
 
     def answer(
         self, messages: Sequence[Mapping[str, str]], *, scenario: str, model: str, tags: Mapping[str, str]
@@ -357,7 +357,7 @@ class AsterDesigner(Designer):
             body, record_id = self.client.inference_with_record(
                 scenario, path, {**self.request_options, "model": model, **request}, extra_headers=headers
             )
-        except AsterClientError as exc:
+        except ReefClientError as exc:
             raise DesignerError(f"the designer call was refused ({exc.status}): {exc.body[:300]}") from exc
         except OSError as exc:
             raise DesignerError(
@@ -388,7 +388,7 @@ class AsterDesigner(Designer):
         }
         try:
             answer = self.client.report(scenario, payload, references=[record_id])
-        except AsterClientError as exc:
+        except ReefClientError as exc:
             raise DesignerError(f"the designer report was refused ({exc.status}): {exc.body[:300]}") from exc
         except OSError as exc:
             raise DesignerError(f"the designer report did not reach Aster: {exc}") from exc

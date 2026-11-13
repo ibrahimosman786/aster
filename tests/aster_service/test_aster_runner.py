@@ -6,7 +6,7 @@ import urllib.request
 
 import pytest
 
-from reef_client import AsterClient
+from reef_client import ReefClient
 from aster.service.deploy import build_parser
 
 
@@ -26,7 +26,7 @@ class Response:
     ("method", "path", "payload"),
     [
         ("inference", "/v1/chat/completions", {"model": "aster", "messages": []}),
-        ("report", "/aster/report", {"score": 1.0, "references": ["r1"]}),
+        ("report", "/reef/report", {"score": 1.0, "references": ["r1"]}),
     ],
 )
 def test_client_methods_send_scenario_headers(monkeypatch, method: str, path: str, payload: dict) -> None:
@@ -38,7 +38,7 @@ def test_client_methods_send_scenario_headers(monkeypatch, method: str, path: st
         return Response()
 
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
-    client = AsterClient("http://service", token="secret", timeout_s=3.0)
+    client = ReefClient("http://service", token="secret", timeout_s=3.0)
 
     if method == "inference":
         result = client.inference(
@@ -59,9 +59,9 @@ def test_client_methods_send_scenario_headers(monkeypatch, method: str, path: st
     request = captured[0]
     assert result == {"ok": True}
     assert request.full_url == f"http://service{path}"
-    assert request.headers["X-aster-scenario"] == "math"
+    assert request.headers["X-reef-scenario"] == "math"
     assert "X-aster-request-type" not in request.headers
-    assert request.headers["X-aster-recipe"] == "tttd"
+    assert request.headers["X-reef-recipe"] == "tttd"
     assert request.headers["X-aster-release-id"] == "checkpoint-v42"
     assert request.headers["Authorization"] == "Bearer secret"
     assert json.loads(request.data) == payload
@@ -69,7 +69,7 @@ def test_client_methods_send_scenario_headers(monkeypatch, method: str, path: st
 
 @pytest.mark.unit
 def test_client_has_no_control_method() -> None:
-    client = AsterClient("http://service")
+    client = ReefClient("http://service")
 
     assert not hasattr(client, "control")
 
@@ -80,14 +80,14 @@ def test_client_has_no_control_method() -> None:
     ["inference", "inference_with_record", "report"],
 )
 def test_client_recipe_stays_optional(method: str) -> None:
-    parameter = inspect.signature(getattr(AsterClient, method)).parameters["recipe"]
+    parameter = inspect.signature(getattr(ReefClient, method)).parameters["recipe"]
 
     assert parameter.default is None
 
 
 @pytest.mark.unit
 def test_client_has_no_lifecycle_registration_methods() -> None:
-    client = AsterClient("http://service")
+    client = ReefClient("http://service")
 
     assert not hasattr(client, "start_session")
     assert not hasattr(client, "start_attempt")

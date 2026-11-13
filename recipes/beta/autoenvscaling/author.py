@@ -26,7 +26,7 @@ from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any, ClassVar, Literal
 
-from reef_client.client import AsterClient, AsterClientError
+from reef_client.client import ReefClient, ReefClientError
 from reef_client.serve import RECEIPT_HEADER
 
 from recipes.beta.autoenvscaling.sources import SESSION_BUDGET_CHARS, SessionSource, render_session
@@ -346,7 +346,7 @@ class ModelCalls(harness_backend.ModelCalls):
         logger.debug("AutoEnvScaling agent %s: %s", kind, text)
 
 
-def session_text(aster: AsterClient, source: SessionSource, *, budget_chars: int = SESSION_BUDGET_CHARS) -> str:
+def session_text(aster: ReefClient, source: SessionSource, *, budget_chars: int = SESSION_BUDGET_CHARS) -> str:
     """The source session read back from Aster, rendered within ``budget_chars`` and fenced as data."""
     path = (
         f"/aster/scenarios/{urllib.parse.quote(source.scenario, safe='')}"
@@ -354,7 +354,7 @@ def session_text(aster: AsterClient, source: SessionSource, *, budget_chars: int
     )
     try:
         body = aster.get(path)
-    except AsterClientError as exc:
+    except ReefClientError as exc:
         if exc.status == 404:
             raise SourceError(f"Aster holds no record {source.record_id} in {source.scenario}") from exc
         raise AuthorError(f"the session {source.record_id} could not be read from Aster: {exc}") from exc
@@ -574,7 +574,7 @@ def repository_snapshot(source: SessionSource, cache_dir: Path) -> Path:
     return target
 
 
-def write_inputs(aster: AsterClient, source: SessionSource, work_dir: Path, variant: TaskVariant | None) -> None:
+def write_inputs(aster: ReefClient, source: SessionSource, work_dir: Path, variant: TaskVariant | None) -> None:
     """An agent's inputs for ``source`` under ``work_dir / "inputs"``, and its empty ``workspace/task``.
 
     The inputs are the session read from ``aster``, the repository's address and, with ``variant``, the parent's
@@ -630,7 +630,7 @@ class AgentAuthor(VariantAuthor):
         self.upstream = ModelBinding(
             base_url=aster_url, model=model, api_key=token, api=api, timeout_s=MODEL_CALL_TIMEOUT_SECONDS
         )
-        self.aster = AsterClient(aster_url, token=token, timeout_s=RECORD_READ_TIMEOUT_SECONDS)
+        self.aster = ReefClient(aster_url, token=token, timeout_s=RECORD_READ_TIMEOUT_SECONDS)
         self.scenario = scenario
         self.executor = executor
         self.cache_dir = cache_dir
@@ -828,7 +828,7 @@ class ModelReplies:
         headers = {f"x-aster-tag-{name}": value for name, value in tags.items()}
         try:
             body, record_id = client.inference_with_record(scenario, "/v1/responses", payload, extra_headers=headers)
-        except AsterClientError as exc:
+        except ReefClientError as exc:
             raise DesignerError(f"the designer call was refused ({exc.status}): {exc.body[:300]}") from exc
         except OSError as exc:
             raise DesignerError(f"the designer call did not complete within {client.timeout_s:g} s: {exc}") from exc
@@ -863,7 +863,7 @@ class PromptAuthor(TaskAuthor):
         session_chars: int = PROMPT_SESSION_CHARS,
         has_behaviour_rule: bool = True,
     ) -> None:
-        self.aster = AsterClient(aster_url, token=token, timeout_s=RECORD_READ_TIMEOUT_SECONDS)
+        self.aster = ReefClient(aster_url, token=token, timeout_s=RECORD_READ_TIMEOUT_SECONDS)
         self.replies = ModelReplies(aster_url=aster_url, token=token, api=api)
         self.scenario = scenario
         self.model = model

@@ -20,7 +20,7 @@ from typing import Any
 from harbor.agents.base import BaseAgent
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
-from reef_client import AsterClient
+from reef_client import ReefClient
 
 from .report import post_report
 
@@ -39,7 +39,7 @@ class HarborAgent(BaseAgent):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._client = AsterClient(SERVICE_URL, token=TOKEN, timeout_s=300)
+        self._client = ReefClient(SERVICE_URL, token=TOKEN, timeout_s=300)
         # Harbor runs the verifier after run() returns, so the reward arrives
         # in the trial's result.json. Watch from construction: a run() that
         # fails before recording a receipt still gets its reward reported.

@@ -72,65 +72,65 @@ coordinate serving, evolution, and state. ``aster/service`` also imports
 Concrete integrations may depend on shared contracts; shared contracts never
 import a concrete integration.
 
-+-------------------------+----------------------------------------------------------+--------------------------------------------+
-| Package                 | Owns                                                     | Does not own                               |
-+=========================+==========================================================+============================================+
-| ``aster/core/``          | shared value types, wire shapes, artifact                | storage, I/O, runtime behavior             |
-|                         | identity, root errors                                    |                                            |
-+-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``aster/service/``       | HTTP routes, auth, streaming, process                    | training methods or domain logic           |
-|                         | lifecycle                                                | tied to aiohttp                            |
-+-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``aster/scenario/``      | scenario binding, commit ordering,                       | training algorithms, repository            |
-|                         | recovery, and lifecycle                                  | implementations                            |
-+-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``aster/recipe/``        | the contract a method implements, dotted                 | external cookbook methods                  |
-|                         | resolution, runtime binding, the base harness evolution  |                                            |
-|                         | recipe, and the built-in generated-task recipe           |                                            |
-+-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``aster/train/``         | the trainer, the training job loop, the training         | HTTP endpoints, deployment                 |
-|                         | pipeline, job data types, training components            | configuration parsing                      |
-+-------------------------+----------------------------------------------------------+--------------------------------------------+
++--------------------------+-----------------------------------------------------------+--------------------------------------------+
+| Package                  | Owns                                                      | Does not own                               |
++=========================-+==========================================================-+============================================+
+| ``aster/core/``          | shared value types, wire shapes, artifact                 | storage, I/O, runtime behavior             |
+|                          | identity, root errors                                     |                                            |
++--------------------------+-----------------------------------------------------------+--------------------------------------------+
+| ``aster/service/``       | HTTP routes, auth, streaming, process                     | training methods or domain logic           |
+|                          | lifecycle                                                 | tied to aiohttp                            |
++--------------------------+-----------------------------------------------------------+--------------------------------------------+
+| ``aster/scenario/``      | scenario binding, commit ordering,                        | training algorithms, repository            |
+|                          | recovery, and lifecycle                                   | implementations                            |
++--------------------------+-----------------------------------------------------------+--------------------------------------------+
+| ``aster/recipe/``        | the contract a method implements, dotted                  | external cookbook methods                  |
+|                          | resolution, runtime binding, the base harness evolution   |                                            |
+|                          | recipe, and the built-in generated-task recipe            |                                            |
++--------------------------+-----------------------------------------------------------+--------------------------------------------+
+| ``aster/train/``         | the trainer, the training job loop, the training          | HTTP endpoints, deployment                 |
+|                          | pipeline, job data types, training components             | configuration parsing                      |
++--------------------------+-----------------------------------------------------------+--------------------------------------------+
 | ``aster/record2sample/`` | which records Aster uses, which train together, and their | job data shape, record storage,            |
-|                         | samples (``Record2Sample``, ``ReportSamples``,           | training loops                             |
-|                         | ``JudgedSamples``): report grouping, judging,            |                                            |
-|                         | eligibility checks, the staleness check; the samples     |                                            |
-|                         | service; and the generator service that writes, checks,  |                                            |
-|                         | and runs Harbor tasks                                    |                                            |
-+-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``aster/evaluation/``    | candidate evaluation: running and scoring evaluation     | making candidates, training loops,         |
-|                         | runs, the harness history and its score cache, the       | artifact publication                       |
-|                         | harness publication policies, and the ``evaluation``     |                                            |
-|                         | plugin configuration                                     |                                            |
-+-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``aster/sample2job/``    | shaping the samples of the next job into one job's       | which records train, the training loop,    |
-|                         | data (``Sample2Job``), and the job size                  | step signals                               |
-+-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``aster/inference/``     | inference contracts, serving runtimes and their          | training algorithms and publication        |
-|                         | selection, saved-weight serving, concrete inference      | decisions                                  |
-|                         | backends, native engine control, request adaptation      |                                            |
-+-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``aster/artifact/``      | artifact bytes, repositories, materialization, release   | commit policy, weight loading              |
-|                         | heads, and the components a recipe declares              |                                            |
-|                         | (``components.py``)                                      |                                            |
-+-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``aster/harness/``       | adapters (the parts of each agent's tree and its         | recipe policy, the snapshot chain          |
-|                         | descriptor), the source tree (patches, validation,       |                                            |
-|                         | rendering), task runs, runners, trajectories, and the    |                                            |
-|                         | loopback gateway an agent process reaches its model      |                                            |
-|                         | and tools through                                        |                                            |
-+-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``aster/execution/``     | job scheduling, process ownership, worker executors,     | harness rendering, evaluation, recipe      |
-|                         | isolation, file transfer and environment lifecycle       | policy                                     |
-+-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``recipes/``            | one method per package: the recipe, processor and        | shared machinery, or another method        |
-|                         | objective of a weight method, or the ``Method`` of a     |                                            |
-|                         | harness method, with its runnable examples               |                                            |
-+-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``tests/``              | repository-level tests grouped by responsibility         | tests hidden inside an integration subtree |
-+-------------------------+----------------------------------------------------------+--------------------------------------------+
-| ``docker/``             | container and GPU environment setup                      | Python dependency declarations             |
-+-------------------------+----------------------------------------------------------+--------------------------------------------+
+|                          | samples (``Record2Sample``, ``ReportSamples``,            | training loops                             |
+|                          | ``JudgedSamples``): report grouping, judging,             |                                            |
+|                          | eligibility checks, the staleness check; the samples      |                                            |
+|                          | service; and the generator service that writes, checks,   |                                            |
+|                          | and runs Harbor tasks                                     |                                            |
++--------------------------+-----------------------------------------------------------+--------------------------------------------+
+| ``aster/evaluation/``    | candidate evaluation: running and scoring evaluation      | making candidates, training loops,         |
+|                          | runs, the harness history and its score cache, the        | artifact publication                       |
+|                          | harness publication policies, and the ``evaluation``      |                                            |
+|                          | plugin configuration                                      |                                            |
++--------------------------+-----------------------------------------------------------+--------------------------------------------+
+| ``aster/sample2job/``    | shaping the samples of the next job into one job's        | which records train, the training loop,    |
+|                          | data (``Sample2Job``), and the job size                   | step signals                               |
++--------------------------+-----------------------------------------------------------+--------------------------------------------+
+| ``aster/inference/``     | inference contracts, serving runtimes and their           | training algorithms and publication        |
+|                          | selection, saved-weight serving, concrete inference       | decisions                                  |
+|                          | backends, native engine control, request adaptation       |                                            |
++--------------------------+-----------------------------------------------------------+--------------------------------------------+
+| ``aster/artifact/``      | artifact bytes, repositories, materialization, release    | commit policy, weight loading              |
+|                          | heads, and the components a recipe declares               |                                            |
+|                          | (``components.py``)                                       |                                            |
++--------------------------+-----------------------------------------------------------+--------------------------------------------+
+| ``aster/harness/``       | adapters (the parts of each agent's tree and its          | recipe policy, the snapshot chain          |
+|                          | descriptor), the source tree (patches, validation,        |                                            |
+|                          | rendering), task runs, runners, trajectories, and the     |                                            |
+|                          | loopback gateway an agent process reaches its model       |                                            |
+|                          | and tools through                                         |                                            |
++--------------------------+-----------------------------------------------------------+--------------------------------------------+
+| ``aster/execution/``     | job scheduling, process ownership, worker executors,      | harness rendering, evaluation, recipe      |
+|                          | isolation, file transfer and environment lifecycle        | policy                                     |
++--------------------------+-----------------------------------------------------------+--------------------------------------------+
+| ``recipes/``             | one method per package: the recipe, processor and         | shared machinery, or another method        |
+|                          | objective of a weight method, or the ``Method`` of a      |                                            |
+|                          | harness method, with its runnable examples                |                                            |
++--------------------------+-----------------------------------------------------------+--------------------------------------------+
+| ``tests/``               | repository-level tests grouped by responsibility          | tests hidden inside an integration subtree |
++--------------------------+-----------------------------------------------------------+--------------------------------------------+
+| ``docker/``              | container and GPU environment setup                       | Python dependency declarations             |
++--------------------------+-----------------------------------------------------------+--------------------------------------------+
 
 
 Package import direction

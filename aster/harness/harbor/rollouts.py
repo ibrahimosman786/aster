@@ -32,7 +32,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from reef_client.client import AsterClient, AsterClientError
+from reef_client.client import ReefClient, ReefClientError
 
 from aster.core.evaluation import PolicyHarness, PolicyModel, RolloutRequest, RolloutRunner, RolloutScore
 from aster.core.tasks import HarborTaskError, TaskSplitError, manifest_task_paths, primary_reward, read_harbor_task
@@ -358,7 +358,7 @@ class TaskRolloutRunner(RolloutRunner[TaskRollout]):
         self.capture_observer = capture_observer
         self.work_dir.mkdir(parents=True, exist_ok=True)
         self.lab: TaskLab = lab if lab is not None else AsterEvalLab(self.work_dir / "lab")
-        self.client = AsterClient(self.aster_url, token=token)
+        self.client = ReefClient(self.aster_url, token=token)
 
     @property
     def agent_name(self) -> str:
@@ -546,7 +546,7 @@ class TaskRolloutRunner(RolloutRunner[TaskRollout]):
         # The rollout's last call ends its trajectory; Aster expands it to the rollout's calls (RFC #1054).
         try:
             answer = self.client.report(self.scenario, payload, references=[receipts[-1]])
-        except AsterClientError as exc:
+        except ReefClientError as exc:
             raise TaskRolloutError(
                 f"the report for {task_path.name} was refused ({exc.status}): {exc.body[:300]}"
             ) from exc

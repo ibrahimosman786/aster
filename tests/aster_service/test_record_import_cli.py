@@ -51,6 +51,7 @@ def test_file_import_resumes_after_a_lost_reply_and_partial_upload(tmp_path):
     async def run():
         app = web.Application()
         app.router.add_post("/aster/records/batch", accept)
+        app.router.add_post("/reef/records/batch", accept)
         async with TestServer(app) as server:
             options = {
                 "url": str(server.make_url("")),
@@ -110,6 +111,7 @@ def test_transient_response_retries_the_same_batch_without_advancing_progress(tm
     async def run():
         app = web.Application()
         app.router.add_post("/aster/records/batch", accept)
+        app.router.add_post("/reef/records/batch", accept)
         async with TestServer(app) as server:
             assert (
                 await asyncio.to_thread(

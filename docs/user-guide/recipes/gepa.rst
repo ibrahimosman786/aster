@@ -10,22 +10,22 @@ new candidate is kept only if it does better than its parent on the same
 problems. Aster runs that search over a whole harness tree rather than over a
 single string, so what improves over time is the tree the deployment serves.
 
-+-------------+--------------------------------------------------------------+
-| Evolves     | the text files of the harness tree: rules, skills, commands  |
-+-------------+--------------------------------------------------------------+
-| Signal      | one report per served request, batched into a minibatch      |
-+-------------+--------------------------------------------------------------+
-| Loss family | none (no weight training)                                    |
-+-------------+--------------------------------------------------------------+
-| Package     | ``recipes/gepa/``                                            |
-+-------------+--------------------------------------------------------------+
-| Pipeline    | reported feedback, producing trace items                     |
-+-------------+--------------------------------------------------------------+
++-------------+----------------------------------------------------------------+
+| Evolves     | the text files of the harness tree: rules, skills, commands    |
++-------------+----------------------------------------------------------------+
+| Signal      | one report per served request, batched into a minibatch        |
++-------------+----------------------------------------------------------------+
+| Loss family | none (no weight training)                                      |
++-------------+----------------------------------------------------------------+
+| Package     | ``recipes/gepa/``                                              |
++-------------+----------------------------------------------------------------+
+| Pipeline    | reported feedback, producing trace items                       |
++-------------+----------------------------------------------------------------+
 | Needs       | an Aster process, the ``pi`` binary, and a reflection model.   |
-|             | Aster itself needs no GPU.                                    |
-+-------------+--------------------------------------------------------------+
-| Example     | ``recipes/gepa/examples/aime/``                              |
-+-------------+--------------------------------------------------------------+
+|             | Aster itself needs no GPU.                                     |
++-------------+----------------------------------------------------------------+
+| Example     | ``recipes/gepa/examples/aime/``                                |
++-------------+----------------------------------------------------------------+
 
 What it does
 ------------

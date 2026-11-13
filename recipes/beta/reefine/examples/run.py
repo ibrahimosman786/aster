@@ -45,7 +45,7 @@ import urllib.request
 from pathlib import Path
 from urllib.parse import urlencode
 
-from reef_client import AsterClient, AsterClientError
+from reef_client import ReefClient, ReefClientError
 
 from recipes.beta.reefine.agent import launch_pi, tool_calls
 from aster.execution.sandbox.process import LocalExecutor, ProgramTimeout
@@ -123,7 +123,7 @@ def request_text(demo):
 
 def service_client():
     # The first call loads the model on a local server, minutes beside a model already resident.
-    return AsterClient(SERVICE_URL, token=TOKEN, timeout_s=300.0)
+    return ReefClient(SERVICE_URL, token=TOKEN, timeout_s=300.0)
 
 
 def scenario_headers():
@@ -143,7 +143,7 @@ def catalog_rows(client):
     """The catalog oldest first, as GET /aster/harness/artifacts lists it; empty before the scenario exists."""
     try:
         return client.get("/aster/harness/artifacts", extra_headers=scenario_headers())["artifacts"]
-    except AsterClientError as exc:
+    except ReefClientError as exc:
         if exc.status != 404:
             raise
         return []
@@ -295,7 +295,7 @@ def ask(text):
     payload = {"text": text, "session": SCENARIO, "artifact_id": installed_artifact() or ""}
     try:
         answer, _ = service_client().post("/aster/train", SCENARIO, payload)
-    except AsterClientError as exc:
+    except ReefClientError as exc:
         raise SystemExit(f"the request was not accepted: {exc}") from exc
     say(
         f"accepted: training request {answer['agent_record_id']}; its page is {SERVICE_URL}{answer.get('page_path', '')}"
@@ -321,7 +321,7 @@ def wait_for_step(client, text, before, deadline):
             # A step in flight holds the catalog until it ends; a service that is gone does not answer /healthz.
             try:
                 client.get("/healthz")
-            except (AsterClientError, TimeoutError, OSError):
+            except (ReefClientError, TimeoutError, OSError):
                 raise SystemExit("the service stopped answering; check work/aster.log") from exc
             time.sleep(POLL_S)
             continue

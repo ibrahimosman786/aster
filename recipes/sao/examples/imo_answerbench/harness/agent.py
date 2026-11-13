@@ -19,7 +19,7 @@ import time
 from harbor.agents.base import BaseAgent
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
-from reef_client import AsterClient
+from reef_client import ReefClient
 
 from .report import post_report
 
@@ -52,7 +52,7 @@ class HarborAgent(BaseAgent):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._client = AsterClient(SERVICE_URL, token=TOKEN, timeout_s=1800)  # long IMO generations
+        self._client = ReefClient(SERVICE_URL, token=TOKEN, timeout_s=1800)  # long IMO generations
         # Harbor runs the verifier after run() returns and ends the trial by
         # writing result.json; watch for it from construction, so the verifier
         # reward still reaches Aster when the rollouts themselves failed.

@@ -28,7 +28,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
-from reef_client import AsterClient
+from reef_client import ReefClient
 
 #: The reference checkout the container image clones at its pin.
 DATA_DIR = Path(os.environ.get("SDPO_DATA_DIR", "/opt/sdpo-reference/datasets/sciknoweval/chemistry"))
@@ -88,11 +88,11 @@ def question_schedule(count: int, epochs: int, per_step: int, seed: int) -> list
     return [order[index * per_step : (index + 1) * per_step] for index in range(steps)]
 
 
-def make_client(timeout_s: float = 3600.0) -> AsterClient:
-    return AsterClient(SERVICE_URL, token=TOKEN, timeout_s=timeout_s)
+def make_client(timeout_s: float = 3600.0) -> ReefClient:
+    return ReefClient(SERVICE_URL, token=TOKEN, timeout_s=timeout_s)
 
 
-def sample(client: AsterClient, row: dict[str, Any]) -> tuple[str, str]:
+def sample(client: ReefClient, row: dict[str, Any]) -> tuple[str, str]:
     """One recorded training sample: its text and the receipt a report grades."""
     response, receipt = client.inference_with_record(
         SCENARIO,
@@ -110,7 +110,7 @@ def sample(client: AsterClient, row: dict[str, Any]) -> tuple[str, str]:
 
 
 def sample_grid(
-    client: AsterClient, rows: Sequence[dict[str, Any]], rollouts: int, *, concurrency: int
+    client: ReefClient, rows: Sequence[dict[str, Any]], rollouts: int, *, concurrency: int
 ) -> list[list[tuple[str, str]]]:
     """Every question of a step sampled ``rollouts`` times, as one pool of ``concurrency`` recorded requests.
 
@@ -121,7 +121,7 @@ def sample_grid(
     return [samples[index * rollouts : (index + 1) * rollouts] for index in range(len(rows))]
 
 
-def evaluation_sample(client: AsterClient, row: dict[str, Any]) -> bool:
+def evaluation_sample(client: ReefClient, row: dict[str, Any]) -> bool:
     """One unreported sample of a question at the evaluation decoding, scored.
 
     Aster's chat capture serves one choice per request, so avg@n is n of these.
@@ -141,7 +141,7 @@ def evaluation_sample(client: AsterClient, row: dict[str, Any]) -> bool:
     return is_correct(response["choices"][0]["message"]["content"], row["answer"])
 
 
-def evaluate(client: AsterClient, rows: Sequence[dict[str, Any]], *, n: int, concurrency: int) -> dict[str, Any]:
+def evaluate(client: ReefClient, rows: Sequence[dict[str, Any]], *, n: int, concurrency: int) -> dict[str, Any]:
     """avg@n over the test split: every question sampled ``n`` times, the fraction correct over all samples.
 
     The samples are never reported, so an evaluation never becomes training

@@ -9,7 +9,7 @@ import os
 import time
 import uuid
 
-from reef_client import AsterClient
+from reef_client import ReefClient
 
 
 def main() -> None:
@@ -17,7 +17,7 @@ def main() -> None:
     parser.add_argument("--url", default="http://127.0.0.1:8900")
     parser.add_argument("--timeout", type=float, default=1800)
     args = parser.parse_args()
-    client = AsterClient(args.url, token=os.environ["ASTER_TOKEN"], timeout_s=args.timeout)
+    client = ReefClient(args.url, token=os.environ["ASTER_TOKEN"], timeout_s=args.timeout)
     scenario = f"tinker-smoke-{uuid.uuid4().hex[:8]}"
     # The inference routes serve only a scenario that exists: create it first.
     client.post("/aster/scenarios", scenario, {"name": scenario})

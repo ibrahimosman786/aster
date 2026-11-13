@@ -73,7 +73,7 @@ class _LengthScorer(Scorer):
         return VerificationResult(score, score, True, "valid", "accepted", {"code": code})
 
 
-class _AsterClient:
+class _ReefClient:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self.inferences: list[dict] = []
@@ -186,7 +186,7 @@ def test_one_step_links_only_guidance_receipts_and_skips_executor_on_bad_format(
         groups_per_step=2,
         rollouts_per_group=2,
     )
-    aster = _AsterClient()
+    aster = _ReefClient()
     executor = _ExecutionClient()
     harness = AsterGuidanceTTTHarness(
         aster,
@@ -813,7 +813,7 @@ def test_harbor_agent_runs_one_committed_step_and_submits_the_best_candidate(
 
     monkeypatch.setattr(agent_module, "prepare_seed", lambda config, scorer: SEED)
     agent = object.__new__(agent_module.HarborAgent)
-    agent._client = _AsterClient()
+    agent._client = _ReefClient()
     agent.model_name = "Qwen/Qwen3-8B"
     agent.logger = logging.getLogger("guidance-test")
     environment = _Environment()
@@ -852,7 +852,7 @@ def test_executor_outage_does_not_become_a_zero_reward(tmp_path: Path) -> None:
         def complete(self, request):
             raise ExecutorUnavailableError("HTTP 402")
 
-    client = _AsterClient()
+    client = _ReefClient()
     library = prepare_library(
         seed_path=SEED, run_path=tmp_path / "library.json", groups_per_step=1, rollouts_per_group=2
     )

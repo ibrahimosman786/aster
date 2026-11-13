@@ -1080,20 +1080,20 @@ and ``tutorials/``: the learn-nothing ones use the core ``recipe``
 implementation in ``recipes/basic/``, each weight-training method owns its
 examples, and harness evolution ships as a tutorial.
 
-+-------------------------------------------------------------+----------------------------------------------------------+
-| File                                                        | What it starts                                           |
-+=============================================================+==========================================================+
++-------------------------------------------------------------+-----------------------------------------------------------+
+| File                                                        | What it starts                                            |
++=============================================================+==========================================================-+
 | ``recipes/basic/external-provider.yaml``                    | no GPU, no local model: one Aster process proxying an     |
-|                                                             | HTTP provider                                            |
-+-------------------------------------------------------------+----------------------------------------------------------+
+|                                                             | HTTP provider                                             |
++-------------------------------------------------------------+-----------------------------------------------------------+
 | ``recipes/basic/local-sglang.yaml``                         | local inference: an SGLang server plus Aster, no training |
-+-------------------------------------------------------------+----------------------------------------------------------+
++-------------------------------------------------------------+-----------------------------------------------------------+
 | ``recipes/<method>/examples/<example>/serve.yaml``          | weight training: an inference component and Aster, which  |
-|                                                             | trains with Slime                                        |
-+-------------------------------------------------------------+----------------------------------------------------------+
+|                                                             | trains with Slime                                         |
++-------------------------------------------------------------+-----------------------------------------------------------+
 | ``tutorials/evolve-your-harness/configs/serve.yaml``        | harness evolution: one Aster process, no GPU; ``run.sh``  |
-|                                                             | materializes its recipe preset and starts the stack      |
-+-------------------------------------------------------------+----------------------------------------------------------+
+|                                                             | materializes its recipe preset and starts the stack       |
++-------------------------------------------------------------+-----------------------------------------------------------+
 
 Each weight-training example ships its stack as ``serve.yaml``.
 ``recipes/sao/examples/imo_answerbench/serve.yaml`` is the smallest, two GPUs for one

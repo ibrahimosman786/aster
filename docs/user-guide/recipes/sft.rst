@@ -7,20 +7,20 @@ tokens. Use SFT to train on demonstrations that a harness reports. You can
 also use it to train on a dataset that you import. SFT ships with
 ``aster-infra`` as ``aster.recipe.sft:SFTRecipe``.
 
-+-------------+------------------------------------------------------------+
-| Evolves     | model weights                                              |
-+-------------+------------------------------------------------------------+
-| Signal      | one report for each recorded request; the target is the    |
-|             | report's ``teacher_context`` or the recorded response      |
-+-------------+------------------------------------------------------------+
-| Loss family | ``sft`` (Slime's ``sft_loss``, Tinker's ``cross_entropy``) |
-+-------------+------------------------------------------------------------+
++-------------+-------------------------------------------------------------+
+| Evolves     | model weights                                               |
++-------------+-------------------------------------------------------------+
+| Signal      | one report for each recorded request; the target is the     |
+|             | report's ``teacher_context`` or the recorded response       |
++-------------+-------------------------------------------------------------+
+| Loss family | ``sft`` (Slime's ``sft_loss``, Tinker's ``cross_entropy``)  |
++-------------+-------------------------------------------------------------+
 | Package     | ``aster/recipe/sft/``                                       |
-+-------------+------------------------------------------------------------+
-| Pipeline    | reported feedback, singleton                               |
-+-------------+------------------------------------------------------------+
-| Needs       | GPUs and the Slime training backend                        |
-+-------------+------------------------------------------------------------+
++-------------+-------------------------------------------------------------+
+| Pipeline    | reported feedback, singleton                                |
++-------------+-------------------------------------------------------------+
+| Needs       | GPUs and the Slime training backend                         |
++-------------+-------------------------------------------------------------+
 
 What it does
 ------------

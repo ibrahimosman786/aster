@@ -355,11 +355,11 @@ def max_sequence(records: RecordStore, scenario: str) -> int:
 
 def report(service: RunService, client: Any, payload: dict[str, Any]) -> None:
     """Report one scored problem; a replayed round lands on its 409."""
-    from reef_client import AsterClientError
+    from reef_client import ReefClientError
 
     try:
         client.report(service.scenario, dict(payload))
-    except AsterClientError as exc:
+    except ReefClientError as exc:
         if exc.status != 409:
             raise
 
@@ -512,7 +512,7 @@ def main() -> None:
         print(json.dumps(plan, indent=2, sort_keys=True))
         return
 
-    from reef_client import AsterClient
+    from reef_client import ReefClient
 
     key = provider_key()
     WORK.mkdir(parents=True, exist_ok=True)
@@ -529,7 +529,7 @@ def main() -> None:
         )
         try:
             service.start()
-            client = AsterClient(service.base_url, timeout_s=STEP_TIMEOUT_S)
+            client = ReefClient(service.base_url, timeout_s=STEP_TIMEOUT_S)
             search(service, client, binary, trainset, tasks, args.budget, args.seed)
             scores = test_passes(service, recipe, client, binary, testset)
             final = committed_archive(service, tasks, HarnessTree.read(WORK / "selected"), args.seed)

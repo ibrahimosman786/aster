@@ -52,7 +52,7 @@ Check artifacts before an upgrade
 The command checks that each scenario's commit history resolves to stored
 files. It prints each problem, and it exits with status 1 when it finds one and
 0 when it finds none. See the `upgrade steps
-<../user-guide/operate.rst#upgrade-from-a-aster-that-wrote-older-formats>`__.
+<../user-guide/operate.rst#upgrade-from-an-aster-that-wrote-older-formats>`__.
 
 Selecting the model
 -------------------

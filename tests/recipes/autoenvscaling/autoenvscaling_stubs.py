@@ -205,7 +205,11 @@ def serving_aster(reply: str) -> tuple[ThreadingHTTPServer, list[dict[str, Any]]
                 if self.path == "/v1/responses"
                 else {"choices": [{"message": {"role": "assistant", "content": reply}}]}
             )
-            self.answer(json.dumps(answer).encode(), {"x-aster-agent-record-id": f"rec-{len(calls)}"})
+            receipt = f"rec-{len(calls)}"
+            self.answer(
+                json.dumps(answer).encode(),
+                {"x-aster-agent-record-id": receipt, "x-reef-agent-record-id": receipt},
+            )
 
         def answer(self, data: bytes, headers: Mapping[str, str]) -> None:
             self.send_response(200)

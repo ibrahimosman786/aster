@@ -18,7 +18,7 @@ from collections.abc import Iterator
 
 import pytest
 from aiohttp import web
-from reef_client import AsterClient
+from reef_client import ReefClient
 from reef_client.harness import SYNC_LOG, HarnessInstall, HarnessSyncError, commands_root, connect
 
 from tests.aster_service.test_harness_channel import HEADERS, PATCHES, channel_dispatcher, evaluated_step
@@ -188,14 +188,14 @@ def test_a_person_connects_and_each_run_syncs_with_reef_client(tmp_path, monkeyp
         assert install.record["agent"] == str(bin_dir / "pi")
         agents = install_dir / "plugin" / "rules.md"
         provider = json.loads((install_dir / "pi-agent" / "models.json").read_text())["providers"]["aster"]
-        assert provider["baseUrl"] == f"{url}/aster/scenarios/delivery/v1" and provider["apiKey"] == "aster"
+        assert provider["baseUrl"] == f"{url}/aster/scenarios/delivery/v1" and provider["apiKey"] == "reef"
         # The person types pi as before. It runs with the layer's arguments and the person's own, and the run sends
         # the skill the session wrote.
         environment = {**os.environ, "PATH": f"{commands_root()}{os.pathsep}{os.environ['PATH']}"}
         shown = subprocess.run(["pi", "--resume"], capture_output=True, text=True, env=environment)
         assert shown.returncode == 3, shown.stderr
         assert shown.stdout.strip() == "--model aster/qwen3-8b --resume"
-        assert "sending plugin/skills/learned/SKILL.md to Aster in the background" in shown.stderr
+        assert "sending plugin/skills/learned/SKILL.md to Reef in the background" in shown.stderr
         # The send runs from a process of its own after the session, and reports to the log the next run prints.
         log = install_dir / SYNC_LOG
         deadline = time.monotonic() + 10
@@ -215,7 +215,7 @@ def test_a_person_connects_and_each_run_syncs_with_reef_client(tmp_path, monkeyp
         other = install_dir / "plugin" / "skills" / "other" / "SKILL.md"
         other.parent.mkdir()
         other.write_text(SKILL.replace("name: fix", "name: other"))
-        client = AsterClient(url)
+        client = ReefClient(url)
         _, headers = client.post("/v1/chat/completions", "delivery", {"messages": [{"role": "user", "content": "hi"}]})
         client.report("delivery", {"score": 0.0}, references=[headers["x-aster-agent-record-id"]])
         deadline = time.monotonic() + 10
